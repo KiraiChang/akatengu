@@ -1,13 +1,12 @@
 package services
 
 import (
-	"akatengu/internal/model/db/projection"
+	"akatengu/internal/model/db"
 	"akatengu/internal/model/enums"
 	"akatengu/internal/model/enums/event_types"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/repos"
-	"akatengu/internal/repos/query"
 	"context"
 	"fmt"
 
@@ -33,12 +32,12 @@ type InvestmentService interface {
 // ─────────────────────────────────────────
 
 type investmentService struct {
-	repo     query.InvestmentRepo
+	repo     repos.InvestmentRepository
 	eventSvc EventStoreService
 }
 
 func NewInvestmentService(
-	repo query.InvestmentRepo,
+	repo repos.InvestmentRepository,
 	eventSvc EventStoreService,
 ) InvestmentService {
 	return &investmentService{repo: repo, eventSvc: eventSvc}
@@ -86,7 +85,7 @@ func (s *investmentService) Buy(ctx context.Context, buyCmd cmd.BuyCmd) error {
 	})
 }
 
-func (s *investmentService) buyEntries(inv *projection.Investment, cmd cmd.BuyCmd, totalCostTWD decimal.Decimal) []payload.TransactionEntryPayload {
+func (s *investmentService) buyEntries(inv *db.Investment, cmd cmd.BuyCmd, totalCostTWD decimal.Decimal) []payload.TransactionEntryPayload {
 	entries := []payload.TransactionEntryPayload{
 		// 資產增加
 		{AccountId: inv.AccountId, Debit: cmd.Quantity.Mul(cmd.UnitPrice).Mul(cmd.ExchangeRate), Credit: decimal.Zero},
@@ -110,7 +109,7 @@ func (s *investmentService) buyEntries(inv *projection.Investment, cmd cmd.BuyCm
 func (s *investmentService) updateAvgLot(
 	ctx context.Context,
 	tx repos.InvestmentTxRepository,
-	inv *projection.Investment,
+	inv *db.Investment,
 	cmd cmd.BuyCmd,
 	unitPriceTWD decimal.Decimal,
 	txnID int64,
@@ -127,7 +126,7 @@ func (s *investmentService) updateAvgLot(
 	newCost := oldCost.Add(cmd.Quantity.Mul(unitPriceTWD))
 	newAvg := newCost.Div(newQty)
 
-	return tx.UpsertAvgLot(ctx, cmd.InvestmentId, projection.InvestmentLot{
+	return tx.UpsertAvgLot(ctx, cmd.InvestmentId, db.InvestmentLot{
 		InvestmentId:  cmd.InvestmentId,
 		AcquiredDate:  cmd.Date,
 		TransactionId: txnID,
@@ -142,12 +141,12 @@ func (s *investmentService) updateAvgLot(
 func (s *investmentService) insertFIFOLot(
 	ctx context.Context,
 	tx repos.InvestmentTxRepository,
-	inv *projection.Investment,
+	inv *db.Investment,
 	cmd cmd.BuyCmd,
 	unitPriceTWD decimal.Decimal,
 	txnID int64,
 ) error {
-	_, err := tx.InsertLot(ctx, projection.InvestmentLot{
+	_, err := tx.InsertLot(ctx, db.InvestmentLot{
 		InvestmentId:  cmd.InvestmentId,
 		AcquiredDate:  cmd.Date,
 		TransactionId: txnID,
@@ -209,7 +208,7 @@ func (s *investmentService) Sell(ctx context.Context, sellCmd cmd.SellCmd) error
 		}
 
 		// 寫入異動明細
-		_, err := tx.InsertMovement(ctx, projection.InvestmentMovement{
+		_, err := tx.InsertMovement(ctx, db.InvestmentMovement{
 			InvestmentId:    sellCmd.InvestmentId,
 			TransactionId:   event.EventId,
 			MovementType:    enums.MovementTypeSell,
@@ -228,7 +227,7 @@ func (s *investmentService) Sell(ctx context.Context, sellCmd cmd.SellCmd) error
 }
 
 func (s *investmentService) sellEntries(
-	inv *projection.Investment,
+	inv *db.Investment,
 	cmd cmd.SellCmd,
 	costBasisTWD, netProceedsTWD, realizedGain decimal.Decimal,
 ) []payload.TransactionEntryPayload {
@@ -265,7 +264,7 @@ type lotUpdate struct {
 
 func (s *investmentService) calcCostBasis(
 	ctx context.Context,
-	inv *projection.Investment,
+	inv *db.Investment,
 	qty decimal.Decimal,
 ) (costBasisTWD decimal.Decimal, updates []lotUpdate, err error) {
 	switch inv.CostMethod.String() {
@@ -379,7 +378,7 @@ func (s *investmentService) ReceiveDividend(ctx context.Context, dividendCmd cmd
 	}
 
 	return s.repo.WithTx(ctx, func(tx repos.InvestmentTxRepository) error {
-		_, err := tx.InsertMovement(ctx, projection.InvestmentMovement{
+		_, err := tx.InsertMovement(ctx, db.InvestmentMovement{
 			InvestmentId:  dividendCmd.InvestmentId,
 			TransactionId: event.EventId,
 			MovementType:  enums.MovementTypeDividend,
@@ -455,7 +454,7 @@ func (s *investmentService) BuyFx(ctx context.Context, fxBuy cmd.FxBuyCmd) error
 	}
 
 	return s.repo.WithTx(ctx, func(tx repos.InvestmentTxRepository) error {
-		_, err := tx.InsertMovement(ctx, projection.InvestmentMovement{
+		_, err := tx.InsertMovement(ctx, db.InvestmentMovement{
 			InvestmentId:  fxBuy.InvestmentId,
 			TransactionId: event.EventId,
 			MovementType:  enums.MovementTypeBuy,
@@ -512,7 +511,7 @@ func (s *investmentService) SellFx(ctx context.Context, fxSell cmd.FxSellCmd) er
 				return err
 			}
 		}
-		_, err := tx.InsertMovement(ctx, projection.InvestmentMovement{
+		_, err := tx.InsertMovement(ctx, db.InvestmentMovement{
 			InvestmentId:    fxSell.InvestmentId,
 			TransactionId:   event.EventId,
 			MovementType:    enums.MovementTypeSell,
@@ -530,7 +529,7 @@ func (s *investmentService) SellFx(ctx context.Context, fxSell cmd.FxSellCmd) er
 }
 
 func (s *investmentService) fxSellEntries(
-	inv *projection.Investment,
+	inv *db.Investment,
 	fxSell cmd.FxSellCmd,
 	costBasisTWD, netTWD, fxGain decimal.Decimal,
 ) []payload.TransactionEntryPayload {

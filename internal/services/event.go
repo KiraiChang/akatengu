@@ -8,6 +8,7 @@ import (
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/calculator"
 	"akatengu/internal/services/projection"
+	"akatengu/internal/services/validator"
 	"akatengu/internal/services/validator/payload"
 	"context"
 	"encoding/json"
@@ -24,7 +25,7 @@ type AggregateState struct {
 type EventStoreService struct {
 	uow         event_store.UnitOfWork
 	query       *query.Repo
-	validator   payload.Validator
+	validator   validator.Validator
 	calculator  calculator.EventCalculator
 	projections []projection.Projection
 }
@@ -47,7 +48,7 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
 
-	if err := es.validator.Validate(cmd.EventType, payload); err != nil {
+	if err := es.validator.Validate(ctx, cmd.EventType, payload); err != nil {
 		return nil, err // 直接回傳，不進 uow
 	}
 

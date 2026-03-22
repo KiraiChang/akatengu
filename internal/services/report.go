@@ -2,16 +2,16 @@ package services
 
 import (
 	"akatengu/internal/model/db/report"
-	"akatengu/internal/repos/query"
+	"akatengu/internal/repos"
 	"context"
 	"fmt"
 )
 
 type ReportService struct {
-	repo *query.ReportRepo
+	repo *repos.ReportRepo
 }
 
-func NewReportService(repo *query.ReportRepo) *ReportService {
+func NewReportService(repo *repos.ReportRepo) *ReportService {
 	return &ReportService{repo: repo}
 }
 

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"akatengu/internal/model/enums"
+	"akatengu/internal/repos"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services"
@@ -35,7 +36,8 @@ func NewMux(db *sqlx.DB, logger *zap.Logger) *http.ServeMux {
 	eventService := services.NewEventStoreService(uow, queryRepo, projections)
 	event := NewEventHandler(eventService, logger)
 
-	reportService := services.NewReportService(&queryRepo.Report)
+	reportRepo := repos.NewReportRepo(db)
+	reportService := services.NewReportService(reportRepo)
 	report := NewReportHandler(reportService, logger)
 
 	mux := http.NewServeMux()

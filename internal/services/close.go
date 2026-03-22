@@ -8,7 +8,7 @@ import (
 	"akatengu/internal/model/enums/event_types"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
-	"akatengu/internal/repos/query"
+	"akatengu/internal/repos"
 	"strconv"
 
 	"context"
@@ -47,14 +47,14 @@ type ClosingService interface {
 
 type closingService struct {
 	db        *sqlx.DB
-	closing   query.ClosingRepo
+	closing   repos.ClosingRepository
 	reportSvc ReportService
 	eventSvc  EventStoreService
 }
 
 func NewClosingService(
 	db *sqlx.DB,
-	closing query.ClosingRepo,
+	closing repos.ClosingRepository,
 	reportSvc ReportService,
 	eventSvc EventStoreService,
 ) ClosingService {
@@ -101,7 +101,7 @@ func (s *closingService) CloseMonth(ctx context.Context, year int, month time.Mo
 
 	now := time.Now().Format(time.RFC3339)
 	// db 操作全部在 WithTx 裡，service 看不到 sqlx
-	err = s.closing.WithTx(ctx, func(tx query.ClosingTxRepository) error {
+	err = s.closing.WithTx(ctx, func(tx repos.ClosingTxRepository) error {
 		var closingID int64
 
 		if existing == nil {
@@ -183,7 +183,7 @@ func (s *closingService) CloseYear(ctx context.Context, year int) (*db.PeriodClo
 
 	// 7. 寫入年結紀錄
 	now := time.Now().Format(time.RFC3339)
-	err = s.closing.WithTx(ctx, func(tx query.ClosingTxRepository) error {
+	err = s.closing.WithTx(ctx, func(tx repos.ClosingTxRepository) error {
 		var closingID int64
 
 		if existing == nil {
@@ -221,7 +221,7 @@ func (s *closingService) CloseYear(ctx context.Context, year int) (*db.PeriodClo
 // ─────────────────────────────────────────
 
 func (s *closingService) Reopen(ctx context.Context, closingID int64, reason string) error {
-	return s.closing.WithTx(ctx, func(tx query.ClosingTxRepository) error {
+	return s.closing.WithTx(ctx, func(tx repos.ClosingTxRepository) error {
 		return tx.UpdateStatus(ctx, closingID, enums.ClosingStatusReopened, nil)
 	})
 }
@@ -308,7 +308,7 @@ func (s *closingService) ReopenYear(ctx context.Context, closingID int64, reason
 	}
 
 	// 4. 更新年結狀態為 reopened
-	return s.closing.WithTx(ctx, func(tx query.ClosingTxRepository) error {
+	return s.closing.WithTx(ctx, func(tx repos.ClosingTxRepository) error {
 		return tx.UpdateStatus(ctx, closingID, enums.ClosingStatusReopened, nil)
 	})
 }
