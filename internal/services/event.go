@@ -68,14 +68,10 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 	err = es.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
 
 		// 版本控制
-		current, err := tx.Version.Get(ctx, cmd.AggregateType, cmd.AggregateID)
+		newVersion, err := tx.Version.UpdateIfVersionMatch(ctx, cmd.AggregateType, cmd.AggregateID, cmd.ExpectedVersion)
 		if err != nil {
-			return fmt.Errorf("get version: %w", err)
+			return fmt.Errorf("update version: %d fail, error: %w", cmd.ExpectedVersion, err)
 		}
-		if cmd.ExpectedVersion != current {
-			return fmt.Errorf("version conflict: assert %d, current %d", cmd.ExpectedVersion, current)
-		}
-		newVersion := current + 1
 
 		// 寫入事件
 		eventID, err := tx.Event.Insert(ctx, event_store.InsertEventParams{
@@ -87,11 +83,6 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 		})
 		if err != nil {
 			return fmt.Errorf("insert event: %w", err)
-		}
-
-		// 更新版本
-		if err := tx.Version.Upsert(ctx, cmd.AggregateType, cmd.AggregateID, newVersion); err != nil {
-			return fmt.Errorf("upsert version: %w", err)
 		}
 
 		event = db.EventStore{

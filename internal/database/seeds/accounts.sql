@@ -3,6 +3,11 @@ INSERT INTO projection_checkpoints (projection_name, last_event_id) VALUES
                                                                         ('TRANSACTIONS',    0)
 ON CONFLICT (projection_name) DO NOTHING;
 
+INSERT INTO aggregate_versions (aggregate_type, aggregate_id, current_version) VALUES
+                                                                                    ('ACCOUNT', '', 0),
+                                                                                    ('TRANSACTION', '', 0)
+ON CONFLICT (aggregate_type, aggregate_id) DO NOTHING;
+
 INSERT INTO accounts
 (account_id, parent_id, name, type, normal_balance, is_summary, version)
 VALUES

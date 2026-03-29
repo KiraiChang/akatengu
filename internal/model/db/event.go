@@ -22,7 +22,7 @@ type EventStore struct {
 type AggregateVersion struct {
 	AggregateType    enums.AggregateType `db:"aggregate_type"`
 	AggregateId      string              `db:"aggregate_id"`
-	AggregateVersion int64               `db:"aggregate_version"`
+	AggregateVersion int64               `db:"current_version"`
 }
 
 type Snapshot struct {

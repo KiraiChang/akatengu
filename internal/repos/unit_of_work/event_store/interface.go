@@ -41,6 +41,7 @@ type EventRepository interface {
 type VersionRepository interface {
 	Get(ctx context.Context, aggregateType enums.AggregateType, aggregateID string) (int64, error)
 	Upsert(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, version int64) error
+	UpdateIfVersionMatch(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, version int64) (int64, error)
 }
 
 type SnapshotRepository interface {

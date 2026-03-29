@@ -1,9 +1,11 @@
 package event_store
 
 import (
+	"akatengu/internal/model/db"
 	"akatengu/internal/model/enums"
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -33,4 +35,21 @@ func (r *sqlxTxVersionRepository) Upsert(ctx context.Context, aggregateType enum
 		aggregateType, aggregateID, version,
 	)
 	return err
+}
+
+func (r *sqlxTxVersionRepository) UpdateIfVersionMatch(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, version int64) (int64, error) {
+	var result db.AggregateVersion
+	err := r.tx.GetContext(ctx, &result, `
+        UPDATE aggregate_versions 
+        	SET current_version = current_version +1 
+        WHERE aggregate_type = ?
+        	AND aggregate_id = ?
+        	AND current_version = ?
+        RETURNING *`,
+		aggregateType, aggregateID, version,
+	)
+	if err == sql.ErrNoRows {
+		return 0, fmt.Errorf("version %d not found in aggregate %s", version, aggregateType)
+	}
+	return result.AggregateVersion, nil
 }
