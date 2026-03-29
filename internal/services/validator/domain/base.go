@@ -10,29 +10,41 @@ import (
 
 type domainValidator struct {
 	query *query.Repo
-	rules map[string]validateFn
+	rules map[string]domainValidateFn
 }
 
-type validateFn func(ctx context.Context, payload json.RawMessage) error
+type domainValidateFn func(ctx context.Context, payload json.RawMessage) error
 
-func (v *domainValidator) Validate(ctx context.Context, eventType event_types.EventType, payload json.RawMessage) error {
-	fn, ok := v.rules[eventType.String()]
+func NewValidator(query *query.Repo) validator.Validator {
+	v := &domainValidator{
+		query: query,
+		rules: map[string]domainValidateFn{},
+	}
+	v.register()
+	return v
+}
+
+func (d *domainValidator) Validate(ctx context.Context, eventType event_types.EventType, payload json.RawMessage) error {
+	fn, ok := d.rules[eventType.String()]
 	if !ok {
 		return nil
 	}
 	return fn(ctx, payload)
 }
 
-func NewValidator(query *query.Repo) validator.Validator {
-	domain := &domainValidator{
-		query: query,
-	}
+func (d *domainValidator) register() {
+	// ─────────────────────────────────────────
+	// transaction
+	// ─────────────────────────────────────────
+	d.rules[event_types.EventTransactionCreated.String()] = d.validateEventTransactionCreated
 
-	domain.register()
+	// ─────────────────────────────────────────
+	// period close
+	// ─────────────────────────────────────────
 
-	return domain
-}
+	// month closed.*
+	d.rules[event_types.EventPeriodMonthClosed.String()] = d.validateEventPeriodMonthClosed
 
-func (v *domainValidator) register() {
-	v.rules[event_types.EventPeriodClosed.String()] = v.validatePeriodClosed
+	// annul close.*
+	d.rules[event_types.EventPeriodAnnualClosed.String()] = d.validateEventPeriodAnnualClosed
 }

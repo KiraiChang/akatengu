@@ -12,7 +12,7 @@ import (
 func validateTransactionCreated(raw json.RawMessage) error {
 	var p payload.TransactionCreatedPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("malformed eventValidator: %w", err)
+		return fmt.Errorf("malformed payloadValidator: %w", err)
 	}
 
 	var errs []string
@@ -53,7 +53,7 @@ func validateTransactionCreated(raw json.RawMessage) error {
 func validateTransactionCorrected(raw json.RawMessage) error {
 	var p payload.TransactionCorrectedPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("malformed eventValidator: %w", err)
+		return fmt.Errorf("malformed payloadValidator: %w", err)
 	}
 
 	var errs []string
@@ -75,7 +75,7 @@ func validateTransactionCorrected(raw json.RawMessage) error {
 func validateTransactionVoided(raw json.RawMessage) error {
 	var p payload.TransactionVoidedPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("malformed eventValidator: %w", err)
+		return fmt.Errorf("malformed payloadValidator: %w", err)
 	}
 
 	var errs []string

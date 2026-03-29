@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS event_store (
                              event_type        TEXT    NOT NULL,
                              payload           TEXT    NOT NULL,
                              metadata          TEXT,
-                             CONSTRAINT chk_aggregate_type CHECK (aggregate_type IN ('ACCOUNT', 'TRANSACTION', 'INSTALLMENT', 'RECONCILIATION', 'INVESTMENT', 'CLOSE')),
+                             CONSTRAINT chk_aggregate_type CHECK (aggregate_type IN ('ACCOUNT', 'TRANSACTION')),
                              UNIQUE(aggregate_type, aggregate_id, aggregate_version)
 );
 
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS aggregate_versions (
                                     aggregate_type  TEXT    NOT NULL,
                                     aggregate_id    TEXT    NOT NULL,
                                     current_version INTEGER NOT NULL DEFAULT 0,
-                                    CONSTRAINT chk_aggregate_type CHECK (aggregate_type IN ('ACCOUNT', 'TRANSACTION', 'INSTALLMENT', 'RECONCILIATION', 'INVESTMENT', 'CLOSE')),
+                                    CONSTRAINT chk_aggregate_type CHECK (aggregate_type IN ('ACCOUNT', 'TRANSACTION')),
                                     PRIMARY KEY (aggregate_type, aggregate_id)
 );
 
@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS transactions (
                                    receipt_no      TEXT,
                                    note            TEXT,
                                    version         INTEGER NOT NULL,
-                                   CONSTRAINT chk_status CHECK (status IN ('ACTIVE', 'CORRECTED', 'VOIDED'))
+                                   ref_txn_id      INTEGER,
+                                   CONSTRAINT chk_status CHECK (status IN ('ACTIVE', 'CORRECTED', 'VOIDED', 'VOID_REF'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_txn_date   ON transactions(txn_date);
@@ -182,6 +183,8 @@ CREATE TABLE IF NOT EXISTS period_closings (
                                             snapshot        TEXT,
                                             closed_at       TEXT,
                                             note            TEXT,
+                                            reopen_at       TEXT,
+                                            reopen_reason   TEXT,
                                             CONSTRAINT chk_period_type CHECK (period_type IN ('MONTHLY', 'ANNUAL')),
                                             CONSTRAINT chk_status CHECK (status IN ('OPEN', 'CLOSED', 'REOPENED')),
                                             CONSTRAINT chk_period_dates CHECK (period_start <= period_end),

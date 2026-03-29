@@ -1,4 +1,4 @@
-package db
+package projection
 
 import (
 	"akatengu/internal/model/enums"
@@ -7,16 +7,18 @@ import (
 )
 
 type PeriodClosing struct {
-	ClosingId    int64               `db:"closing_id"`
-	PeriodType   enums.PeriodType    `db:"period_type"`
-	PeriodStart  string              `db:"period_start"`
-	PeriodEnd    string              `db:"period_end"`
-	Status       enums.ClosingStatus `db:"status"`
-	OpeningTxnID *int64              `db:"opening_txn_id"`
-	ClosingTxnID *int64              `db:"closing_txn_id"`
-	Snapshot     *string             `db:"snapshot"`
-	ClosedAt     *string             `db:"closed_at"`
-	Note         *string             `db:"note"`
+	ClosingId    int64                  `db:"closing_id"`
+	PeriodType   enums.PeriodType       `db:"period_type"`
+	PeriodStart  string                 `db:"period_start"`
+	PeriodEnd    string                 `db:"period_end"`
+	Status       enums.PeriodTypeStatus `db:"status"`
+	OpeningTxnID *int64                 `db:"opening_txn_id"`
+	ClosingTxnID *int64                 `db:"closing_txn_id"`
+	Snapshot     *string                `db:"snapshot"`
+	ClosedAt     *string                `db:"closed_at"`
+	Note         *string                `db:"note"`
+	ReopenAt     *string                `db:"reopen_at"`
+	ReopenReason *string                `db:"reopen_reason"`
 }
 
 // SnapshotData 是存入 snapshot 欄位的 JSON 結構

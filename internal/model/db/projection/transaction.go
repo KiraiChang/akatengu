@@ -27,4 +27,5 @@ type Transaction struct {
 	ReceiptNo       *string                 `db:"receipt_no"`
 	Note            *string                 `db:"note"`
 	Version         int64                   `db:"version"`
+	RefTxnId        *int64                  `db:"ref_txn_id"`
 }

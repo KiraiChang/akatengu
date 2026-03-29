@@ -2,9 +2,9 @@ package event_store
 
 import (
 	"akatengu/internal/model/db"
-	"akatengu/internal/model/db/projection"
 	"akatengu/internal/model/enums"
 	"akatengu/internal/model/enums/event_types"
+	"akatengu/internal/repos/unit_of_work/event_store/projection_repo"
 	"context"
 	"encoding/json"
 )
@@ -30,7 +30,7 @@ type EventStoreRepositories struct {
 	Version    VersionRepository
 	Snap       SnapshotRepository
 	Check      CheckpointRepository
-	Projection ProjectionRepository
+	Projection *projection_repo.TxProjectionRepository
 }
 
 // EventRepository 是 transaction 內的操作，不需要傳 tx，由 UnitOfWork 管理
@@ -49,37 +49,4 @@ type SnapshotRepository interface {
 
 type CheckpointRepository interface {
 	Update(ctx context.Context, projectionName string, lastEventID int64) error
-}
-
-// ProjectionRepository 是 projection 表的寫入操作
-type ProjectionRepository interface {
-	// transaction
-	UpsertTransaction(ctx context.Context, p projection.Transaction) error
-	UpsertJournalEntries(ctx context.Context, entries []projection.Entry) error
-
-	//// installment
-	//UpsertInstallment(ctx context.Context, p ProjInstallment) error
-	//UpsertInstallmentPayment(ctx context.Context, p ProjInstallmentPayment) error
-	//
-	//// reconciliation
-	//UpsertReconciliation(ctx context.Context, p ProjReconciliation) error
-	//UpsertReconciliationAdjustment(ctx context.Context, p ProjReconciliationAdjustment) error
-
-	// account
-	CreateAccount(ctx context.Context, p projection.Account) error
-	UpdateAccount(ctx context.Context, p projection.Account) error
-	CreateLedgerAccount(ctx context.Context, p projection.LedgerAccount) error
-	UpdateLedgerAccount(ctx context.Context, p projection.LedgerAccount) error
-
-	//// 重建用
-	//TruncateAll(ctx context.Context) error
-	//TruncateByAggregate(ctx context.Context, aggregateType enums.AggregateType) error
-
-	// investment
-	CreateInvestment(ctx context.Context, p projection.Investment) error
-	UpdateInvestment(ctx context.Context, p projection.Investment) error
-
-	InsertClose(ctx context.Context, c db.PeriodClosing) error
-	UpdateCloseStatus(ctx context.Context, closingID int64, status enums.ClosingStatus, closedAt *string) error
-	UpdateCloseSnapshotByPeriod(ctx context.Context, periodType enums.PeriodType, periodStart string, snapshot string) error
 }

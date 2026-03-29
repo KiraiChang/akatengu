@@ -19,24 +19,33 @@ type AccountProjectionService struct{}
 
 func (s *AccountProjectionService) Name() string { return enums.AggregateAccount.String() }
 
-func (s *AccountProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, event *db.EventStore, prevResult Result) (Result, error) {
+func (s *AccountProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, event *db.EventStore) error {
 	switch event.EventType.String() {
+	// Account
 	case event_types.EventAccountCreated.String():
-		return s.applyAccountCreate(ctx, tx, event, prevResult)
+		return s.applyAccountCreate(ctx, tx, event)
+
+	// Ledger
 	case event_types.EventLedgerAccountCreated.String():
-		return s.applyLedgerCreate(ctx, tx, event, prevResult)
+		return s.applyLedgerCreate(ctx, tx, event)
+
+	// Investment
+	case event_types.EventInvestmentCreate.String():
+		return s.applyCreated(ctx, tx, event)
+	case event_types.EventInvestmentUpdate.String():
+		return s.applyUpdate(ctx, tx, event)
 	}
-	return prevResult, nil
+	return nil
 }
 
-func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx event_store.EventStoreRepositories, event *db.EventStore, result Result) (Result, error) {
+func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx event_store.EventStoreRepositories, event *db.EventStore) error {
 	var p payload.AccountCreatePayload
 	if err := json.Unmarshal(event.Payload, &p); err != nil {
-		return result, err
+		return err
 	}
 
 	// 業務邏輯：組裝 proj model
-	if err := tx.Projection.CreateAccount(ctx, projection.Account{
+	if err := tx.Projection.AccountRepo.CreateAccount(ctx, projection.Account{
 		AccountId:     p.AccountId,
 		ParentId:      p.ParentId,
 		Name:          p.Name,
@@ -47,19 +56,19 @@ func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx ev
 		IsActive:      p.IsActive,
 		Note:          p.Note,
 	}); err != nil {
-		return result, err
+		return err
 	}
 
-	return result, nil
+	return nil
 }
 
-func (s *AccountProjectionService) applyLedgerCreate(ctx context.Context, tx event_store.EventStoreRepositories, event *db.EventStore, result Result) (Result, error) {
+func (s *AccountProjectionService) applyLedgerCreate(ctx context.Context, tx event_store.EventStoreRepositories, event *db.EventStore) error {
 	var p payload.LedgerAccountCreatePayload
 	if err := json.Unmarshal(event.Payload, &p); err != nil {
-		return result, err
+		return err
 	}
 
-	if err := tx.Projection.CreateLedgerAccount(ctx, projection.LedgerAccount{
+	if err := tx.Projection.AccountRepo.CreateLedgerAccount(ctx, projection.LedgerAccount{
 		AccountId:   p.AccountId,
 		Institution: p.Institution,
 		Name:        p.Name,
@@ -71,8 +80,53 @@ func (s *AccountProjectionService) applyLedgerCreate(ctx context.Context, tx eve
 		IsActive:    p.IsActive,
 		Note:        p.Note,
 	}); err != nil {
-		return result, err
+		return err
 	}
 
-	return result, nil
+	return nil
+}
+
+func (s *AccountProjectionService) applyCreated(ctx context.Context, tx event_store.EventStoreRepositories, event *db.EventStore) error {
+	var p payload.InvestmentCreatedPayload
+	if err := json.Unmarshal(event.Payload, &p); err != nil {
+		return err
+	}
+
+	// 業務邏輯：組裝 proj model
+	if err := tx.Projection.InvestmentRepo.CreateInvestment(ctx, projection.Investment{
+		AccountId:  p.AccountId,
+		AssetType:  p.AssetType,
+		Currency:   coalesce(p.Currency, "TWD"),
+		Symbol:     p.Symbol,
+		Name:       p.Name,
+		CostMethod: p.CostMethod,
+		IsActive:   p.IsActive,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *AccountProjectionService) applyUpdate(ctx context.Context, tx event_store.EventStoreRepositories, event *db.EventStore) error {
+	var p payload.InvestmentUpdatedPayload
+	if err := json.Unmarshal(event.Payload, &p); err != nil {
+		return err
+	}
+
+	// 業務邏輯：組裝 proj model
+	if err := tx.Projection.InvestmentRepo.UpdateInvestment(ctx, projection.Investment{
+		InvestmentId: p.InvestmentId,
+		AccountId:    p.AccountId,
+		AssetType:    p.AssetType,
+		Currency:     coalesce(p.Currency, "TWD"),
+		Symbol:       p.Symbol,
+		Name:         p.Name,
+		CostMethod:   p.CostMethod,
+		IsActive:     p.IsActive,
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -31,7 +31,7 @@ func NewMux(db *sqlx.DB, logger *zap.Logger) *http.ServeMux {
 		&projection.TransactionProjectionService{},
 		&projection.AccountProjectionService{},
 		&projection.InvestmentProjectionService{},
-		&projection.ClosingProjectionService{},
+		&projection.PeriodProjectionService{},
 	}
 	eventService := services.NewEventStoreService(uow, queryRepo, projections)
 	event := NewEventHandler(eventService, logger)

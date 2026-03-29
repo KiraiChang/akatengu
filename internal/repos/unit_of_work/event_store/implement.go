@@ -6,7 +6,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"akatengu/internal/repos/unit_of_work/event_store/projection"
+	"akatengu/internal/repos/unit_of_work/event_store/projection_repo"
 )
 
 type sqlxUnitOfWork struct {
@@ -30,7 +30,7 @@ func (u *sqlxUnitOfWork) Do(ctx context.Context, fn func(EventStoreRepositories)
 		Version:    &sqlxTxVersionRepository{tx: tx},
 		Snap:       &sqlxTxSnapshotRepository{tx: tx},
 		Check:      &sqlxTxCheckpointRepository{tx: tx},
-		Projection: projection.NewSqlxTxProjectionRepository(tx),
+		Projection: projection_repo.NewTxProjectionRepository(tx),
 	}
 
 	if err := fn(repos); err != nil {

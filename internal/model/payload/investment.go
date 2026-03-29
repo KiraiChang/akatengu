@@ -30,7 +30,7 @@ type InvestmentBoughtPayload struct {
 	ExchangeRate decimal.Decimal `json:"exchange_rate"`
 	Fee          decimal.Decimal `json:"fee"`
 	Tax          decimal.Decimal `json:"tax"`
-	LedgerId     int64           `json:"ledger_id"`
+	LedgerId     int64           `json:"ledger_id"` // 由哪個帳戶扣款
 	// 計算結果，由 service 填入後存進 payload
 	UnitPriceTWD decimal.Decimal `json:"unit_price_twd"`
 	TotalCostTWD decimal.Decimal `json:"total_cost_twd"`
@@ -44,7 +44,7 @@ type InvestmentSoldPayload struct {
 	ExchangeRate    decimal.Decimal `json:"exchange_rate"`
 	Fee             decimal.Decimal `json:"fee"`
 	Tax             decimal.Decimal `json:"tax"`
-	LedgerId        int64           `json:"ledger_id"`
+	LedgerId        int64           `json:"ledger_id"`      // 入到哪個帳戶
 	CostBasisTWD    decimal.Decimal `json:"cost_basis_twd"` // 由 service 計算後填入
 	RealizedGainTWD decimal.Decimal `json:"realized_gain_twd"`
 	LotUpdates      []LotUpdate     `json:"lot_updates"` // FIFO 批次更新明細
@@ -62,7 +62,7 @@ type DividendReceivedPayload struct {
 	Amount         decimal.Decimal `json:"amount"`
 	ExchangeRate   decimal.Decimal `json:"exchange_rate"`
 	WithholdingTax decimal.Decimal `json:"withholding_tax"`
-	LedgerId       int64           `json:"ledger_id"`
+	LedgerId       int64           `json:"ledger_id"` // 入到哪個帳戶
 	AmountTWD      decimal.Decimal `json:"amount_twd"`
 }
 
@@ -87,7 +87,7 @@ type FxBoughtPayload struct {
 	Amount       decimal.Decimal `json:"amount"`
 	ExchangeRate decimal.Decimal `json:"exchange_rate"`
 	Fee          decimal.Decimal `json:"fee"`
-	LedgerID     int64           `json:"ledger_id"`
+	LedgerID     int64           `json:"ledger_id"` // 由哪個帳戶扣款
 	AmountTWD    decimal.Decimal `json:"amount_twd"`
 }
 
@@ -97,7 +97,7 @@ type FxSoldPayload struct {
 	Amount       decimal.Decimal `json:"amount"`
 	ExchangeRate decimal.Decimal `json:"exchange_rate"`
 	Fee          decimal.Decimal `json:"fee"`
-	LedgerId     int64           `json:"ledger_id"`
+	LedgerId     int64           `json:"ledger_id"` // 入哪個帳戶
 	CostBasisTWD decimal.Decimal `json:"cost_basis_twd"`
 	FxGainTWD    decimal.Decimal `json:"fx_gain_twd"`
 	LotUpdates   []LotUpdate     `json:"lot_updates"`

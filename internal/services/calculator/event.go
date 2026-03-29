@@ -2,36 +2,50 @@ package calculator
 
 import (
 	"akatengu/internal/model/enums/event_types"
+	"akatengu/internal/repos/query"
+	"context"
 	"encoding/json"
 )
 
 type EventCalculator interface {
-	Calculate(eventType event_types.EventType, payload json.RawMessage) (json.RawMessage, error)
+	Calculate(ctx context.Context, eventType event_types.EventType, payload json.RawMessage) (json.RawMessage, error)
 }
 
 type eventCalculator struct {
+	query *query.Repo
 	rules map[string]calculatorFn
 }
 
-type calculatorFn func(payload json.RawMessage) (json.RawMessage, error)
+type calculatorFn func(ctx context.Context, payload json.RawMessage) (json.RawMessage, error)
 
-func NewCalculator() EventCalculator {
-	v := &eventCalculator{
+func NewCalculator(query *query.Repo) EventCalculator {
+	c := &eventCalculator{
+		query: query,
 		rules: map[string]calculatorFn{},
 	}
-	v.register()
-	return v
+	c.register()
+	return c
 }
 
-func (v *eventCalculator) Calculate(eventType event_types.EventType, payload json.RawMessage) (json.RawMessage, error) {
-	fn, ok := v.rules[eventType.String()]
+func (e *eventCalculator) Calculate(ctx context.Context, eventType event_types.EventType, payload json.RawMessage) (json.RawMessage, error) {
+	fn, ok := e.rules[eventType.String()]
 	if !ok {
 		// 沒有 key 代表不用做計算
 		return payload, nil
 	}
-	return fn(payload)
+	return fn(ctx, payload)
 }
 
-func (v *eventCalculator) register() {
-	//v.rules[event_types.EventPeriodClosed] =
+func (e *eventCalculator) register() {
+
+	// ─────────────────────────────────────────
+	// period close
+	// ─────────────────────────────────────────
+
+	// month close.*
+	e.rules[event_types.EventPeriodMonthClosed.String()] = e.calEventPeriodMonthClosed
+
+	// annul close.*
+	e.rules[event_types.EventPeriodAnnualClosed.String()] = e.calEventPeriodAnnualClosed
+	e.rules[event_types.EventPeriodAnnualReopened.String()] = e.calEventPeriodAnnualReopened
 }

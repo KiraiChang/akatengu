@@ -7,7 +7,8 @@ type Repo struct {
 	Event      EventRepo
 	Investment InvestmentRepo
 	Report     ReportRepo
-	Closing    ClosingRepo
+	Period     PeriodRepo
+	Entry      EntryRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -15,6 +16,7 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		Event:      NewEventRepo(db),
 		Investment: NewInvestmentRepo(db),
 		Report:     NewReportRepo(db),
-		Closing:    NewClosingRepo(db),
+		Period:     NewPeriodRepo(db),
+		Entry:      NewEntryRepo(db),
 	}
 }

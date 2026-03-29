@@ -19,9 +19,9 @@ WITH balances AS (
         a.type,
         a.normal_balance,
         COALESCE(SUM(je.debit) - SUM(je.credit), 0) AS raw_balance
-    FROM proj_accounts a
-    LEFT JOIN proj_journal_entries je ON a.account_id  = je.account_id
-    LEFT JOIN proj_transactions t     ON je.txn_id     = t.txn_id
+    FROM accounts a
+    LEFT JOIN journal_entries je ON a.account_id  = je.account_id
+    LEFT JOIN transactions t     ON je.txn_id     = t.txn_id
         AND t.status   = 'ACTIVE'
         AND t.txn_date <= :report_date   -- 只算到指定日期
     WHERE a.is_summary = 0               -- 只看明細科目，匯總科目用加總
@@ -65,9 +65,9 @@ WITH period_balances AS (
         a.type,
         a.normal_balance,
         COALESCE(SUM(je.debit) - SUM(je.credit), 0) AS raw_balance
-    FROM proj_accounts a
-    LEFT JOIN proj_journal_entries je ON a.account_id = je.account_id
-    LEFT JOIN proj_transactions t     ON je.txn_id    = t.txn_id
+    FROM accounts a
+    LEFT JOIN journal_entries je ON a.account_id = je.account_id
+    LEFT JOIN transactions t     ON je.txn_id    = t.txn_id
         AND t.status   = 'ACTIVE'
         AND t.txn_date BETWEEN :start_date AND :end_date  -- 只算期間內
     WHERE a.is_summary = 0

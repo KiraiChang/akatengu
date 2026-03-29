@@ -9,6 +9,7 @@ import (
 	"akatengu/internal/services/calculator"
 	"akatengu/internal/services/projection"
 	"akatengu/internal/services/validator"
+	"akatengu/internal/services/validator/domain"
 	"akatengu/internal/services/validator/payload"
 	"context"
 	"encoding/json"
@@ -23,20 +24,22 @@ type AggregateState struct {
 }
 
 type EventStoreService struct {
-	uow         event_store.UnitOfWork
-	query       *query.Repo
-	validator   validator.Validator
-	calculator  calculator.EventCalculator
-	projections []projection.Projection
+	uow              event_store.UnitOfWork
+	query            *query.Repo
+	payloadValidator validator.Validator
+	domainValidator  validator.Validator
+	calculator       calculator.EventCalculator
+	projections      []projection.Projection
 }
 
 func NewEventStoreService(uow event_store.UnitOfWork, query *query.Repo, projections []projection.Projection) *EventStoreService {
 	return &EventStoreService{
-		uow:         uow,
-		query:       query,
-		projections: projections,
-		validator:   payload.NewValidator(),
-		calculator:  calculator.NewCalculator(),
+		uow:              uow,
+		query:            query,
+		projections:      projections,
+		payloadValidator: payload.NewValidator(),
+		domainValidator:  domain.NewValidator(query),
+		calculator:       calculator.NewCalculator(query),
 	}
 }
 
@@ -48,11 +51,15 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 		return nil, fmt.Errorf("marshal payload: %w", err)
 	}
 
-	if err := es.validator.Validate(ctx, cmd.EventType, payload); err != nil {
+	if err := es.payloadValidator.Validate(ctx, cmd.EventType, payload); err != nil {
 		return nil, err // 直接回傳，不進 uow
 	}
 
-	payload, err = es.calculator.Calculate(cmd.EventType, payload)
+	if err := es.domainValidator.Validate(ctx, cmd.EventType, payload); err != nil {
+		return nil, err // 直接回傳，不進 uow
+	}
+
+	payload, err = es.calculator.Calculate(ctx, cmd.EventType, payload)
 	if err != nil {
 		return nil, fmt.Errorf("calculate payload: %w", err)
 	}
@@ -98,13 +105,10 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 		}
 
 		// 同步更新 projection
-		var prevResult = projection.NewResult()
 		for _, proj := range es.projections {
-			result, err := proj.Apply(ctx, tx, &event, prevResult)
-			if err != nil {
+			if err := proj.Apply(ctx, tx, &event); err != nil {
 				return fmt.Errorf("apply projection %s: %w", proj.Name(), err)
 			}
-			prevResult = result
 		}
 
 		// snapshot 決策

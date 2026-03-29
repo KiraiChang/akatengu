@@ -73,18 +73,21 @@ const (
 	transactionStatusActive    transactionStatusVal = "ACTIVE"
 	transactionStatusCorrected transactionStatusVal = "CORRECTED"
 	transactionStatusVoided    transactionStatusVal = "VOIDED"
+	transactionStatusVoidRef   transactionStatusVal = "VOID_REF"
 )
 
 var validTransactionStatuses = []transactionStatusVal{
 	transactionStatusActive,
 	transactionStatusCorrected,
 	transactionStatusVoided,
+	transactionStatusVoidRef,
 }
 
 var (
 	TransactionStatusActive    = enumx.Must(string(transactionStatusActive), validTransactionStatuses)
 	TransactionStatusCorrected = enumx.Must(string(transactionStatusCorrected), validTransactionStatuses)
 	TransactionStatusVoided    = enumx.Must(string(transactionStatusVoided), validTransactionStatuses)
+	TransactionStatusVoidRef   = enumx.Must(string(transactionStatusVoidRef), validTransactionStatuses)
 )
 
 func ParseTransactionStatus(s string) (TransactionStatus, error) {

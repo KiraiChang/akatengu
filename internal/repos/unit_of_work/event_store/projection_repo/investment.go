@@ -1,11 +1,21 @@
-package projection
+package projection_repo
 
 import (
 	"akatengu/internal/model/db/projection"
 	"context"
+
+	"github.com/jmoiron/sqlx"
 )
 
-func (r *sqlxTxProjectionRepository) CreateInvestment(ctx context.Context, p projection.Investment) error {
+type sqlxInvestmentRepo struct {
+	tx *sqlx.Tx
+}
+
+func NewInvestmentRepo(tx *sqlx.Tx) InvestmentRepo {
+	return &sqlxInvestmentRepo{tx: tx}
+}
+
+func (r *sqlxInvestmentRepo) CreateInvestment(ctx context.Context, p projection.Investment) error {
 	_, err := r.tx.NamedExecContext(ctx, `
             INSERT INTO investments
                 (account_id, asset_type, currency, symbol, name, cost_method, is_active, version)
@@ -15,7 +25,7 @@ func (r *sqlxTxProjectionRepository) CreateInvestment(ctx context.Context, p pro
 	return err
 }
 
-func (r *sqlxTxProjectionRepository) UpdateInvestment(ctx context.Context, p projection.Investment) error {
+func (r *sqlxInvestmentRepo) UpdateInvestment(ctx context.Context, p projection.Investment) error {
 	_, err := r.tx.NamedExecContext(ctx, `
             UPDATE investments
                 SET account_id = :account_id, 

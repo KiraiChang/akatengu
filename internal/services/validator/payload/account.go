@@ -9,7 +9,7 @@ import (
 func validateAccountCreate(raw json.RawMessage) error {
 	var p payload.AccountCreatePayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("malformed eventValidator: %w", err)
+		return fmt.Errorf("malformed payloadValidator: %w", err)
 	}
 
 	var errs []string
@@ -28,7 +28,7 @@ func validateAccountCreate(raw json.RawMessage) error {
 func validateAccountUpdated(raw json.RawMessage) error {
 	var p payload.AccountUpdatePayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("malformed eventValidator: %w", err)
+		return fmt.Errorf("malformed payloadValidator: %w", err)
 	}
 
 	var errs []string
@@ -51,7 +51,7 @@ func validateAccountUpdated(raw json.RawMessage) error {
 func validateLedgerAccountCreate(raw json.RawMessage) error {
 	var p payload.LedgerAccountCreatePayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("malformed eventValidator: %w", err)
+		return fmt.Errorf("malformed payloadValidator: %w", err)
 	}
 
 	var errs []string
@@ -78,7 +78,7 @@ func validateLedgerAccountCreate(raw json.RawMessage) error {
 func validateLedgerAccountUpdated(raw json.RawMessage) error {
 	var p payload.LedgerAccountUpdatePayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("malformed eventValidator: %w", err)
+		return fmt.Errorf("malformed payloadValidator: %w", err)
 	}
 
 	var errs []string

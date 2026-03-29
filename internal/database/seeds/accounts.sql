@@ -1,10 +1,6 @@
 INSERT INTO projection_checkpoints (projection_name, last_event_id) VALUES
                                                                         ('ACCOUNTS',        0),
-                                                                        ('TRANSACTIONS',    0),
-                                                                        ('INSTALLMENTS',    0),
-                                                                        ('RECONCILIATIONS', 0),
-                                                                        ('INVESTMENT',      0),
-                                                                        ('CLOSE',           0)
+                                                                        ('TRANSACTIONS',    0)
 ON CONFLICT (projection_name) DO NOTHING;
 
 INSERT INTO accounts

@@ -27,14 +27,14 @@ type TransactionEntryPayload struct {
 //	  ]
 //	}
 type TransactionCreatedPayload struct {
-	TransactionDate string          `json:"transaction_date"`
-	Description     string          `json:"description"`
-	TotalAmount     decimal.Decimal `json:"total_amount"`
-	Currency        string          `json:"currency"`
-	ReceiptNo       *string         `json:"receipt_no"`
-	Note            *string         `json:"note"`
-
-	Entries []TransactionEntryPayload `json:"entries"`
+	TransactionDate string                    `json:"transaction_date"`
+	Description     string                    `json:"description"`
+	TotalAmount     decimal.Decimal           `json:"total_amount"`
+	Currency        string                    `json:"currency"`
+	ReceiptNo       *string                   `json:"receipt_no"`
+	Note            *string                   `json:"note"`
+	RefTxnId        *int64                    `json:"ref_txn_id"`
+	Entries         []TransactionEntryPayload `json:"entries"`
 }
 
 // TransactionCorrectedPayload 範例

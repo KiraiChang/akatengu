@@ -4,7 +4,7 @@ import "github.com/shopspring/decimal"
 
 type BalanceSheetRow struct {
 	Type      string          `db:"type"`
-	AccountID string          `db:"account_id"`
+	AccountId string          `db:"account_id"`
 	Name      string          `db:"name"`
 	Balance   decimal.Decimal `db:"balance"`
 }
