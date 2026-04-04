@@ -202,7 +202,7 @@ CREATE TABLE IF NOT EXISTS investments (
     currency        TEXT    NOT NULL,
     symbol          TEXT    NOT NULL,
     name            TEXT    NOT NULL,
-    cost_method     TEXT    NOT NULL DEFAULT 'AVG',
+    cost_method     TEXT    NOT NULL DEFAULT 'FIFO',
     is_active       INTEGER NOT NULL DEFAULT 1,
     version         INTEGER NOT NULL,
 
@@ -216,11 +216,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_investments_symbol ON investments(symbol, 
 CREATE TABLE IF NOT EXISTS investment_lots (
     lot_id          INTEGER PRIMARY KEY AUTOINCREMENT,
     investment_id   INTEGER NOT NULL REFERENCES investments(investment_id),
+    movement_id     INTEGER NOT NULL,
     acquired_date   TEXT    NOT NULL,
-    txn_id          INTEGER NOT NULL,
+    txn_id          INTEGER,
     quantity        REAL    NOT NULL,
     unit_cost       REAL    NOT NULL,
-    unit_cost_twd   REAL    NOT NULL,
+    total_cost      REAL    NOT NULL,
     remaining_qty   REAL    NOT NULL,
     status          TEXT    NOT NULL DEFAULT 'OPEN',
 
@@ -234,7 +235,8 @@ CREATE INDEX IF NOT EXISTS idx_lots_investment_status ON investment_lots(investm
 CREATE TABLE IF NOT EXISTS investment_movements (
     movement_id         INTEGER PRIMARY KEY AUTOINCREMENT,
     investment_id       INTEGER NOT NULL REFERENCES investments(investment_id),
-    txn_id              INTEGER NOT NULL,
+    event_id            INTEGER NOT NULL,
+    txn_id              INTEGER,
     movement_type       TEXT    NOT NULL,
     movement_date       TEXT    NOT NULL,
     quantity            REAL    NOT NULL,
@@ -246,11 +248,72 @@ CREATE TABLE IF NOT EXISTS investment_movements (
     realized_gain_twd   REAL,
     cost_basis_twd      REAL,
 
+    UNIQUE(investment_id, event_id)
     CONSTRAINT chk_movement_type CHECK (movement_type IN ('BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'CONVERT'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_movements_investment ON investment_movements(investment_id, movement_date);
 CREATE INDEX IF NOT EXISTS idx_movements_txn ON investment_movements(txn_id);
+
+CREATE TABLE IF NOT EXISTS investment_positions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    investment_id   INTEGER NOT NULL REFERENCES investments(investment_id),
+    total_quantity  REAL NOT NULL,
+    total_cost      REAL NOT NULL,
+    avg_cost        REAL GENERATED ALWAYS AS (
+        CASE
+            WHEN total_quantity = 0 THEN 0
+            ELSE total_cost / total_quantity
+            END
+        ),
+    UNIQUE(investment_id)
+);
+
+CREATE TABLE IF NOT EXISTS investment_lot_disposals (
+    id                  INTEGER PRIMARY KEY,
+    lot_id              INTEGER REFERENCES investment_lots(id),
+    movement_id         INTEGER REFERENCES investment_movements(id),
+    quantity            REAL NOT NULL,
+    cost_basis          REAL NOT NULL,
+    sale_proceeds       REAL NOT NULL,
+    capital_gain        REAL NOT NULL,
+    holding_period_days INTEGER,
+    disposal_date       DATE NOT NULL
+);
+
+CREATE INDEX idx_disposals_lot ON investment_lot_disposals(lot_id);
+
+CREATE TRIGGER IF NOT EXISTS check_oversold
+BEFORE INSERT ON investment_lot_disposals
+FOR EACH ROW
+BEGIN
+SELECT
+    CASE
+        WHEN (
+            COALESCE((
+                    SELECT SUM(quantity_sold)
+                    FROM investment_lot_disposals
+                    WHERE lot_id = NEW.lot_id
+                    ), 0)
+                    + NEW.quantity
+                ) >
+             (
+                 SELECT original_quantity
+                 FROM investment_lots
+                 WHERE id = NEW.lot_id
+             )
+            THEN RAISE(ABORT, '賣出數量超過持有數量')
+        END;
+END;
+
+CREATE TRIGGER apply_disposal
+    AFTER INSERT ON investment_lot_disposals
+    FOR EACH ROW
+BEGIN
+    UPDATE investment_lots
+    SET remaining_qty = remaining_qty - NEW.quantity
+    WHERE id = NEW.lot_id;
+END;
 
 CREATE TABLE IF NOT EXISTS exchange_rates (
     rate_id     INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,6 +1,6 @@
 INSERT INTO projection_checkpoints (projection_name, last_event_id) VALUES
-                                                                        ('ACCOUNTS',        0),
-                                                                        ('TRANSACTIONS',    0)
+                                                                        ('ACCOUNT',        0),
+                                                                        ('TRANSACTION',    0)
 ON CONFLICT (projection_name) DO NOTHING;
 
 INSERT INTO aggregate_versions (aggregate_type, aggregate_id, current_version) VALUES

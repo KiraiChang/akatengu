@@ -6,11 +6,9 @@ import (
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
-	"akatengu/internal/services/calculator"
+	"akatengu/internal/services/pipelines"
+	"akatengu/internal/services/pipelines/factory"
 	"akatengu/internal/services/projection"
-	"akatengu/internal/services/validator"
-	"akatengu/internal/services/validator/domain"
-	"akatengu/internal/services/validator/payload"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -24,47 +22,29 @@ type AggregateState struct {
 }
 
 type EventStoreService struct {
-	uow              event_store.UnitOfWork
-	query            *query.Repo
-	payloadValidator validator.Validator
-	domainValidator  validator.Validator
-	calculator       calculator.EventCalculator
-	projections      []projection.Projection
+	uow         event_store.UnitOfWork
+	query       *query.Repo
+	factory     pipelines.PipelineRegistry
+	projections []projection.Projection
 }
 
-func NewEventStoreService(uow event_store.UnitOfWork, query *query.Repo, projections []projection.Projection) *EventStoreService {
+func NewEventStoreService(uow event_store.UnitOfWork, query *query.Repo) *EventStoreService {
 	return &EventStoreService{
-		uow:              uow,
-		query:            query,
-		projections:      projections,
-		payloadValidator: payload.NewValidator(),
-		domainValidator:  domain.NewValidator(query),
-		calculator:       calculator.NewCalculator(query),
+		uow:         uow,
+		query:       query,
+		projections: projection.NewProjection(),
+		factory:     factory.NewPipelineRegistry(query),
 	}
 }
 
 // Append 寫入一個事件，同步更新所有 projection
 // 整個流程在同一個 transaction 內完成
 func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db.EventStore, error) {
-	payload, err := json.Marshal(cmd.Payload)
+	ct, err := es.factory.Dispatch(ctx, cmd)
 	if err != nil {
-		return nil, fmt.Errorf("marshal payload: %w", err)
+		return nil, err
 	}
 
-	if err := es.payloadValidator.Validate(ctx, cmd.EventType, payload); err != nil {
-		return nil, err // 直接回傳，不進 uow
-	}
-
-	if err := es.domainValidator.Validate(ctx, cmd.EventType, payload); err != nil {
-		return nil, err // 直接回傳，不進 uow
-	}
-
-	payload, err = es.calculator.Calculate(ctx, cmd.EventType, payload)
-	if err != nil {
-		return nil, fmt.Errorf("calculate payload: %w", err)
-	}
-
-	var event db.EventStore
 	err = es.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
 
 		// 版本控制
@@ -79,32 +59,32 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 			AggregateID:      cmd.AggregateID,
 			AggregateVersion: newVersion,
 			EventType:        cmd.EventType,
-			Payload:          payload,
+			Payload:          cmd.Payload,
 		})
 		if err != nil {
 			return fmt.Errorf("insert event: %w", err)
 		}
 
-		event = db.EventStore{
+		ct.Event = db.EventStore{
 			EventId:          eventID,
 			AggregateType:    cmd.AggregateType,
 			AggregateId:      cmd.AggregateID,
 			AggregateVersion: newVersion,
 			EventType:        cmd.EventType,
-			Payload:          payload,
+			Payload:          cmd.Payload,
 			OccurredAt:       time.Now(),
 		}
 
 		// 同步更新 projection
 		for _, proj := range es.projections {
-			if err := proj.Apply(ctx, tx, &event); err != nil {
+			if err := proj.Apply(ctx, tx, cmd.EventType, ct); err != nil {
 				return fmt.Errorf("apply projection %s: %w", proj.Name(), err)
 			}
 		}
 
 		// snapshot 決策
 		if newVersion%50 == 0 {
-			state, _ := json.Marshal(event)
+			state, _ := json.Marshal(ct.Event)
 			if err := tx.Snap.Upsert(ctx, db.Snapshot{
 				AggregateType: cmd.AggregateType,
 				AggregateId:   cmd.AggregateID,
@@ -121,7 +101,7 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 	if err != nil {
 		return nil, err
 	}
-	return &event, nil
+	return &ct.Event, nil
 }
 
 // Replay 從指定 event_id 之後重播事件（用於重建 projection）

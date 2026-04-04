@@ -6,7 +6,6 @@ import (
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services"
-	"akatengu/internal/services/projection"
 	"net/http"
 
 	"github.com/jmoiron/sqlx"
@@ -27,13 +26,7 @@ func NewMux(db *sqlx.DB, logger *zap.Logger) *http.ServeMux {
 
 	uow := event_store.NewUnitOfWork(db)
 	queryRepo := query.NewQueryRepository(db)
-	projections := []projection.Projection{
-		&projection.TransactionProjectionService{},
-		&projection.AccountProjectionService{},
-		&projection.InvestmentProjectionService{},
-		&projection.PeriodProjectionService{},
-	}
-	eventService := services.NewEventStoreService(uow, queryRepo, projections)
+	eventService := services.NewEventStoreService(uow, queryRepo)
 	event := NewEventHandler(eventService, logger)
 
 	reportRepo := repos.NewReportRepo(db)

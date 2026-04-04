@@ -37,9 +37,6 @@ type InvestmentTxRepository interface {
 	InsertLot(ctx context.Context, lot projection.InvestmentLot) (int64, error)
 	UpdateLot(ctx context.Context, lotID int64, remainingQty decimal.Decimal, status enums.LotStatus) error
 	InsertMovement(ctx context.Context, m projection.InvestmentMovement) (int64, error)
-
-	// 平均成本法：更新既有批次的加權平均成本
-	UpsertAvgLot(ctx context.Context, investmentID int64, lot projection.InvestmentLot) error
 }
 
 // ─────────────────────────────────────────
@@ -149,10 +146,10 @@ func (r *sqlxInvestmentTxRepository) InsertLot(ctx context.Context, lot projecti
 	result, err := r.tx.ExecContext(ctx, `
 		INSERT INTO investment_lots
 			(investment_id, acquired_date, txn_id,
-			 quantity, unit_cost, unit_cost_twd, remaining_qty, status)
+			 quantity, unit_cost, total_cost, remaining_qty, status)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		lot.InvestmentId, lot.AcquiredDate, lot.TransactionId,
-		lot.Quantity, lot.UnitCost, lot.UnitCostTWD, lot.RemainingQty, lot.Status,
+		lot.Quantity, lot.UnitCost, lot.TotalCost, lot.RemainingQty, lot.Status,
 	)
 	if err != nil {
 		return 0, err
@@ -185,18 +182,4 @@ func (r *sqlxInvestmentTxRepository) InsertMovement(ctx context.Context, m proje
 		return 0, err
 	}
 	return result.LastInsertId()
-}
-
-// UpsertAvgLot 平均成本法：只保留一筆批次，每次買入重新計算加權平均
-func (r *sqlxInvestmentTxRepository) UpsertAvgLot(ctx context.Context, investmentID int64, lot projection.InvestmentLot) error {
-	_, err := r.tx.ExecContext(ctx, `
-		INSERT INTO investment_lots
-			(investment_id, acquired_date, txn_id,
-			 quantity, unit_cost, unit_cost_twd, remaining_qty, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT DO NOTHING`,
-		investmentID, lot.AcquiredDate, lot.TransactionId,
-		lot.Quantity, lot.UnitCost, lot.UnitCostTWD, lot.RemainingQty, enums.LotStatusOpen,
-	)
-	return err
 }

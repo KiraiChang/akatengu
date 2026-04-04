@@ -124,3 +124,27 @@ var (
 )
 
 func ParseLotStatus(s string) (LotStatus, error) { return enumx.New(s, lotStatuses) }
+
+// ─────────────────────────────────────────
+// RateSource
+// ─────────────────────────────────────────
+
+type RateSource = enumx.EnumVal[rateSourceVal]
+type rateSourceVal string
+
+const (
+	rateSourceManual rateSourceVal = "MANUAL"
+	rateSourceImport rateSourceVal = "IMPORT"
+)
+
+var validRateSources = []rateSourceVal{
+	rateSourceManual,
+	rateSourceImport,
+}
+
+var (
+	RateSourceManual = enumx.Must(string(rateSourceManual), validRateSources)
+	RateSourceImport = enumx.Must(string(rateSourceImport), validRateSources)
+)
+
+func ParseRateSource(s string) (RateSource, error) { return enumx.New(s, validRateSources) }

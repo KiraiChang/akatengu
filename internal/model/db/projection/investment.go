@@ -23,20 +23,42 @@ type Investment struct {
 type InvestmentLot struct {
 	LotId         int64           `db:"lot_id"`
 	InvestmentId  int64           `db:"investment_id"`
+	MovementId    int64           `db:"movement_id"`
 	AcquiredDate  string          `db:"acquired_date"`
-	TransactionId int64           `db:"txn_id"`
+	TransactionId *int64          `db:"txn_id"`
 	Quantity      decimal.Decimal `db:"quantity"`
 	UnitCost      decimal.Decimal `db:"unit_cost"`
-	UnitCostTWD   decimal.Decimal `db:"unit_cost_twd"`
+	TotalCost     decimal.Decimal `db:"total_cost"`
 	RemainingQty  decimal.Decimal `db:"remaining_qty"`
 	Status        enums.LotStatus `db:"status"`
+}
+
+type InvestmentLotDisposals struct {
+	Id                int64           `db:"id"`
+	LotId             int64           `db:"lot_id"`
+	MovementId        int64           `db:"movement_id"`
+	Quantity          decimal.Decimal `db:"quantity_sold"`
+	CostBasis         decimal.Decimal `db:"cost_basis"`
+	SaleProceeds      decimal.Decimal `db:"sale_proceeds"`
+	CapitalGain       decimal.Decimal `db:"capital_gain"`
+	HoldingPeriodDays int             `db:"holding_period_days"`
+	DisposalDate      string          `db:"disposal_date"`
+}
+
+type InvestmentPosition struct {
+	Id            int64           `db:"id"`
+	InvestmentId  int64           `db:"investment_id"`
+	TotalQuantity decimal.Decimal `db:"total_quantity"`
+	TotalCost     decimal.Decimal `db:"total_cost"`
+	AvgCost       decimal.Decimal `db:"avg_cost"`
 }
 
 // InvestmentMovement 投資異動表
 type InvestmentMovement struct {
 	MovementId      int64              `db:"movement_id"`
 	InvestmentId    int64              `db:"investment_id"`
-	TransactionId   int64              `db:"txn_id"`
+	EventId         int64              `db:"event_id"`
+	TransactionId   *int64             `db:"txn_id"`
 	MovementType    enums.MovementType `db:"movement_type"`
 	MovementDate    string             `db:"movement_date"`
 	Quantity        decimal.Decimal    `db:"quantity"`
@@ -63,9 +85,9 @@ type InvestmentSummary struct {
 }
 
 type ExchangeRate struct {
-	RateId   int64   `db:"rate_id"`
-	Currency string  `db:"currency"`
-	RateDate string  `db:"rate_date"`
-	RateTWD  float64 `db:"rate_twd"`
-	Source   string  `db:"source"`
+	RateId   int64            `db:"rate_id"`
+	Currency string           `db:"currency"`
+	RateDate string           `db:"rate_date"`
+	RateTWD  decimal.Decimal  `db:"rate_twd"`
+	Source   enums.RateSource `db:"source"`
 }

@@ -16,4 +16,5 @@ func InitEnums() {
 	enumx.Register(validAssetTypes)
 	enumx.Register(validCostMethods)
 	enumx.Register(validMovementTypes)
+	enumx.Register(validRateSources)
 }

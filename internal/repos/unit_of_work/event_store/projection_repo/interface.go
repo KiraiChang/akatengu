@@ -39,6 +39,13 @@ type InvestmentRepo interface {
 	// investment
 	CreateInvestment(ctx context.Context, p projection.Investment) error
 	UpdateInvestment(ctx context.Context, p projection.Investment) error
+	UpsertExchangeRate(ctx context.Context, rate projection.ExchangeRate) error
+	UpsertPosition(ctx context.Context, position projection.InvestmentPosition) error
+	InsertLot(ctx context.Context, lot projection.InvestmentLot) (int64, error)
+	InsertLotDisposals(ctx context.Context, disposals projection.InvestmentLotDisposals) error
+	InsertMovement(ctx context.Context, movement projection.InvestmentMovement) (int64, error)
+	UpdateMovement(ctx context.Context, id int64, txnId int64) error
+	UpdateLot(ctx context.Context, id int64, txnId int64) error
 }
 
 type PeriodCloseRepo interface {

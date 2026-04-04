@@ -10,6 +10,18 @@ DROP VIEW IF EXISTS v_account_summary;
 DROP VIEW IF EXISTS v_account_balances;
 
 
+DROP TRIGGER IF EXISTS check_oversold
+DROP TRIGGER IF EXISTS apply_disposal
+
+DROP INDEX IF EXISTS idx_rates_currency_date;
+
+DROP TABLE IF EXISTS exchange_rates;
+
+DROP INDEX IF EXISTS idx_disposals_lot;
+DROP TABLE IF EXISTS investment_lot_disposals
+
+DROP TABLE IF EXISTS investment_positions
+
 DROP INDEX IF EXISTS idx_movements_investment;
 DROP INDEX IF EXISTS idx_movements_txn;
 
@@ -17,17 +29,13 @@ DROP TABLE IF EXISTS investment_movements;
 
 
 DROP INDEX IF EXISTS idx_lots_investment_status;
+DROP INDEX IF EXISTS idx_lots_lookup;
 
 DROP TABLE IF EXISTS investment_lots;
 
 DROP INDEX IF EXISTS idx_investments_symbol;
 
 DROP TABLE IF EXISTS investments;
-
-
-DROP INDEX IF EXISTS idx_rates_currency_date;
-
-DROP TABLE IF EXISTS exchange_rates;
 
 
 DROP INDEX IF EXISTS idx_period_closings_status;
