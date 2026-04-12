@@ -1,8 +1,8 @@
 package query
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/model/db/projection"
-	"akatengu/internal/model/enums"
 	"context"
 	"database/sql"
 
@@ -19,6 +19,9 @@ type InvestmentRepo interface {
 	// FIFO：取得開放批次（依買入日期排序）
 	GetOpenLots(ctx context.Context, investmentID int64) ([]projection.InvestmentLot, error)
 
+	// AVG:取得平均成本
+	GetPosition(ctx context.Context, id int64) (*projection.InvestmentPosition, error)
+
 	// 異動歷史
 	GetMovements(ctx context.Context, investmentID int64) ([]projection.InvestmentMovement, error)
 }
@@ -28,6 +31,16 @@ type InvestmentRepo interface {
 // ─────────────────────────────────────────
 
 type sqlxInvestmentRepository struct{ db *sqlx.DB }
+
+func (r *sqlxInvestmentRepository) GetPosition(ctx context.Context, id int64) (*projection.InvestmentPosition, error) {
+	var inv projection.InvestmentPosition
+	err := r.db.QueryRowxContext(ctx, `SELECT * FROM investment_positions WHERE investment_id = ?`, id).
+		StructScan(&inv)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return &inv, err
+}
 
 func NewInvestmentRepo(db *sqlx.DB) InvestmentRepo {
 	return &sqlxInvestmentRepository{db: db}

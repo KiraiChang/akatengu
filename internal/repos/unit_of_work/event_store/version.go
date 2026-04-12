@@ -1,8 +1,8 @@
 package event_store
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/model/db"
-	"akatengu/internal/model/enums"
 	"context"
 	"database/sql"
 	"fmt"

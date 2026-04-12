@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"akatengu/internal/model/enums"
+	"akatengu/internal/enums"
 	"akatengu/internal/repos"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"

@@ -1,7 +1,7 @@
 package payload
 
 import (
-	"akatengu/internal/model/enums"
+	"akatengu/internal/enums"
 
 	"github.com/shopspring/decimal"
 )
@@ -44,43 +44,20 @@ type InvestmentSoldPayload struct {
 	LedgerId     int64           `json:"ledger_id"` // 入到哪個帳戶
 }
 
-type LotUpdate struct {
-	LotId        int64           `json:"lot_id"`
-	RemainingQty decimal.Decimal `json:"remaining_qty"`
-	Status       string          `json:"status"`
-}
-
 type DividendReceivedPayload struct {
 	InvestmentId   int64           `json:"investment_id"`
 	Date           string          `json:"date"`
-	Amount         decimal.Decimal `json:"amount"`
-	ExchangeRate   decimal.Decimal `json:"exchange_rate"`
-	WithholdingTax decimal.Decimal `json:"withholding_tax"`
-	LedgerId       int64           `json:"ledger_id"` // 入到哪個帳戶
+	Amount         decimal.Decimal `json:"amount"`          // 現金股利
+	ExchangeRate   decimal.Decimal `json:"exchange_rate"`   // 匯率
+	WithholdingTax decimal.Decimal `json:"withholding_tax"` // 稅金
+	Ratio          decimal.Decimal `json:"ratio"`           // 股票股利
+	LedgerId       int64           `json:"ledger_id"`       // 入到哪個帳戶
 }
 
 type StockSplitPayload struct {
 	InvestmentId int64           `json:"investment_id"`
 	Date         string          `json:"date"`
 	Ratio        decimal.Decimal `json:"ratio"`
-}
-
-type FxBoughtPayload struct {
-	InvestmentId int64           `json:"investment_id"`
-	Date         string          `json:"date"`
-	Amount       decimal.Decimal `json:"amount"`
-	ExchangeRate decimal.Decimal `json:"exchange_rate"`
-	Fee          decimal.Decimal `json:"fee"`
-	LedgerID     int64           `json:"ledger_id"` // 由哪個帳戶扣款
-}
-
-type FxSoldPayload struct {
-	InvestmentId int64           `json:"investment_id"`
-	Date         string          `json:"date"`
-	Amount       decimal.Decimal `json:"amount"`
-	ExchangeRate decimal.Decimal `json:"exchange_rate"`
-	Fee          decimal.Decimal `json:"fee"`
-	LedgerId     int64           `json:"ledger_id"` // 入哪個帳戶
 }
 
 type UnrealizedMarkedPayload struct {

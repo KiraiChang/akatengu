@@ -1,7 +1,7 @@
 package factory
 
 import (
-	"akatengu/internal/model/enums/event_types"
+	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/services/pipelines"
@@ -27,18 +27,18 @@ func joinErrors(errs []string) error {
 
 func NewPipelineRegistry(query *query.Repo) pipelines.PipelineRegistry {
 	p := &registry{
-		rules: make(map[string]pipelines.PipelineRunner),
+		rules: make(map[event_types.EventType]pipelines.PipelineRunner),
 	}
 	p.register(query)
 	return p
 }
 
 type registry struct {
-	rules map[string]pipelines.PipelineRunner
+	rules map[event_types.EventType]pipelines.PipelineRunner
 }
 
 func (p *registry) Dispatch(ctx context.Context, cmd cmd.AppendCmd) (*pipelines.Result, error) {
-	result, ok := p.rules[cmd.EventType.String()]
+	result, ok := p.rules[cmd.EventType]
 	if !ok {
 		return nil, fmt.Errorf("registry %s not found", cmd.EventType.String())
 	}
@@ -47,27 +47,31 @@ func (p *registry) Dispatch(ctx context.Context, cmd cmd.AppendCmd) (*pipelines.
 
 func (p *registry) register(query *query.Repo) {
 	// Accounts
-	p.rules[event_types.EventAccountCreated.String()] = NewEventAccountCreatedPipeline()
-	p.rules[event_types.EventLedgerAccountCreated.String()] = NewEventLedgerAccountCreatedPipeline()
+	p.rules[event_types.EventAccountCreated.Enum()] = NewEventAccountCreatedPipeline()
+	p.rules[event_types.EventLedgerAccountCreated.Enum()] = NewEventLedgerAccountCreatedPipeline()
 
 	// Transaction
-	p.rules[event_types.EventTransactionCreated.String()] = NewEventTransactionCreatedPipeline(query)
-	p.rules[event_types.EventTransactionVoided.String()] = NewEventTransactionVoidedPipeline(query)
-	p.rules[event_types.EventTransactionCorrected.String()] = NewEventTransactionCorrectedPipeline(query)
+	p.rules[event_types.EventTransactionCreated.Enum()] = NewEventTransactionCreatedPipeline(query)
+	p.rules[event_types.EventTransactionVoided.Enum()] = NewEventTransactionVoidedPipeline(query)
+	p.rules[event_types.EventTransactionCorrected.Enum()] = NewEventTransactionCorrectedPipeline(query)
 
-	p.rules[event_types.EventPeriodMonthStarted.String()] = NewEventPeriodMonthStartedPipeline(query)
-	p.rules[event_types.EventPeriodMonthClosed.String()] = NewEventPeriodMonthClosedPipeline(query)
-	p.rules[event_types.EventPeriodMonthReopened.String()] = NewEventPeriodMonthReopenedPipeline(query)
+	p.rules[event_types.EventPeriodMonthStarted.Enum()] = NewEventPeriodMonthStartedPipeline(query)
+	p.rules[event_types.EventPeriodMonthClosed.Enum()] = NewEventPeriodMonthClosedPipeline(query)
+	p.rules[event_types.EventPeriodMonthReopened.Enum()] = NewEventPeriodMonthReopenedPipeline(query)
 
-	p.rules[event_types.EventPeriodAnnualStarted.String()] = NewEventPeriodAnnualStartedPipeline(query)
-	p.rules[event_types.EventPeriodAnnualClosed.String()] = NewEventPeriodAnnualClosedPipeline(query)
-	p.rules[event_types.EventPeriodAnnualReopened.String()] = NewEventPeriodAnnualReopenedPipeline(query)
+	p.rules[event_types.EventPeriodAnnualStarted.Enum()] = NewEventPeriodAnnualStartedPipeline(query)
+	p.rules[event_types.EventPeriodAnnualClosed.Enum()] = NewEventPeriodAnnualClosedPipeline(query)
+	p.rules[event_types.EventPeriodAnnualReopened.Enum()] = NewEventPeriodAnnualReopenedPipeline(query)
 
 	// Investment(Account Agg)
-	p.rules[event_types.EventInvestmentCreated.String()] = NewEventInvestmentCreatedPipeline()
-	p.rules[event_types.EventInvestmentUpdated.String()] = NewEventInvestmentUpdatedPipeline()
+	p.rules[event_types.EventInvestmentCreated.Enum()] = NewEventInvestmentCreatedPipeline()
+	p.rules[event_types.EventInvestmentUpdated.Enum()] = NewEventInvestmentUpdatedPipeline()
 
 	// Investment(Transaction Agg)
-	p.rules[event_types.EventInvestmentBought.String()] = NewEventInvestmentBoughtPipeline(query)
-	p.rules[event_types.EventRateUpdated.String()] = NewEventRateUpdatedPipeline(query)
+	p.rules[event_types.EventInvestmentBought.Enum()] = NewEventInvestmentBoughtPipeline(query)
+	p.rules[event_types.EventInvestmentSold.Enum()] = NewEventInvestmentSoldPipeline(query)
+	p.rules[event_types.EventStockSplit.Enum()] = NewEventStockSplitPipeline(query)
+	p.rules[event_types.EventDividendReceived.Enum()] = NewEventDividendReceivedPipeline(query)
+
+	p.rules[event_types.EventRateUpdated.Enum()] = NewEventRateUpdatedPipeline(query)
 }

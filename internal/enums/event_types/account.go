@@ -1,0 +1,11 @@
+package event_types
+
+const (
+	// account
+	EventAccountCreated           eventTypeVal = "account.created"
+	EventAccountUpdated           eventTypeVal = "account.updated"
+	EventAccountDeactivated       eventTypeVal = "account.deactivated"
+	EventLedgerAccountCreated     eventTypeVal = "ledger_account.created"
+	EventLedgerAccountUpdated     eventTypeVal = "ledger_account.updated"
+	EventLedgerAccountDeactivated eventTypeVal = "ledger_account.deactivated"
+)

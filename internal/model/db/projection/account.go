@@ -1,7 +1,7 @@
 package projection
 
 import (
-	"akatengu/internal/model/enums"
+	"akatengu/internal/enums"
 
 	"github.com/shopspring/decimal"
 )

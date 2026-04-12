@@ -1,8 +1,8 @@
 package repos
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/model/db/report"
-	"akatengu/internal/model/enums"
 	"context"
 	"database/sql"
 
@@ -119,14 +119,14 @@ func (r *ReportRepo) GetBalanceSheet(ctx context.Context, reportDate string) (*r
 
 	bs := &report.BalanceSheet{ReportDate: reportDate}
 	for _, row := range rows {
-		switch row.Type {
-		case enums.AccountAsset.String():
+		switch row.Type.Val() {
+		case enums.AccountAsset:
 			bs.Assets = append(bs.Assets, row)
 			bs.TotalAssets = bs.TotalAssets.Add(row.Balance)
-		case enums.AccountLiability.String():
+		case enums.AccountLiability:
 			bs.Liabilities = append(bs.Liabilities, row)
 			bs.TotalLiabilities = bs.TotalLiabilities.Add(row.Balance)
-		case enums.AccountEquity.String():
+		case enums.AccountEquity:
 			bs.Equity = append(bs.Equity, row)
 			bs.TotalEquity = bs.TotalEquity.Add(row.Balance)
 		}
@@ -148,11 +148,11 @@ func (r *ReportRepo) GetIncomeStatement(ctx context.Context, startDate, endDate 
 
 	is := &report.IncomeStatement{StartDate: startDate, EndDate: endDate}
 	for _, row := range rows {
-		switch row.Type {
-		case enums.AccountIncome.String():
+		switch row.Type.Val() {
+		case enums.AccountIncome:
 			is.Income = append(is.Income, row)
 			is.TotalIncome = is.TotalIncome.Add(row.Amount)
-		case enums.AccountExpense.String():
+		case enums.AccountExpense:
 			is.Expenses = append(is.Expenses, row)
 			is.TotalExpenses = is.TotalExpenses.Add(row.Amount)
 		}

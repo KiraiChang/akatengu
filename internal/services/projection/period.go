@@ -1,9 +1,9 @@
 package projection
 
 import (
+	"akatengu/internal/enums"
+	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/db/projection"
-	"akatengu/internal/model/enums"
-	"akatengu/internal/model/enums/event_types"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
 	"akatengu/internal/repos/unit_of_work/event_store"
@@ -18,18 +18,18 @@ type PeriodProjectionService struct{}
 func (s *PeriodProjectionService) Name() string { return "PERIOD_CLOSED" }
 
 func (s *PeriodProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, t event_types.EventType, ct *pipelines.Result) error {
-	switch t.String() {
-	case event_types.EventPeriodMonthStarted.String():
+	switch t.Val() {
+	case event_types.EventPeriodMonthStarted:
 		return s.applyMonthStarted(ctx, tx, ct)
-	case event_types.EventPeriodMonthClosed.String():
+	case event_types.EventPeriodMonthClosed:
 		return s.applyMonthClosed(ctx, tx, ct)
-	case event_types.EventPeriodMonthReopened.String():
+	case event_types.EventPeriodMonthReopened:
 		return s.applyMonthReopened(ctx, tx, ct)
-	case event_types.EventPeriodAnnualStarted.String():
+	case event_types.EventPeriodAnnualStarted:
 		return s.applyAnnualStarted(ctx, tx, ct)
-	case event_types.EventPeriodAnnualClosed.String():
+	case event_types.EventPeriodAnnualClosed:
 		return s.applyAnnualClosed(ctx, tx, ct)
-	case event_types.EventPeriodAnnualReopened.String():
+	case event_types.EventPeriodAnnualReopened:
 		return s.applyAnnualReopened(ctx, tx, ct)
 	}
 	return nil
@@ -48,10 +48,10 @@ func (s *PeriodProjectionService) applyMonthStarted(ctx context.Context, tx even
 
 	// 建立 period_closings 紀錄，status = open
 	_, err = tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, projection.PeriodClosing{
-		PeriodType:  enums.PeriodMonthly,
+		PeriodType:  enums.PeriodMonthly.Enum(),
 		PeriodStart: first,
 		PeriodEnd:   last,
-		Status:      enums.PeriodTypeStatusOpen,
+		Status:      enums.PeriodTypeStatusOpen.Enum(),
 	})
 	if err != nil {
 		return err
@@ -120,10 +120,10 @@ func (s *PeriodProjectionService) applyAnnualStarted(ctx context.Context, tx eve
 
 	// 建立 period_closings 紀錄，status = open
 	_, err = tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, projection.PeriodClosing{
-		PeriodType:  enums.PeriodAnnual,
+		PeriodType:  enums.PeriodAnnual.Enum(),
 		PeriodStart: first,
 		PeriodEnd:   last,
-		Status:      enums.PeriodTypeStatusOpen,
+		Status:      enums.PeriodTypeStatusOpen.Enum(),
 	})
 	if err != nil {
 		return err

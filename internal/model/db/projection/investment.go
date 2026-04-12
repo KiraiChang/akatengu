@@ -1,7 +1,7 @@
 package projection
 
 import (
-	"akatengu/internal/model/enums"
+	"akatengu/internal/enums"
 
 	"github.com/shopspring/decimal"
 )
@@ -37,7 +37,7 @@ type InvestmentLotDisposals struct {
 	Id                int64           `db:"id"`
 	LotId             int64           `db:"lot_id"`
 	MovementId        int64           `db:"movement_id"`
-	Quantity          decimal.Decimal `db:"quantity_sold"`
+	Quantity          decimal.Decimal `db:"quantity"`
 	CostBasis         decimal.Decimal `db:"cost_basis"`
 	SaleProceeds      decimal.Decimal `db:"sale_proceeds"`
 	CapitalGain       decimal.Decimal `db:"capital_gain"`
@@ -55,20 +55,28 @@ type InvestmentPosition struct {
 
 // InvestmentMovement 投資異動表
 type InvestmentMovement struct {
-	MovementId      int64              `db:"movement_id"`
-	InvestmentId    int64              `db:"investment_id"`
-	EventId         int64              `db:"event_id"`
-	TransactionId   *int64             `db:"txn_id"`
-	MovementType    enums.MovementType `db:"movement_type"`
-	MovementDate    string             `db:"movement_date"`
-	Quantity        decimal.Decimal    `db:"quantity"`
-	UnitPrice       decimal.Decimal    `db:"unit_price"`
-	UnitPriceTWD    decimal.Decimal    `db:"unit_price_twd"`
-	ExchangeRate    decimal.Decimal    `db:"exchange_rate"`
-	FeeTWD          decimal.Decimal    `db:"fee_twd"`
-	TaxTWD          decimal.Decimal    `db:"tax_twd"`
-	RealizedGainTWD *decimal.Decimal   `db:"realized_gain_twd"`
-	CostBasisTWD    *decimal.Decimal   `db:"cost_basis_twd"`
+	MovementId    int64              `db:"movement_id"`
+	InvestmentId  int64              `db:"investment_id"`
+	EventId       int64              `db:"event_id"`
+	TransactionId *int64             `db:"txn_id"`
+	MovementType  enums.MovementType `db:"movement_type"`
+	MovementDate  string             `db:"movement_date"`
+	Quantity      decimal.Decimal    `db:"quantity"`
+	UnitPrice     decimal.Decimal    `db:"unit_price"`
+	UnitPriceTWD  decimal.Decimal    `db:"unit_price_twd"`
+	ExchangeRate  decimal.Decimal    `db:"exchange_rate"`
+	Fee           decimal.Decimal    `db:"fee"`
+	Tax           decimal.Decimal    `db:"tax"`
+	RealizedGain  *decimal.Decimal   `db:"realized_gain"`
+	CostBasis     *decimal.Decimal   `db:"cost_basis"`
+
+	// --- Income (Cash Dividend) ---
+	GrossAmount    *decimal.Decimal `db:"gross_amount"`    // 含稅
+	NetAmount      *decimal.Decimal `db:"net_amount"`      // 入帳金額
+	WithholdingTax *decimal.Decimal `db:"withholding_tax"` // 預扣稅
+
+	// --- Corporate Action ---
+	SplitRatio *decimal.Decimal `db:"split_ratio"`
 }
 
 // InvestmentSummary 庫存摘要（從 v_investment_summary）

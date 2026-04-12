@@ -1,12 +1,16 @@
 package report
 
-import "github.com/shopspring/decimal"
+import (
+	"akatengu/internal/enums"
+
+	"github.com/shopspring/decimal"
+)
 
 type BalanceSheetRow struct {
-	Type      string          `db:"type"`
-	AccountId string          `db:"account_id"`
-	Name      string          `db:"name"`
-	Balance   decimal.Decimal `db:"balance"`
+	Type      enums.AccountType `db:"type"`
+	AccountId string            `db:"account_id"`
+	Name      string            `db:"name"`
+	Balance   decimal.Decimal   `db:"balance"`
 }
 
 type BalanceSheet struct {

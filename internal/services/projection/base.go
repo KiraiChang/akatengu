@@ -1,7 +1,7 @@
 package projection
 
 import (
-	"akatengu/internal/model/enums/event_types"
+	"akatengu/internal/enums/event_types"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"

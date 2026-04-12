@@ -5,10 +5,46 @@ import (
 	"context"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 )
 
 type sqlxInvestmentRepo struct {
 	tx *sqlx.Tx
+}
+
+func (r *sqlxInvestmentRepo) PositionSplit(ctx context.Context, id int64, ratio decimal.Decimal) error {
+	query := `
+		UPDATE investment_positions
+		SET total_quantity = total_quantity * :ratio
+		WHERE investment_id = :id
+	`
+
+	args := map[string]interface{}{
+		"id":    id,
+		"ratio": ratio,
+	}
+
+	_, err := r.tx.NamedExecContext(ctx, query, args)
+	return err
+}
+
+func (r *sqlxInvestmentRepo) LotSplit(ctx context.Context, id int64, ratio decimal.Decimal) error {
+	query := `
+		UPDATE investment_lots
+		SET quantity = quantity * :ratio,
+		    remaining_qty = remaining_qty * :ratio,
+			unit_cost = unit_cost / :ratio
+		WHERE investment_id = :id
+			AND status  <> 'CLOSED'
+	`
+
+	args := map[string]interface{}{
+		"id":    id,
+		"ratio": ratio,
+	}
+
+	_, err := r.tx.NamedExecContext(ctx, query, args)
+	return err
 }
 
 func (r *sqlxInvestmentRepo) UpsertPosition(ctx context.Context, position projection.InvestmentPosition) error {
@@ -55,10 +91,10 @@ func (r *sqlxInvestmentRepo) InsertMovement(ctx context.Context, m projection.In
 		INSERT INTO investment_movements
 			(investment_id, movement_type, movement_date, event_id,
 			 quantity, unit_price, unit_price_twd, exchange_rate,
-			 fee_twd, tax_twd, realized_gain_twd, cost_basis_twd)
+			 fee, tax, realized_gain, cost_basis, split_ratio, gross_amount, net_amount, withholding_tax)
 		VALUES (:investment_id, :movement_type, :movement_date, :event_id,
 			 :quantity, :unit_price, :unit_price_twd, :exchange_rate,
-			 :fee_twd, :tax_twd, :realized_gain_twd, :cost_basis_twd)`,
+			 :fee, :tax, :realized_gain, :cost_basis, :split_ratio, :gross_amount, :net_amount, :withholding_tax)`,
 		m,
 	)
 	if err != nil {

@@ -1,8 +1,8 @@
 package services
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/model/db"
-	"akatengu/internal/model/enums"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"

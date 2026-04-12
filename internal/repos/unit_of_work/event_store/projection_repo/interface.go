@@ -1,9 +1,11 @@
 package projection_repo
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/model/db/projection"
-	"akatengu/internal/model/enums"
 	"context"
+
+	"github.com/shopspring/decimal"
 )
 
 type TransactionRepo interface {
@@ -46,6 +48,8 @@ type InvestmentRepo interface {
 	InsertMovement(ctx context.Context, movement projection.InvestmentMovement) (int64, error)
 	UpdateMovement(ctx context.Context, id int64, txnId int64) error
 	UpdateLot(ctx context.Context, id int64, txnId int64) error
+	PositionSplit(ctx context.Context, id int64, ratio decimal.Decimal) error
+	LotSplit(ctx context.Context, id int64, ratio decimal.Decimal) error
 }
 
 type PeriodCloseRepo interface {

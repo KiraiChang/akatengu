@@ -1,9 +1,9 @@
 package factory
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/model/db/projection"
 	"akatengu/internal/model/db/report"
-	"akatengu/internal/model/enums"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
 	"akatengu/internal/repos/query"
@@ -74,7 +74,7 @@ func (e eventPeriodMonthClosedProjector) Project(ctx context.Context, ct *pipeli
 		return fmt.Errorf("closing_id %d is not exists", p.ClosingId)
 	}
 
-	if existing.Status.String() == enums.PeriodTypeStatusClosed.String() {
+	if existing.Status.Is(enums.PeriodTypeStatusClosed) {
 		return fmt.Errorf("period %s~%s is already closed", existing.PeriodStart, existing.PeriodEnd)
 	}
 
@@ -99,17 +99,17 @@ func (e eventPeriodMonthClosedProjector) Project(ctx context.Context, ct *pipeli
 		return fmt.Errorf("marshal snapshot: %w", err)
 	}
 
-	if existing.Status.String() == enums.PeriodTypeStatusOpen.String() {
+	if existing.Status.Is(enums.PeriodTypeStatusOpen) {
 		periodStart, periodEnd, err := nextPeriodMonthRange(existing.PeriodEnd)
 		if err != nil {
 			return fmt.Errorf("next period start: %w", err)
 		}
 
 		s.Next = &projection.PeriodClosing{
-			PeriodType:  enums.PeriodMonthly,
+			PeriodType:  enums.PeriodMonthly.Enum(),
 			PeriodStart: periodStart,
 			PeriodEnd:   periodEnd,
-			Status:      enums.PeriodTypeStatusOpen,
+			Status:      enums.PeriodTypeStatusOpen.Enum(),
 		}
 	}
 	return nil
@@ -204,7 +204,7 @@ func (e eventPeriodAnnualClosedProjector) Project(ctx context.Context, ct *pipel
 	}
 	t, _ := time.Parse("2006-01-02", existing.PeriodStart)
 	year := t.Year()
-	if existing != nil && existing.Status.String() == enums.PeriodTypeStatusClosed.String() {
+	if existing != nil && existing.Status.Is(enums.PeriodTypeStatusClosed) {
 		return fmt.Errorf("year %d is already closed", year)
 	}
 
@@ -244,13 +244,13 @@ func (e eventPeriodAnnualClosedProjector) Project(ctx context.Context, ct *pipel
 		return fmt.Errorf("marshal snapshot: %w", err)
 	}
 
-	if existing.Status.String() == enums.PeriodTypeStatusOpen.String() {
+	if existing.Status.Is(enums.PeriodTypeStatusOpen) {
 		periodStart, periodEnd = monthRange(year + 1)
 		s.Next = &projection.PeriodClosing{
-			PeriodType:  enums.PeriodAnnual,
+			PeriodType:  enums.PeriodAnnual.Enum(),
 			PeriodStart: periodStart,
 			PeriodEnd:   periodEnd,
-			Status:      enums.PeriodTypeStatusOpen,
+			Status:      enums.PeriodTypeStatusOpen.Enum(),
 		}
 	}
 
@@ -296,7 +296,7 @@ func (e eventPeriodAnnualReopenedProjector) Project(ctx context.Context, ct *pip
 	}
 	t, _ := time.Parse("2006-01-02", existing.PeriodStart)
 	year := t.Year()
-	if existing != nil && existing.Status.String() != enums.PeriodTypeStatusClosed.String() {
+	if existing != nil && !existing.Status.Is(enums.PeriodTypeStatusClosed) {
 		return fmt.Errorf("year %d is not closed", year)
 	}
 
@@ -549,11 +549,11 @@ func nextPeriodMonthRange(date string) (startDate, endDate string, err error) {
 func assertAllMonthsClosed(ctx context.Context, year int, query *query.Repo) error {
 	for m := time.January; m <= time.December; m++ {
 		start, _ := monthRangeByYearMonth(year, m)
-		c, err := query.Period.GetByPeriod(ctx, enums.PeriodMonthly, start)
+		c, err := query.Period.GetByPeriod(ctx, enums.PeriodMonthly.Enum(), start)
 		if err != nil {
 			return err
 		}
-		if c == nil || c.Status.String() != enums.PeriodTypeStatusClosed.String() {
+		if c == nil || !c.Status.Is(enums.PeriodTypeStatusClosed) {
 			return fmt.Errorf("month %d-%02d is not closed yet", year, m)
 		}
 	}

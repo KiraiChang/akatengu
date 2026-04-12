@@ -239,14 +239,18 @@ CREATE TABLE IF NOT EXISTS investment_movements (
     txn_id              INTEGER,
     movement_type       TEXT    NOT NULL,
     movement_date       TEXT    NOT NULL,
-    quantity            REAL    NOT NULL,
-    unit_price          REAL    NOT NULL,
-    unit_price_twd      REAL    NOT NULL,
+    quantity            REAL    NOT NULL DEFAULT 0,
+    unit_price          REAL    NOT NULL DEFAULT 0,
+    unit_price_twd      REAL    NOT NULL DEFAULT 0,
     exchange_rate       REAL    NOT NULL DEFAULT 1,
-    fee_twd             REAL    NOT NULL DEFAULT 0,
-    tax_twd             REAL    NOT NULL DEFAULT 0,
-    realized_gain_twd   REAL,
-    cost_basis_twd      REAL,
+    fee                 REAL    NOT NULL DEFAULT 0,
+    tax                 REAL    NOT NULL DEFAULT 0,
+    realized_gain       REAL,
+    cost_basis          REAL,
+    split_ratio         REAL,
+    gross_amount        REAL,
+    net_amount          REAL,
+    withholding_tax     REAL,
 
     UNIQUE(investment_id, event_id)
     CONSTRAINT chk_movement_type CHECK (movement_type IN ('BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'CONVERT'))
@@ -270,8 +274,8 @@ CREATE TABLE IF NOT EXISTS investment_positions (
 );
 
 CREATE TABLE IF NOT EXISTS investment_lot_disposals (
-    id                  INTEGER PRIMARY KEY,
-    lot_id              INTEGER REFERENCES investment_lots(id),
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id              INTEGER REFERENCES investment_lots(lot_id),
     movement_id         INTEGER REFERENCES investment_movements(id),
     quantity            REAL NOT NULL,
     cost_basis          REAL NOT NULL,
@@ -291,16 +295,16 @@ SELECT
     CASE
         WHEN (
             COALESCE((
-                    SELECT SUM(quantity_sold)
+                    SELECT SUM(quantity)
                     FROM investment_lot_disposals
                     WHERE lot_id = NEW.lot_id
                     ), 0)
                     + NEW.quantity
                 ) >
              (
-                 SELECT original_quantity
+                 SELECT quantity
                  FROM investment_lots
-                 WHERE id = NEW.lot_id
+                 WHERE lot_id = NEW.lot_id
              )
             THEN RAISE(ABORT, '賣出數量超過持有數量')
         END;
@@ -312,7 +316,7 @@ CREATE TRIGGER apply_disposal
 BEGIN
     UPDATE investment_lots
     SET remaining_qty = remaining_qty - NEW.quantity
-    WHERE id = NEW.lot_id;
+    WHERE lot_id = NEW.lot_id;
 END;
 
 CREATE TABLE IF NOT EXISTS exchange_rates (

@@ -1,8 +1,8 @@
 package db
 
 import (
-	"akatengu/internal/model/enums"
-	"akatengu/internal/model/enums/event_types"
+	"akatengu/internal/enums"
+	"akatengu/internal/enums/event_types"
 	"encoding/json"
 	"time"
 )

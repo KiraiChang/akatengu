@@ -2,6 +2,7 @@ package state
 
 import (
 	"akatengu/internal/model/db/projection"
+	"akatengu/internal/model/payload"
 
 	"github.com/shopspring/decimal"
 )
@@ -15,41 +16,25 @@ type InvestmentBoughtState struct {
 }
 
 type InvestmentSoldState struct {
-	CostBasisTWD    decimal.Decimal `json:"cost_basis_twd"` // 由 service 計算後填入
-	RealizedGainTWD decimal.Decimal `json:"realized_gain_twd"`
-	LotUpdates      []LotUpdate     `json:"lot_updates"` // FIFO 批次更新明細
-}
-
-type LotUpdate struct {
-	LotId        int64           `json:"lot_id"`
-	RemainingQty decimal.Decimal `json:"remaining_qty"`
-	Status       string          `json:"status"`
-}
-
-type DividendReceivedState struct {
-	AmountTWD decimal.Decimal `json:"amount_twd"`
+	Investment   projection.Investment               `json:"investment"`
+	Movement     projection.InvestmentMovement       `json:"movement"`
+	LotDisposals []projection.InvestmentLotDisposals `json:"lot_disposals"` // FIFO 批次更新明細
+	Position     projection.InvestmentPosition       `json:"position"`      // AVG 使用
+	Ledger       projection.LedgerAccount            `json:"ledger"`
+	CostBasis    decimal.Decimal                     `json:"cost_basis"`
+	RealizedGain decimal.Decimal                     `json:"realized_gain"`
+	NetProceeds  decimal.Decimal                     `json:"net_proceeds"`
 }
 
 type StockSplitState struct {
-	LotUpdates []SplitLotUpdate `json:"lot_updates"`
+	Investment projection.Investment         `json:"investment"`
+	Movement   projection.InvestmentMovement `json:"movement"`
 }
 
-type SplitLotUpdate struct {
-	LotId          int64           `json:"lot_id"`
-	OldQty         decimal.Decimal `json:"old_qty"`
-	NewQty         decimal.Decimal `json:"new_qty"`
-	OldUnitCostTWD decimal.Decimal `json:"old_unit_cost_twd"`
-	NewUnitCostTWD decimal.Decimal `json:"new_unit_cost_twd"`
-}
-
-type FxBoughtState struct {
-	AmountTWD decimal.Decimal `json:"amount_twd"`
-}
-
-type FxSoldState struct {
-	CostBasisTWD decimal.Decimal `json:"cost_basis_twd"`
-	FxGainTWD    decimal.Decimal `json:"fx_gain_twd"`
-	LotUpdates   []LotUpdate     `json:"lot_updates"`
+type DividendReceivedState struct {
+	Investment  projection.Investment              `json:"investment"`
+	Movement    projection.InvestmentMovement      `json:"movement"`
+	Transaction *payload.TransactionCreatedPayload `json:"transaction"`
 }
 
 type UnrealizedMarkedState struct {

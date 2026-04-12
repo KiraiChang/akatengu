@@ -1,8 +1,8 @@
 package query
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/model/db"
-	"akatengu/internal/model/enums"
 	"context"
 	"database/sql"
 

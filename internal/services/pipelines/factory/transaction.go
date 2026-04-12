@@ -1,7 +1,7 @@
 package factory
 
 import (
-	"akatengu/internal/model/enums"
+	"akatengu/internal/enums"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/services/pipelines"
@@ -64,7 +64,7 @@ func (e *eventTransactionCreatedProjector) Project(ctx context.Context, ct *pipe
 	}
 
 	// 2. 檢查是否已結帳
-	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly, periodStart)
+	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly.Enum(), periodStart)
 	if err != nil {
 		fmt.Errorf("get period: %w", err)
 	}
@@ -72,7 +72,7 @@ func (e *eventTransactionCreatedProjector) Project(ctx context.Context, ct *pipe
 		return fmt.Errorf("period %s is not exists", periodStart)
 	}
 
-	if existing.Status.String() != enums.PeriodTypeStatusOpen.String() {
+	if !existing.Status.Is(enums.PeriodTypeStatusOpen) {
 		return fmt.Errorf("period %s~%s is already closed", existing.PeriodStart, existing.PeriodEnd)
 	}
 	return nil
@@ -121,7 +121,7 @@ func (e *eventTransactionCorrectedProjector) Project(ctx context.Context, ct *pi
 	}
 
 	// 2. 檢查是否已結帳
-	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly, periodStart)
+	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly.Enum(), periodStart)
 	if err != nil {
 		fmt.Errorf("get period: %w", err)
 	}
@@ -129,7 +129,7 @@ func (e *eventTransactionCorrectedProjector) Project(ctx context.Context, ct *pi
 		return fmt.Errorf("period %s is not exists", periodStart)
 	}
 
-	if existing.Status.String() != enums.PeriodTypeStatusOpen.String() {
+	if !existing.Status.Is(enums.PeriodTypeStatusOpen) {
 		return fmt.Errorf("period %s~%s is already closed", existing.PeriodStart, existing.PeriodEnd)
 	}
 	return nil
@@ -170,7 +170,7 @@ func (e eventTransactionVoidedProjector) Project(ctx context.Context, ct *pipeli
 	}
 
 	// 2. 檢查是否已結帳
-	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly, periodStart)
+	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly.Enum(), periodStart)
 	if err != nil {
 		fmt.Errorf("get period: %w", err)
 	}
@@ -178,7 +178,7 @@ func (e eventTransactionVoidedProjector) Project(ctx context.Context, ct *pipeli
 		return fmt.Errorf("period %s is not exists", periodStart)
 	}
 
-	if existing.Status.String() != enums.PeriodTypeStatusOpen.String() {
+	if !existing.Status.Is(enums.PeriodTypeStatusOpen) {
 		return fmt.Errorf("period %s~%s is already closed", existing.PeriodStart, existing.PeriodEnd)
 	}
 	return nil

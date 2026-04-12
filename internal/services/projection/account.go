@@ -1,9 +1,9 @@
 package projection
 
 import (
+	"akatengu/internal/enums"
+	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/db/projection"
-	"akatengu/internal/model/enums"
-	"akatengu/internal/model/enums/event_types"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
@@ -16,16 +16,16 @@ import (
 
 type AccountProjectionService struct{}
 
-func (s *AccountProjectionService) Name() string { return enums.AggregateAccount.String() }
+func (s *AccountProjectionService) Name() string { return string(enums.AggregateAccount) }
 
 func (s *AccountProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, t event_types.EventType, ct *pipelines.Result) error {
-	switch t.String() {
+	switch t.Val() {
 	// Account
-	case event_types.EventAccountCreated.String():
+	case event_types.EventAccountCreated:
 		return s.applyAccountCreate(ctx, tx, ct)
 
 	// Ledger
-	case event_types.EventLedgerAccountCreated.String():
+	case event_types.EventLedgerAccountCreated:
 		return s.applyLedgerCreate(ctx, tx, ct)
 
 	}

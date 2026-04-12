@@ -1,9 +1,9 @@
 package event_store
 
 import (
+	"akatengu/internal/enums"
+	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/db"
-	"akatengu/internal/model/enums"
-	"akatengu/internal/model/enums/event_types"
 	"akatengu/internal/repos/unit_of_work/event_store/projection_repo"
 	"context"
 	"encoding/json"

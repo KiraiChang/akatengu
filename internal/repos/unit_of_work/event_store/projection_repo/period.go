@@ -1,8 +1,8 @@
 package projection_repo
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/model/db/projection"
-	"akatengu/internal/model/enums"
 	"context"
 
 	"github.com/jmoiron/sqlx"
