@@ -28,6 +28,20 @@ type AccountCreatePayload struct {
 	Note          *string             `json:"note"`
 }
 
+func (p AccountCreatePayload) Validate() error {
+	var errs []string
+
+	if p.AccountId == "" {
+		errs = append(errs, "account id is required")
+	}
+
+	if p.Name == "" {
+		errs = append(errs, "account name is required")
+	}
+
+	return joinErrors(errs)
+}
+
 // AccountUpdatePayload 範例
 //
 //	{
@@ -71,6 +85,28 @@ type LedgerAccountCreatePayload struct {
 	DueDay      *string             `json:"due_day"`
 	IsActive    bool                `json:"is_active"`
 	Note        *string             `json:"note"`
+}
+
+func (p LedgerAccountCreatePayload) Validate() error {
+	var errs []string
+
+	if p.AccountId == "" {
+		errs = append(errs, "account id is required")
+	}
+
+	if p.Name == "" {
+		errs = append(errs, "ledger name is required")
+	}
+
+	if p.Currency == "" {
+		errs = append(errs, "ledger currency is required")
+	}
+
+	if p.Institution == "" {
+		errs = append(errs, "ledger institution is required")
+	}
+
+	return joinErrors(errs)
 }
 
 // LedgerAccountUpdatePayload 範例

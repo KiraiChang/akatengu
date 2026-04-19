@@ -3,33 +3,22 @@ package factory
 import (
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/request/cmd"
+	"akatengu/internal/repos"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/services/pipelines"
 	"context"
 	"fmt"
-	"strings"
 )
-
-// ------------------------------
-// Helper
-// ------------------------------
-
-func joinErrors(errs []string) error {
-	if len(errs) == 0 {
-		return nil
-	}
-	return fmt.Errorf("validation failed: %s", strings.Join(errs, "; "))
-}
 
 // ------------------------------
 // factory
 // ------------------------------
 
-func NewPipelineRegistry(query *query.Repo) pipelines.PipelineRegistry {
+func NewPipelineRegistry(query *query.Repo, sys repos.SysRepo) pipelines.PipelineRegistry {
 	p := &registry{
 		rules: make(map[event_types.EventType]pipelines.PipelineRunner),
 	}
-	p.register(query)
+	p.register(query, sys)
 	return p
 }
 
@@ -45,7 +34,7 @@ func (p *registry) Dispatch(ctx context.Context, cmd cmd.AppendCmd) (*pipelines.
 	return result.Run(ctx, cmd)
 }
 
-func (p *registry) register(query *query.Repo) {
+func (p *registry) register(query *query.Repo, sys repos.SysRepo) {
 	// Accounts
 	p.rules[event_types.EventAccountCreated.Enum()] = NewEventAccountCreatedPipeline()
 	p.rules[event_types.EventLedgerAccountCreated.Enum()] = NewEventLedgerAccountCreatedPipeline()
@@ -74,4 +63,8 @@ func (p *registry) register(query *query.Repo) {
 	p.rules[event_types.EventDividendReceived.Enum()] = NewEventDividendReceivedPipeline(query)
 
 	p.rules[event_types.EventRateUpdated.Enum()] = NewEventRateUpdatedPipeline(query)
+
+	// Installment
+	p.rules[event_types.EventInstallmentCreated.Enum()] = NewEventInstallmentCreatedPipeline(query, sys)
+	p.rules[event_types.EventInstallmentPeriodPaid.Enum()] = NewEventInstallmentPeriodPaidPipeline(query, sys)
 }

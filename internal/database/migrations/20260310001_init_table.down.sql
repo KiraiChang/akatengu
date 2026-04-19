@@ -54,6 +54,14 @@ DROP INDEX IF EXISTS idx_recon_balanced ON reconciliations(is_balanced);
 
 DROP TABLE IF EXISTS reconciliations;
 
+DROP INDEX IF EXISTS idx_ip_install;
+DROP INDEX IF EXISTS idx_ip_in_period_no;
+DROP INDEX IF EXISTS idx_ip_status;
+
+DROP TABLE IF EXISTS installment_payments;
+
+
+
 DROP INDEX IF EXISTS idx_install_status ON installments(status);
 DROP INDEX IF EXISTS idx_install_ledger ON installments(ledger_id);
 
@@ -69,6 +77,8 @@ DROP INDEX IF EXISTS idx_txn_date   ON transactions(txn_date);
 DROP INDEX IF EXISTS idx_txn_status ON transactions(status);
 
 DROP TABLE IF EXISTS transactions;
+
+DROP TABLE IF EXISTS sys_accounts;
 
 DROP TABLE IF EXISTS ledger_accounts;
 

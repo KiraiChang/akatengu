@@ -1,6 +1,7 @@
 package pipelines
 
 import (
+	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
 	"context"
 )
@@ -9,7 +10,7 @@ import (
 // interface
 // ------------------------------
 
-type Projector[S any, P Payload] interface {
+type Projector[S any, P payload.Payload] interface {
 	Project(ctx context.Context, ct *Context[S, P]) error
 }
 

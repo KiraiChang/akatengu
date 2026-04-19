@@ -1,6 +1,7 @@
 package pipelines
 
 import (
+	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
 	"context"
 	"encoding/json"
@@ -10,7 +11,7 @@ import (
 // Pipeline
 // ------------------------------
 
-type Pipeline[S any, P Payload] struct {
+type Pipeline[S any, P payload.Payload] struct {
 	projector Projector[S, P]
 }
 
@@ -22,12 +23,12 @@ func (p *Pipeline[S, P]) Run(ctx context.Context, ct *Context[S, P]) error {
 // TypedPipeline
 // ------------------------------
 
-type TypedPipeline[S any, P Payload] struct {
+type TypedPipeline[S any, P payload.Payload] struct {
 	pipeline *Pipeline[S, P]
 	factory  func() *S
 }
 
-func NewType[S any, P Payload](projector Projector[S, P], f func() *S) *TypedPipeline[S, P] {
+func NewType[S any, P payload.Payload](projector Projector[S, P], f func() *S) *TypedPipeline[S, P] {
 	pipeline := &Pipeline[S, P]{
 		projector: projector,
 	}
@@ -38,7 +39,7 @@ func NewType[S any, P Payload](projector Projector[S, P], f func() *S) *TypedPip
 	}
 }
 
-func NewTypeWithNoState[P Payload](projector Projector[NoState, P]) *TypedPipeline[NoState, P] {
+func NewTypeWithNoState[P payload.Payload](projector Projector[NoState, P]) *TypedPipeline[NoState, P] {
 	return NewType[NoState, P](projector, func() *NoState {
 		return &NoState{}
 	})

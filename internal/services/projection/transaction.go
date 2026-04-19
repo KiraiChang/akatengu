@@ -41,6 +41,11 @@ func (s *TransactionProjectionService) Apply(ctx context.Context, tx event_store
 		return s.applyInvestmentSold(ctx, tx, ct)
 	case event_types.EventDividendReceived:
 		return s.applyDevidendReceived(ctx, tx, ct)
+
+	case event_types.EventInstallmentCreated:
+		return s.applyInstallmentCreated(ctx, tx, ct)
+	case event_types.EventInstallmentPeriodPaid:
+		return s.applyInstallmentPeriodPaid(ctx, tx, ct)
 	}
 	return nil
 }
@@ -336,4 +341,101 @@ func (s *TransactionProjectionService) applyDevidendReceived(ctx context.Context
 		}
 	}
 	return nil
+}
+
+func (s *TransactionProjectionService) applyInstallmentCreated(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	p, err := checkAndGetPayload[payload.InstallmentCreatedPayload](ct)
+	if err != nil {
+		return err
+	}
+	st, err := checkAndGetState[state.InstallmentCreatedState](ct)
+	if err != nil {
+		return err
+	}
+
+	var entries []payload.TransactionEntryPayload
+	switch p.InterestType.Val() {
+	case enums.InterestTypeFree:
+		entries = []payload.TransactionEntryPayload{
+			// 獲得資產，或支付費用
+			{AccountId: p.AccountId, LedgerId: &p.LedgerId, Debit: p.Amount, Credit: decimal.Zero},
+			// 應付帳款
+			{AccountId: st.Ledger.AccountId, Debit: decimal.Zero, Credit: p.Amount},
+		}
+	case enums.InterestTypeFixedRate:
+		interest := decimal.Zero
+		for _, p := range st.InstallmentPayments {
+			interest = interest.Add(p.Interest)
+		}
+		entries = []payload.TransactionEntryPayload{
+			// 獲得資產，或支付費用
+			{AccountId: p.AccountId, LedgerId: &p.LedgerId, Debit: p.Amount, Credit: decimal.Zero},
+			// 預付利息
+			{AccountId: st.SysAccountAssetPrepaidInterest, Debit: p.Amount, Credit: decimal.Zero},
+			// 應付帳款
+			{AccountId: st.Ledger.AccountId, Debit: decimal.Zero, Credit: p.Amount.Add(interest)},
+		}
+	default:
+		return fmt.Errorf("invalid interest type: %s", p.InterestType.Val())
+	}
+
+	payload := payload.TransactionCreatedPayload{
+		TransactionDate: p.StartDate,
+		Description:     fmt.Sprintf("分期付款 %s", p.Memo),
+		Currency:        "TWD",
+		Entries:         entries,
+	}
+	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum())
+	if err != nil {
+		return err
+	}
+	return tx.Projection.InstallmentRepo.UpdateInstallmentTxn(ctx, st.Installment.InstallmentId, txnId)
+}
+
+func (s *TransactionProjectionService) applyInstallmentPeriodPaid(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	p, err := checkAndGetPayload[payload.InstallmentPeriodPaidPayload](ct)
+	if err != nil {
+		return err
+	}
+	st, err := checkAndGetState[state.InstallmentPeriodPaidState](ct)
+	if err != nil {
+		return err
+	}
+
+	var entries []payload.TransactionEntryPayload
+	switch st.Installment.InterestType.Val() {
+	case enums.InterestTypeFree:
+		entries = []payload.TransactionEntryPayload{
+			// Dr. 應付帳款
+			{AccountId: st.Ledger.AccountId, LedgerId: &st.Ledger.LedgerId, Debit: st.InstallmentPayments.Amount, Credit: decimal.Zero},
+			// Cr. 銀行/信用卡帳單
+			{AccountId: st.PaidLedger.AccountId, LedgerId: &st.PaidLedger.LedgerId, Debit: decimal.Zero, Credit: st.InstallmentPayments.Amount},
+		}
+	case enums.InterestTypeFixedRate:
+		totalAmount := st.InstallmentPayments.Amount.Add(st.InstallmentPayments.Interest)
+		entries = []payload.TransactionEntryPayload{
+			// Dr. 應付帳款本金
+			{AccountId: st.Ledger.AccountId, LedgerId: &st.Ledger.LedgerId, Debit: st.InstallmentPayments.Amount, Credit: decimal.Zero},
+			// Cr. 預付利息
+			{AccountId: st.SysAccountAssetPrepaidInterest, Debit: decimal.Zero, Credit: st.InstallmentPayments.Interest},
+			// Dr. 利息費用
+			{AccountId: st.SysAccountExpenseInterestExpense, Debit: st.InstallmentPayments.Interest, Credit: decimal.Zero},
+			// Cr. 銀行/信用卡帳單
+			{AccountId: st.PaidLedger.AccountId, LedgerId: &st.PaidLedger.LedgerId, Debit: decimal.Zero, Credit: totalAmount},
+		}
+	default:
+		return fmt.Errorf("invalid interest type: %s", st.Installment.InterestType.Val())
+	}
+
+	payload := payload.TransactionCreatedPayload{
+		TransactionDate: p.PaidDate,
+		Description:     fmt.Sprintf("每期還款 %s", st.Installment.Description),
+		Currency:        "TWD",
+		Entries:         entries,
+	}
+	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum())
+	if err != nil {
+		return err
+	}
+	return tx.Projection.InstallmentRepo.UpdatePaymentTxn(ctx, st.Installment.InstallmentId, txnId)
 }

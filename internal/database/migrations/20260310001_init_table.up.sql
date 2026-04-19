@@ -57,18 +57,23 @@ CREATE TABLE IF NOT EXISTS accounts (
 );
 
 CREATE TABLE IF NOT EXISTS ledger_accounts (
-                                      ledger_id       INTEGER PRIMARY KEY,
-                                      account_id      TEXT    NOT NULL REFERENCES accounts(account_id),
-                                      institution     TEXT    NOT NULL,
-                                      name            TEXT    NOT NULL,
-                                      account_no      TEXT,
-                                      currency        TEXT    DEFAULT 'TWD',
-                                      credit_limit    REAL,
-                                      billing_day     TEXT,
-                                      due_day         TEXT,
-                                      is_active       INTEGER DEFAULT 1,
-                                      note            TEXT,
-                                      version         INTEGER NOT NULL
+                                      ledger_id             INTEGER PRIMARY KEY,
+                                      account_id            TEXT    NOT NULL REFERENCES accounts(account_id),
+                                      institution           TEXT    NOT NULL,
+                                      name                  TEXT    NOT NULL,
+                                      account_no            TEXT,
+                                      currency              TEXT    DEFAULT 'TWD',
+                                      credit_limit          REAL,
+                                      billing_day           TEXT,
+                                      due_day               TEXT,
+                                      is_active             INTEGER DEFAULT 1,
+                                      note                  TEXT,
+                                      version               INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sys_accounts (
+    sys_code    TEXT PRIMARY KEY,
+    account_id  TEXT NOT NULL REFERENCES accounts(id)
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -106,10 +111,10 @@ CREATE INDEX IF NOT EXISTS idx_je_ledger  ON journal_entries(ledger_id);
 
 
 CREATE TABLE IF NOT EXISTS installments (
-                                   installment_id    INTEGER PRIMARY KEY,
+                                   installment_id    INTEGER PRIMARY KEY AUTOINCREMENT,
                                    ledger_id         INTEGER NOT NULL REFERENCES ledger_accounts(ledger_id),
+                                   txn_id            INTEGER,
                                    description       TEXT    NOT NULL,
-                                   merchant          TEXT,
                                    total_amount      REAL    NOT NULL,
                                    total_periods     INTEGER NOT NULL,
                                    paid_periods      INTEGER DEFAULT 0,
@@ -117,10 +122,11 @@ CREATE TABLE IF NOT EXISTS installments (
                                    start_date        TEXT    NOT NULL,
                                    end_date          TEXT,
                                    interest_rate     REAL    DEFAULT 0,
+                                   interest_type     TEXT    NOT NULL,
                                    status            TEXT    DEFAULT 'ACTIVE',
                                    note              TEXT,
-                                   version           INTEGER NOT NULL,
-                                   CONSTRAINT chk_status CHECK (status IN ('ACTIVE', 'COMPLETED', 'CANCELLED'))
+                                   CONSTRAINT chk_status CHECK (status IN ('ACTIVE', 'COMPLETED', 'CANCELED')),
+                                   CONSTRAINT chk_interest_type CHECK (interest_type IN ('FREE', 'FIXED_RATE'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_install_status ON installments(status);
@@ -128,11 +134,12 @@ CREATE INDEX IF NOT EXISTS idx_install_ledger ON installments(ledger_id);
 
 
 CREATE TABLE IF NOT EXISTS installment_payments (
-                                           payment_id      INTEGER PRIMARY KEY,
+                                           payment_id      INTEGER PRIMARY KEY AUTOINCREMENT,
                                            installment_id  INTEGER NOT NULL REFERENCES installments(installment_id),
-                                           txn_id          INTEGER NOT NULL REFERENCES transactions(txn_id),
+                                           txn_id          INTEGER,
                                            period_no       INTEGER NOT NULL,
                                            amount          REAL    NOT NULL,
+                                           interest        REAL    NOT NULL,
                                            due_date        TEXT    NOT NULL,
                                            paid_date       TEXT,
                                            status          TEXT    DEFAULT 'PENDING',
@@ -140,6 +147,7 @@ CREATE TABLE IF NOT EXISTS installment_payments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ip_install ON installment_payments(installment_id);
+CREATE INDEX IF NOT EXISTS idx_ip_in_period_no ON installment_payments(installment_id, period_no);
 CREATE INDEX IF NOT EXISTS idx_ip_status  ON installment_payments(status);
 
 CREATE TABLE IF NOT EXISTS reconciliations (

@@ -11,6 +11,7 @@ type Repo struct {
 	Period      PeriodRepo
 	Entry       EntryRepo
 	Transaction TransactionRepo
+	Installment InstallmentRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -22,5 +23,6 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		Period:      NewPeriodRepo(db),
 		Entry:       NewEntryRepo(db),
 		Transaction: NewTransactionRepo(db),
+		Installment: NewInstallmentRepo(db),
 	}
 }

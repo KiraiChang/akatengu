@@ -23,23 +23,7 @@ type eventRateUpdatedProjector struct {
 }
 
 func (e eventRateUpdatedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.RateUpdatedPayload]) error {
-	p := ct.Payload
-	var errs []string
-	if p.Date == "" {
-		errs = append(errs, "date is required")
-	}
-	if p.Currency == "" {
-		errs = append(errs, "currency is required")
-	}
-
-	if p.RateTWD.IsZero() {
-		errs = append(errs, "rate_twd is required")
-	}
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
-
-	return nil
+	return ct.Payload.Validate()
 }
 
 func NewEventRateUpdatedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.RateUpdatedPayload] {
@@ -55,34 +39,11 @@ type eventInvestmentBoughtProjector struct {
 }
 
 func (e eventInvestmentBoughtProjector) Project(ctx context.Context, ct *pipelines.Context[state.InvestmentBoughtState, payload.InvestmentBoughtPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+
 	p := ct.Payload
-	var errs []string
-	if p.Date == "" {
-		errs = append(errs, "date is required")
-	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
-	}
-
-	if p.LedgerId == 0 {
-		errs = append(errs, "ledger_id is required")
-	}
-
-	if p.ExchangeRate.LessThanOrEqual(decimal.Zero) {
-		errs = append(errs, "exchange rate is required")
-	}
-
-	if p.Quantity.LessThanOrEqual(decimal.Zero) {
-		errs = append(errs, "quantity is required")
-	}
-
-	if p.UnitPrice.LessThanOrEqual(decimal.Zero) {
-		errs = append(errs, "unit_price is required")
-	}
-
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
 
 	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
 	if err != nil {
@@ -146,34 +107,11 @@ type eventInvestmentSoldProjector struct {
 }
 
 func (e eventInvestmentSoldProjector) Project(ctx context.Context, ct *pipelines.Context[state.InvestmentSoldState, payload.InvestmentSoldPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+
 	p := ct.Payload
-	var errs []string
-	if p.Date == "" {
-		errs = append(errs, "date is required")
-	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
-	}
-
-	if p.LedgerId == 0 {
-		errs = append(errs, "ledger_id is required")
-	}
-
-	if p.ExchangeRate.LessThanOrEqual(decimal.Zero) {
-		errs = append(errs, "exchange rate is required")
-	}
-
-	if p.Quantity.LessThanOrEqual(decimal.Zero) {
-		errs = append(errs, "quantity is required")
-	}
-
-	if p.UnitPrice.LessThanOrEqual(decimal.Zero) {
-		errs = append(errs, "unit_price is required")
-	}
-
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
 
 	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
 	if err != nil {
@@ -309,18 +247,11 @@ type eventStockSplitProjector struct {
 }
 
 func (e eventStockSplitProjector) Project(ctx context.Context, ct *pipelines.Context[state.StockSplitState, payload.StockSplitPayload]) error {
-	p := ct.Payload
-	var errs []string
-	if p.Date == "" {
-		errs = append(errs, "date is required")
-	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
+	if err := ct.Payload.Validate(); err != nil {
+		return err
 	}
 
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
+	p := ct.Payload
 
 	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
 	if err != nil {
@@ -356,21 +287,11 @@ type eventDividendReceivedProjector struct {
 }
 
 func (e eventDividendReceivedProjector) Project(ctx context.Context, ct *pipelines.Context[state.DividendReceivedState, payload.DividendReceivedPayload]) error {
-	p := ct.Payload
-	var errs []string
-	if p.Date == "" {
-		errs = append(errs, "date is required")
-	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
-	}
-	if p.ExchangeRate.LessThanOrEqual(decimal.Zero) {
-		errs = append(errs, "exchange_rate is required")
+	if err := ct.Payload.Validate(); err != nil {
+		return err
 	}
 
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
+	p := ct.Payload
 
 	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
 	if err != nil {

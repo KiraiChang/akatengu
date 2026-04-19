@@ -26,7 +26,8 @@ func NewMux(db *sqlx.DB, logger *zap.Logger) *http.ServeMux {
 
 	uow := event_store.NewUnitOfWork(db)
 	queryRepo := query.NewQueryRepository(db)
-	eventService := services.NewEventStoreService(uow, queryRepo)
+	sysRepo := repos.NewSysRepo(db)
+	eventService := services.NewEventStoreService(uow, queryRepo, sysRepo)
 	event := NewEventHandler(eventService, logger)
 
 	reportRepo := repos.NewReportRepo(db)

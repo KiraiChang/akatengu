@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/enums"
 	"akatengu/internal/model/db"
 	"akatengu/internal/model/request/cmd"
+	"akatengu/internal/repos"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
@@ -28,12 +29,12 @@ type EventStoreService struct {
 	projections []projection.Projection
 }
 
-func NewEventStoreService(uow event_store.UnitOfWork, query *query.Repo) *EventStoreService {
+func NewEventStoreService(uow event_store.UnitOfWork, query *query.Repo, sys repos.SysRepo) *EventStoreService {
 	return &EventStoreService{
 		uow:         uow,
 		query:       query,
 		projections: projection.NewProjection(),
-		factory:     factory.NewPipelineRegistry(query),
+		factory:     factory.NewPipelineRegistry(query, sys),
 	}
 }
 

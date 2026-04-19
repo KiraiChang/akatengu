@@ -16,10 +16,14 @@ type TransactionRepo interface {
 }
 
 type InstallmentRepo interface {
-	//// installment
-	//UpsertInstallment(ctx context.Context, p ProjInstallment) error
-	//UpsertInstallmentPayment(ctx context.Context, p ProjInstallmentPayment) error
-	//
+	// installment
+	InsertInstallment(ctx context.Context, p *projection.Installment) (int64, error)
+	InsertInstallmentPayment(ctx context.Context, p *projection.InstallmentPayment) (int64, error)
+	UpdateInstallmentTxn(ctx context.Context, inst_id int64, txn_id int64) error
+	PaidInstallmentPayment(ctx context.Context, id int64, date string) error
+	UpdateInstallmentStatus(ctx context.Context, id int64, status enums.InstallmentStatus) error
+	UpdatePaymentTxn(ctx context.Context, paymentId int64, txnId int64) error
+
 	//// reconciliation
 	//UpsertReconciliation(ctx context.Context, p ProjReconciliation) error
 	//UpsertReconciliationAdjustment(ctx context.Context, p ProjReconciliationAdjustment) error

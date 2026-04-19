@@ -103,3 +103,9 @@ VALUES
     ('5940', '5900', '投資手續費',     'EXPENSE', 'DEBIT',  0, 1),
     ('5950', '5900', '證券交易稅',     'EXPENSE', 'DEBIT',  0, 1)
 ON CONFLICT (account_id) DO NOTHING;
+
+INSERT INTO sys_accounts(sys_code, account_id)
+VALUES
+    ("SYS:ASSET:PREPAID_INTEREST", "1910"),
+    ("SYS:EXPENSE:INTEREST", "5910")
+ON CONFLICT (sys_code) DO NOTHING;

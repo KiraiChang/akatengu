@@ -9,6 +9,7 @@ type TxProjectionRepository struct {
 	TransactionRepo TransactionRepo
 	InvestmentRepo  InvestmentRepo
 	PeriodCloseRepo PeriodCloseRepo
+	InstallmentRepo InstallmentRepo
 }
 
 func NewTxProjectionRepository(tx *sqlx.Tx) *TxProjectionRepository {
@@ -17,5 +18,6 @@ func NewTxProjectionRepository(tx *sqlx.Tx) *TxProjectionRepository {
 		TransactionRepo: NewTransactionRepo(tx),
 		InvestmentRepo:  NewInvestmentRepo(tx),
 		PeriodCloseRepo: NewPeriodCloseRepo(tx),
+		InstallmentRepo: NewInstallment(tx),
 	}
 }

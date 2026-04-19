@@ -24,16 +24,7 @@ type eventPeriodMonthStartedProjector struct {
 }
 
 func (e eventPeriodMonthStartedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.PeriodMonthStartedPayload]) error {
-	p := ct.Payload
-	var errs []string
-	if p.PeriodStart == "" {
-		errs = append(errs, "period_start is required")
-	}
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
-
-	return nil
+	return ct.Payload.Validate()
 }
 
 func NewEventPeriodMonthStartedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.PeriodMonthStartedPayload] {
@@ -48,21 +39,12 @@ type eventPeriodMonthClosedProjector struct {
 }
 
 func (e eventPeriodMonthClosedProjector) Project(ctx context.Context, ct *pipelines.Context[state.PeriodMonthClosedState, payload.PeriodMonthClosedPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+
 	p := ct.Payload
 	s := ct.State
-
-	var errs []string
-
-	if p.ClosingId == 0 {
-		errs = append(errs, "closing_id is required")
-	}
-
-	if p.ClosedAt == "" {
-		errs = append(errs, "closed_at is required")
-	}
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
 
 	// 1. 檢查是否已結帳
 	existing, err := e.query.Period.GetByID(ctx, p.ClosingId)
@@ -129,23 +111,7 @@ type eventPeriodMonthReopenedProjector struct {
 }
 
 func (e eventPeriodMonthReopenedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.PeriodMonthReopenedPayload]) error {
-	p := ct.Payload
-	var errs []string
-	if p.ClosingId == 0 {
-		errs = append(errs, "closing_id is required")
-	}
-
-	if p.ReopenedAt == "" {
-		errs = append(errs, "reopened_at is required")
-	}
-
-	if p.Reason == "" {
-		errs = append(errs, "reason is required")
-	}
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
-	return nil
+	return ct.Payload.Validate()
 }
 
 func NewEventPeriodMonthReopenedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.PeriodMonthReopenedPayload] {
@@ -160,16 +126,7 @@ type eventPeriodAnnualStartedProjector struct {
 }
 
 func (e eventPeriodAnnualStartedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.PeriodAnnualStartedPayload]) error {
-	p := ct.Payload
-	var errs []string
-	if p.Year == 0 {
-		errs = append(errs, "year is required")
-	}
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
-
-	return nil
+	return ct.Payload.Validate()
 }
 
 func NewEventPeriodAnnualStartedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.PeriodAnnualStartedPayload] {
@@ -184,19 +141,12 @@ type eventPeriodAnnualClosedProjector struct {
 }
 
 func (e eventPeriodAnnualClosedProjector) Project(ctx context.Context, ct *pipelines.Context[state.PeriodAnnualClosedState, payload.PeriodAnnualClosedPayload]) error {
-	p := ct.Payload
-	s := ct.State
-	var errs []string
-	if p.ClosingId == 0 {
-		errs = append(errs, "closing_id is required")
+	if err := ct.Payload.Validate(); err != nil {
+		return err
 	}
 
-	if p.ClosedAt == "" {
-		errs = append(errs, "closed_at is required")
-	}
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
+	p := ct.Payload
+	s := ct.State
 
 	existing, err := e.query.Period.GetByID(ctx, p.ClosingId)
 	if err != nil {
@@ -271,23 +221,12 @@ type eventPeriodAnnualReopenedProjector struct {
 }
 
 func (e eventPeriodAnnualReopenedProjector) Project(ctx context.Context, ct *pipelines.Context[state.PeriodAnnualReopenedState, payload.PeriodAnnualReopenedPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+
 	p := ct.Payload
 	s := ct.State
-	var errs []string
-	if p.ClosingId == 0 {
-		errs = append(errs, "closing_id is required")
-	}
-
-	if p.ReopenedAt == "" {
-		errs = append(errs, "reopened_at is required")
-	}
-
-	if p.Reason == "" {
-		errs = append(errs, "reason is required")
-	}
-	if len(errs) > 0 {
-		return joinErrors(errs)
-	}
 
 	// 1. 檢查是否已年結
 	existing, err := e.query.Period.GetByID(ctx, p.ClosingId)
