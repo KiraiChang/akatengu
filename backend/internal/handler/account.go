@@ -46,3 +46,20 @@ func (h *accountHandler) GetAccountPaged(w http.ResponseWriter, r *http.Request)
 
 	response.OK(w, result)
 }
+
+func (h *accountHandler) GetChildrenAccount(w http.ResponseWriter, r *http.Request) {
+	method := "get children account"
+	ctx := r.Context()
+	q := r.URL.Query()
+
+	parentId := q.Get("parent_id")
+
+	result, err := h.account.GetChildrenAccount(ctx, parentId)
+	if err != nil {
+		h.logger.Error(method+" fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+
+	response.OK(w, result)
+}

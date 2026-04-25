@@ -14,10 +14,23 @@ type AccountRepo interface {
 	GetLedger(ctx context.Context, id int64) (*projection.LedgerAccount, error)
 	GetAllAccounts(ctx context.Context) ([]projection.Account, error)
 	GetAccountPaged(ctx context.Context, params model.PaginationParams) (*model.PaginatedResponse[projection.Account], error)
+	GetChildrenAccount(ctx context.Context, id string) ([]projection.Account, error)
 }
 
 type sqlxAccountRepo struct {
 	q *sqlcdb.Queries
+}
+
+func (r *sqlxAccountRepo) GetChildrenAccount(ctx context.Context, id string) ([]projection.Account, error) {
+	rows, err := r.q.GetChildrenAccount(ctx, &id)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]projection.Account, len(rows))
+	for i, row := range rows {
+		result[i] = projection.AccountFromAccount(row)
+	}
+	return result, nil
 }
 
 func (r *sqlxAccountRepo) GetAccountPaged(ctx context.Context, params model.PaginationParams) (*model.PaginatedResponse[projection.Account], error) {

@@ -15,9 +15,18 @@ SELECT
     currency, is_summary, is_active, note, version,
     COUNT(*) OVER() AS total
 FROM accounts
+WHERE parent_id IS NULL
 ORDER BY account_id ASC
     LIMIT  @page_size
 OFFSET @offset;
+
+-- name: GetChildrenAccount :many
+SELECT
+    account_id, parent_id, name, type, normal_balance,
+    currency, is_summary, is_active, note, version
+FROM accounts
+WHERE parent_id IS @parent_id
+ORDER BY account_id ASC;
 
 -- name: GetLedger :one
 SELECT ledger_id, account_id, institution, name, type,

@@ -56,6 +56,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	api.HandleFunc("GET /report/income_statement", report.GetIncomeStatement)
 
 	api.HandleFunc("GET /account/paged", account.GetAccountPaged)
+	api.HandleFunc("GET /account/children", account.GetChildrenAccount)
 
 	// ★ 全域的middleware
 
