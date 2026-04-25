@@ -1,4 +1,4 @@
 /.idea
 .DS_Store
-internal/enums/*_gen.go
-internal/enums/*/*_gen.go
+
+/backend/internal/database/sqlcdb

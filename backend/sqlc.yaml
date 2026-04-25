@@ -1,0 +1,257 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    queries: "internal/database/queries/"
+    schema: "internal/database/schema.sql"
+    gen:
+      go:
+        package: "sqlcdb"
+        out: "internal/database/sqlcdb"
+        emit_db_tags: true
+        emit_empty_slices: true
+        emit_pointers_for_null_types: true
+        overrides:
+          # ── Enum types ──────────────────────────────────────────────────────
+          - column: "event_store.aggregate_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "AggregateType"
+          - column: "aggregate_versions.aggregate_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "AggregateType"
+          - column: "snapshots.aggregate_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "AggregateType"
+          - column: "event_store.event_type"
+            go_type:
+              import: "akatengu/internal/enums/event_types"
+              type: "EventType"
+          - column: "accounts.type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "AccountType"
+          - column: "accounts.normal_balance"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "NormalBalance"
+          - column: "ledger_accounts.type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "LedgerAccountType"
+          - column: "transactions.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "TransactionStatus"
+          - column: "installments.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "InstallmentStatus"
+          - column: "installments.interest_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "InterestType"
+          - column: "installment_payments.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "InstallmentPaymentStatus"
+          - column: "investments.asset_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "AssetType"
+          - column: "investments.cost_method"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "CostMethod"
+          - column: "investments.is_active"
+            go_type:
+              type: "bool"
+          - column: "investment_lots.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "LotStatus"
+          - column: "investment_movements.movement_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "MovementType"
+          - column: "exchange_rates.source"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "RateSource"
+          - column: "period_closings.period_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "PeriodType"
+          - column: "period_closings.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "PeriodTypeStatus"
+          - column: "users.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "UserStatusType"
+
+          # ── Boolean columns stored as INTEGER ────────────────────────────────
+          - column: "accounts.is_summary"
+            go_type:
+              type: "bool"
+          - column: "accounts.is_active"
+            go_type:
+              type: "bool"
+          - column: "ledger_accounts.is_active"
+            go_type:
+              type: "bool"
+
+          # ── json.RawMessage columns ──────────────────────────────────────────
+          - column: "event_store.payload"
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"
+          - column: "event_store.metadata"
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"
+          - column: "snapshots.state"
+            go_type:
+              import: "encoding/json"
+              type: "RawMessage"
+
+          # ── Decimal: non-nullable REAL columns ──────────────────────────────
+          - column: "transactions.total_amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "journal_entries.debit"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "journal_entries.credit"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "installments.total_amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "installments.amount_per_period"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "installments.interest_rate"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "installment_payments.amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "installment_payments.interest"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investments.version"
+            go_type:
+              type: "int64"
+          - column: "investment_lots.quantity"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_lots.unit_cost"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_lots.total_cost"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_lots.remaining_qty"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_movements.quantity"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_movements.unit_price"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_movements.unit_price_twd"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_movements.exchange_rate"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_movements.fee"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_movements.tax"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_positions.total_quantity"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_positions.total_cost"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_positions.avg_cost"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_lot_disposals.quantity"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_lot_disposals.cost_basis"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_lot_disposals.sale_proceeds"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_lot_disposals.capital_gain"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "exchange_rates.rate_twd"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+
+          # ── Decimal: nullable REAL columns ───────────────────────────────────
+          - column: "ledger_accounts.credit_limit"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "NullDecimal"
+          - column: "investment_movements.realized_gain"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "NullDecimal"
+          - column: "investment_movements.cost_basis"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "NullDecimal"
+          - column: "investment_movements.split_ratio"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "NullDecimal"
+          - column: "investment_movements.gross_amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "NullDecimal"
+          - column: "investment_movements.net_amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "NullDecimal"
+          - column: "investment_movements.withholding_tax"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "NullDecimal"
