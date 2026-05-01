@@ -80,6 +80,7 @@ func (s *InvestmentProjectionService) applyInvestmentUpdate(ctx context.Context,
 		Name:         p.Name,
 		CostMethod:   p.CostMethod,
 		IsActive:     p.IsActive,
+		Version:      p.Version,
 	}); err != nil {
 		return err
 	}
@@ -157,7 +158,7 @@ func (s *InvestmentProjectionService) applyInvestmentSold(ctx context.Context, t
 	}
 
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
-		err = tx.Projection.InvestmentRepo.UpsertPosition(ctx, st.Position)
+		err = tx.Projection.InvestmentRepo.UpdateInvestmentPositionSold(ctx, st.Position)
 		if err != nil {
 			return err
 		}

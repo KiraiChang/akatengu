@@ -2,13 +2,13 @@ package middleware
 
 import (
 	"akatengu/internal/pkg/ctxkey"
-	"akatengu/internal/services"
+	"akatengu/internal/pkg/jwt"
 	"context"
 	"net/http"
 	"strings"
 )
 
-func Jwt(jwt services.JwtService) Middleware {
+func Jwt(jwt jwt.JwtService) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			header := r.Header.Get("Authorization")

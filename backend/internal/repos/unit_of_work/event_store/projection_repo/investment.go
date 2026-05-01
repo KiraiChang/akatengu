@@ -12,6 +12,10 @@ type sqlxInvestmentRepo struct {
 	q *sqlcdb.Queries
 }
 
+func (r *sqlxInvestmentRepo) UpdateInvestmentPositionSold(ctx context.Context, p projection.InvestmentPosition) error {
+	return r.q.UpdateInvestmentPositionSold(ctx, p.ToUpdateInvestmentPositionSoldParams())
+}
+
 func (r *sqlxInvestmentRepo) PositionSplit(ctx context.Context, id int64, ratio decimal.Decimal) error {
 	return r.q.UpdateInvestmentPositionSplit(ctx, sqlcdb.UpdateInvestmentPositionSplitParams{
 		InvestmentID:  id,

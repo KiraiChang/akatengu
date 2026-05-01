@@ -9,7 +9,9 @@ import (
 //dbmap:sqlcdb=Account
 //dbmap:sqlcdb=CreateAccountParams
 //dbmap:sqlcdb=UpdateAccountParams
-//dbmap:sqlcdb=GetAccountsPagedRow
+//dbmap:sqlcdb=GetAccountPagedRow
+//dbmap:sqlcdb=GetChildrenAccountRow
+//dbmap:sqlcdb=GetAllAccountsRow
 type Account struct {
 	AccountId     string              `db:"account_id" json:"account_id"`
 	ParentId      *string             `db:"parent_id" json:"parent_id"`
@@ -21,23 +23,34 @@ type Account struct {
 	IsActive      bool                `db:"is_active" json:"is_active"`
 	Note          *string             `db:"note" json:"note"`
 	Version       int64               `db:"version" json:"version"`
+	HasChild      bool                `db:"has_child" json:"has_child"`
 }
 
 //dbmap:sqlcdb=LedgerAccount
 //dbmap:sqlcdb=CreateLedgerAccountParams
 //dbmap:sqlcdb=UpdateLedgerAccountParams
+//dbmap:sqlcdb=GetLedgerPagedRow
 type LedgerAccount struct {
-	LedgerId    int64                   `db:"ledger_id"`
-	AccountId   string                  `db:"account_id"`
-	Institution string                  `db:"institution"`
-	Name        string                  `db:"name"`
-	Type        enums.LedgerAccountType `db:"type"`
-	AccountNo   *string                 `db:"account_no"`
-	Currency    string                  `db:"currency"`
-	CreditLimit decimal.NullDecimal     `db:"credit_limit"`
-	BillingDay  *string                 `db:"billing_day"`
-	DueDay      *string                 `db:"due_day"`
-	IsActive    bool                    `db:"is_active"`
-	Note        *string                 `db:"note"`
-	Version     int64                   `db:"version"`
+	LedgerId    int64                   `db:"ledger_id" json:"ledger_id"`
+	AccountId   string                  `db:"account_id" json:"account_id"`
+	Institution string                  `db:"institution" json:"institution"`
+	Name        string                  `db:"name" json:"name"`
+	Type        enums.LedgerAccountType `db:"type" json:"type"`
+	AccountNo   *string                 `db:"account_no" json:"account_no"`
+	Currency    string                  `db:"currency" json:"currency"`
+	CreditLimit decimal.NullDecimal     `db:"credit_limit" json:"credit_limit"`
+	BillingDay  *string                 `db:"billing_day" json:"billing_day"`
+	DueDay      *string                 `db:"due_day" json:"due_day"`
+	IsActive    bool                    `db:"is_active" json:"is_active"`
+	Note        *string                 `db:"note" json:"note"`
+	Version     int64                   `db:"version" json:"version"`
+}
+
+//dbmap:sqlcdb=GetAllLedgerBalancesRow
+type LedgerAccountBalance struct {
+	LedgerId      int64               `db:"ledger_id" json:"ledger_id"`
+	DebitTotal    decimal.Decimal     `db:"debit_total" json:"debit_total"`
+	CreditTotal   decimal.Decimal     `db:"credit_total" json:"credit_total"`
+	NormalBalance enums.NormalBalance `db:"normal_balance" json:"normal_balance"`
+	Balance       decimal.Decimal     `db:"balance" json:"balance"`
 }

@@ -23,11 +23,14 @@ func (s *AccountProjectionService) Apply(ctx context.Context, tx event_store.Eve
 	// Account
 	case event_types.EventAccountCreated:
 		return s.applyAccountCreate(ctx, tx, ct)
+	case event_types.EventAccountUpdated:
+		return s.applyAccountUpdated(ctx, tx, ct)
 
 	// Ledger
 	case event_types.EventLedgerAccountCreated:
 		return s.applyLedgerCreate(ctx, tx, ct)
-
+	case event_types.EventLedgerAccountUpdated:
+		return s.applyLedgerUpdated(ctx, tx, ct)
 	}
 	return nil
 }
@@ -74,6 +77,58 @@ func (s *AccountProjectionService) applyLedgerCreate(ctx context.Context, tx eve
 		DueDay:      p.DueDay,
 		IsActive:    p.IsActive,
 		Note:        p.Note,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *AccountProjectionService) applyAccountUpdated(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	p, err := checkAndGetPayload[payload.AccountUpdatedPayload](ct)
+	if err != nil {
+		return err
+	}
+
+	// 業務邏輯：組裝 proj model
+	if err := tx.Projection.AccountRepo.UpdateAccount(ctx, projection.Account{
+		AccountId:     p.AccountId,
+		ParentId:      p.ParentId,
+		Name:          p.Name,
+		Type:          p.Type,
+		NormalBalance: p.NormalBalance,
+		Currency:      coalesce(p.Currency, "TWD"),
+		IsSummary:     p.IsSummary,
+		IsActive:      p.IsActive,
+		Note:          p.Note,
+		Version:       p.Version,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *AccountProjectionService) applyLedgerUpdated(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	p, err := checkAndGetPayload[payload.LedgerAccountUpdatedPayload](ct)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Projection.AccountRepo.UpdateLedgerAccount(ctx, projection.LedgerAccount{
+		LedgerId:    p.LedgerId,
+		AccountId:   p.AccountId,
+		Institution: p.Institution,
+		Name:        p.Name,
+		Type:        p.Type,
+		AccountNo:   p.AccountNo,
+		Currency:    coalesce(p.Currency, "TWD"),
+		CreditLimit: p.CreditLimit,
+		BillingDay:  p.BillingDay,
+		DueDay:      p.DueDay,
+		IsActive:    p.IsActive,
+		Note:        p.Note,
+		Version:     p.Version,
 	}); err != nil {
 		return err
 	}

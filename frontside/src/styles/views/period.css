@@ -1,0 +1,137 @@
+/* ── Tab switcher ────────────────────────── */
+
+.period-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #1e2230;
+  margin-bottom: 24px;
+}
+
+.period-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #5c6278;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.period-tab:hover { color: #c0bdb4; }
+
+.period-tab--active {
+  color: #e07070;
+  border-bottom-color: #c44040;
+}
+
+/* ── Period table ────────────────────────── */
+
+.period-table {
+  border: 1px solid #1e2230;
+}
+
+.period-thead {
+  display: grid;
+  grid-template-columns: 120px 120px 110px 110px 1fr 160px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid #1a1c28;
+}
+
+.period-thead span {
+  padding: 9px 12px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5c6278;
+}
+
+.period-empty {
+  padding: 32px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #3d4258;
+}
+
+.period-row {
+  display: grid;
+  grid-template-columns: 120px 120px 110px 110px 1fr 160px;
+  align-items: center;
+  border-bottom: 1px solid #0d0f16;
+  transition: background 0.1s;
+}
+.period-row:last-child { border-bottom: none; }
+.period-row:hover { background: rgba(255, 255, 255, 0.015); }
+
+.period-cell {
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #c0bdb4;
+}
+
+.period-dim { color: #5c6278; }
+
+/* ── Status badge ────────────────────────── */
+
+.period-status {
+  display: inline-block;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border: 1px solid;
+}
+
+.period-status--open     { color: #6ab88a; border-color: rgba(106,184,138,0.3); }
+.period-status--closed   { color: #c0a060; border-color: rgba(192,160,96,0.3); }
+.period-status--reopened { color: #7a8096; border-color: rgba(122,128,150,0.3); }
+
+/* ── Action buttons ──────────────────────── */
+
+.period-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 16px;
+}
+
+.period-action-btn {
+  background: transparent;
+  border: 1px solid #c44040;
+  color: #e07070;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.period-action-btn:hover { background: rgba(196, 64, 64, 0.1); }
+
+.period-action-btn--ghost {
+  border-color: #3d4258;
+  color: #7a8096;
+}
+.period-action-btn--ghost:hover { background: rgba(255, 255, 255, 0.04); border-color: #5c6278; }
+
+/* ── Confirm text ────────────────────────── */
+
+.period-confirm-text {
+  font-size: 13px;
+  color: #7a8096;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.period-confirm-text strong {
+  color: #c0bdb4;
+  font-weight: 400;
+}

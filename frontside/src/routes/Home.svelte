@@ -10,32 +10,41 @@
 <script lang="ts">
   import Router from 'svelte-spa-router';
   import { authStore } from '../stores/auth.svelte';
-  import Dashboard from '../views/Dashboard.svelte';
-  import Vouchers  from '../views/Vouchers.svelte';
-  import Accounts  from '../views/Accounts.svelte';
-  import Reports   from '../views/Reports.svelte';
-  import Settings  from '../views/Settings.svelte';
+  import Dashboard    from '../views/Dashboard.svelte';
+  import Accounts     from '../views/Accounts.svelte';
+  import Ledger       from '../views/Ledger.svelte';
+  import JournalEntry from '../views/JournalEntry.svelte';
+  import Period       from '../views/Period.svelte';
+  import Investment   from '../views/Investment.svelte';
+  import Reports      from '../views/Reports.svelte';
+  import Settings     from '../views/Settings.svelte';
 
   interface MenuItem {
     label: string;
-    path: string;
+    path:  string;
   }
 
   const menuItems: MenuItem[] = [
     { label: '儀表板', path: '/home/dashboard' },
-    { label: '傳票管理', path: '/home/vouchers' },
-    { label: '帳目查詢', path: '/home/accounts' },
+    { label: '傳票管理', path: '/home/journal-entry' },
+    { label: '會計科目', path: '/home/accounts' },
+    { label: '帳戶管理', path: '/home/ledger' },
+    { label: '會計期間', path: '/home/period' },
     { label: '財務報表', path: '/home/reports' },
+    { label: '投資管理', path: '/home/investment' },
     { label: '系統設定', path: '/home/settings' },
   ];
 
   const routes = {
-    '/home':           Dashboard,
-    '/home/dashboard': Dashboard,
-    '/home/vouchers':  Vouchers,
-    '/home/accounts':  Accounts,
-    '/home/reports':   Reports,
-    '/home/settings':  Settings,
+    '/home':                Dashboard,
+    '/home/dashboard':      Dashboard,
+    '/home/journal-entry':  JournalEntry,
+    '/home/accounts':       Accounts,
+    '/home/ledger':         Ledger,
+    '/home/period':         Period,
+    '/home/reports':        Reports,
+    '/home/investment':     Investment,
+    '/home/settings':       Settings,
   };
 
   let currentPath = $state(window.location.hash.replace(/^#/, '') || '/home');
@@ -86,7 +95,7 @@
     <nav class="app-sidebar" aria-label="主選單">
       <ul class="sidebar-nav">
         {#each menuItems as item, i}
-          {#if i === 4}
+          {#if i === 7}
             <hr class="sidebar-sep" />
           {/if}
           <li>

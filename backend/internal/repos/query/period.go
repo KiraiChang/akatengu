@@ -3,6 +3,7 @@ package query
 import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/enums"
+	"akatengu/internal/handler/response/model"
 	"akatengu/internal/model/db/projection"
 	"context"
 	"database/sql"
@@ -17,10 +18,31 @@ type PeriodRepo interface {
 	GetLatestClosed(ctx context.Context, periodType enums.PeriodType) (*projection.PeriodClosing, error)
 	IsDateInClosedPeriod(ctx context.Context, date string) (bool, error)
 	AssertNoUnresolvedAdjustments(ctx context.Context, start string, end string) error
+	GetPeriodPagedByType(ctx context.Context, periodType enums.PeriodType, req model.PaginationParams) ([]projection.PeriodClosing, int64, error)
 }
 
 type sqlcdbPeriodRepo struct {
 	q *sqlcdb.Queries
+}
+
+func (r *sqlcdbPeriodRepo) GetPeriodPagedByType(ctx context.Context, periodType enums.PeriodType, req model.PaginationParams) ([]projection.PeriodClosing, int64, error) {
+	rows, err := r.q.GetPeriodPagedByType(ctx, sqlcdb.GetPeriodPagedByTypeParams{
+		PeriodType: periodType,
+		Limit:      req.Limit,
+		Offset:     req.Offset,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	total := int64(0)
+	if len(rows) > 0 {
+		total = rows[0].Total
+	}
+	result := make([]projection.PeriodClosing, len(rows))
+	for i, row := range rows {
+		result[i] = projection.PeriodClosingFromGetPeriodPagedByTypeRow(row)
+	}
+	return result, total, nil
 }
 
 func newPeriodRepo(q *sqlcdb.Queries) PeriodRepo {

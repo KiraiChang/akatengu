@@ -3,7 +3,7 @@ package middleware
 import (
 	"akatengu/internal/model/db"
 	"akatengu/internal/pkg/ctxkey"
-	"akatengu/internal/services"
+	"akatengu/internal/pkg/jwt"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -12,12 +12,12 @@ import (
 
 // stubJwtService 實作 JwtService 供測試使用
 type stubJwtService struct {
-	claims *services.Claims
+	claims *jwt.Claims
 	err    error
 }
 
 func (s *stubJwtService) GenerateToken(_ *db.User) (string, error) { return "", nil }
-func (s *stubJwtService) VerifyToken(_ string) (*services.Claims, error) {
+func (s *stubJwtService) VerifyToken(_ string) (*jwt.Claims, error) {
 	return s.claims, s.err
 }
 
@@ -30,14 +30,14 @@ func jwtRequest(method, target, authHeader string) *http.Request {
 }
 
 // next handler：把 context 裡的 claims 寫到回應 header 方便斷言
-func claimsCapture(t *testing.T) (http.HandlerFunc, func() *services.Claims) {
+func claimsCapture(t *testing.T) (http.HandlerFunc, func() *jwt.Claims) {
 	t.Helper()
-	var got *services.Claims
+	var got *jwt.Claims
 	h := func(w http.ResponseWriter, r *http.Request) {
-		got, _ = r.Context().Value(ctxkey.UserClaims).(*services.Claims)
+		got, _ = r.Context().Value(ctxkey.UserClaims).(*jwt.Claims)
 		w.WriteHeader(http.StatusOK)
 	}
-	return h, func() *services.Claims { return got }
+	return h, func() *jwt.Claims { return got }
 }
 
 // ── Authorization header 缺失 ─────────────────────────────────────
@@ -118,7 +118,7 @@ func TestJwtMiddleware_InvalidToken(t *testing.T) {
 // ── 有效 token：通過並注入 claims ─────────────────────────────────
 
 func TestJwtMiddleware_ValidToken_PassThrough(t *testing.T) {
-	want := &services.Claims{UserID: 7, UserName: "alice"}
+	want := &jwt.Claims{UserID: 7, UserName: "alice"}
 	svc := &stubJwtService{claims: want}
 
 	next, getClaims := claimsCapture(t)
@@ -145,7 +145,7 @@ func TestJwtMiddleware_ValidToken_PassThrough(t *testing.T) {
 // ── 整合：使用真實 JwtService 產生 token 後通過 middleware ────────
 
 func TestJwtMiddleware_RealToken_PassThrough(t *testing.T) {
-	jwtSvc := services.NewJWT("test-secret")
+	jwtSvc := jwt.NewJWT("test-secret")
 	user := &db.User{UserId: 99, Username: "realuser"}
 	token, err := jwtSvc.GenerateToken(user)
 	if err != nil {

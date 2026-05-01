@@ -1,12 +1,14 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+始終用繁體中文說明
 
-## 限制條件
+## Constraints
 - **不要**修改或讀取 `*_gen.go`。
+- **不要**修改或讀取 `internal\database\sqlcdb` 這些由sqlc生成的程式
 - 在未經許可下，**不要**自動執行任何 `git push` 命令。
 - **不要**使用 AI 生成的虛假資料來測試功能。
-- 
+ 
 
 ## Commands
 
@@ -32,7 +34,8 @@ go run ./cmd/enumx-gen
 
 ## Architecture
 
-This is a **Go event-sourcing accounting system** using SQLite, `sqlx`, and `golang-migrate`. The server runs on `:8080` using the standard `net/http` package.
+這是一個**基於 GO 語言設計的 事件朔源(event-sourcing)的會計系統** 使用 `sqlite`，`sqlx`,`sqlc`還有`golang-migrate`來對齊資料庫結構。
+伺服器運行在 `:8080`，使用標準的 `net/http` 函式庫
 
 ### Event Flow (the core pattern)
 

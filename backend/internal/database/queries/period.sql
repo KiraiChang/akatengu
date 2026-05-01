@@ -5,6 +5,17 @@ SELECT closing_id, period_type, period_start, period_end, status,
 FROM period_closings
 WHERE period_type = ? AND period_start = ?;
 
+-- name: GetPeriodPagedByType :many
+SELECT closing_id, period_type, period_start, period_end, status,
+       opening_txn_id, closing_txn_id, snapshot, closed_at, note,
+       reopen_at, reopen_reason,
+       COUNT(*) OVER() AS total
+FROM period_closings
+WHERE period_type = @period_type
+ORDER BY period_end DESC
+    LIMIT @limit
+OFFSET @offset;
+
 -- name: GetPeriodByID :one
 SELECT closing_id, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,

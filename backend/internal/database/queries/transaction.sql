@@ -4,6 +4,16 @@ SELECT txn_id, txn_date, description, total_amount, currency,
 FROM transactions
 WHERE txn_id = ?;
 
+-- name: GetTransactionPaged :many
+SELECT txn_id, txn_date, description, total_amount, currency,
+       status, installment_id, receipt_no, note, version, ref_txn_id,
+       COUNT(*) OVER() AS total
+FROM transactions
+ORDER BY txn_id DESC
+    LIMIT @limit
+OFFSET @offset;
+
+
 -- name: InsertTransaction :execlastid
 INSERT INTO transactions
     (txn_date, description, total_amount, currency, status, receipt_no, note, version, ref_txn_id)

@@ -3,6 +3,8 @@ package model
 type PaginationParams struct {
 	Page     int64 `json:"page"`      // 第幾頁，從 1 開始
 	PageSize int64 `json:"page_size"` // 每頁幾筆資料
+	Offset   int64 `json:"offset"`
+	Limit    int64 `json:"limit"`
 }
 
 func (p *PaginationParams) SetDefaults() {
@@ -12,6 +14,8 @@ func (p *PaginationParams) SetDefaults() {
 	if p.PageSize <= 0 || p.PageSize > 100 {
 		p.PageSize = 20
 	}
+	p.Limit = p.PageSize
+	p.Offset = (p.Page - 1) * p.PageSize
 }
 
 type PaginatedMeta struct {

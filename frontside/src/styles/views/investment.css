@@ -1,0 +1,177 @@
+/* ── Investment type badges ───────────────── */
+
+.inv-type-STOCK { color: #6ab88a; border-color: rgba(106,184,138,0.3); background: rgba(106,184,138,0.05); }
+.inv-type-FUND  { color: #c49040; border-color: rgba(196,144,64,0.3);  background: rgba(196,144,64,0.05); }
+.inv-type-GOLD  { color: #c4a040; border-color: rgba(196,160,64,0.3);  background: rgba(196,160,64,0.05); }
+.inv-type-FX    { color: #7090c4; border-color: rgba(112,144,196,0.3); background: rgba(112,144,196,0.05); }
+
+/* ── Amount cells ─────────────────────────── */
+
+.inv-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Row expand ───────────────────────────── */
+
+.inv-expand-icon {
+  display: inline-block;
+  font-size: 8px;
+  color: #3d4258;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.data-table tr.inv-row-expanded > td {
+  background: rgba(196, 160, 64, 0.03);
+}
+
+/* ── Holding panel ────────────────────────── */
+
+.inv-holding-row > .inv-holding-cell {
+  padding: 0 !important;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid #1a1c28;
+}
+
+.inv-holding-msg {
+  display: block;
+  padding: 12px 24px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #3d4258;
+}
+
+.inv-holding-error { color: #c07070; }
+
+/* ── FIFO lot table ───────────────────────── */
+
+.inv-lot-table {
+  padding: 8px 24px 12px;
+}
+
+.inv-lot-header,
+.inv-lot-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr 1fr 1fr 64px;
+  gap: 0;
+  align-items: center;
+}
+
+.inv-lot-header {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 2px;
+}
+
+.inv-lot-header span {
+  padding: 4px 8px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+}
+
+.inv-lot-row {
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.inv-lot-row:last-child { border-bottom: none; }
+
+.inv-lot-row span {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #7a8096;
+}
+
+.inv-lot-row span.num { text-align: right; }
+
+.inv-lot-open    { color: #6ab88a; border-color: rgba(106,184,138,0.3); background: rgba(106,184,138,0.05); }
+.inv-lot-partial { color: #c4a040; border-color: rgba(196,160,64,0.3);  background: rgba(196,160,64,0.05); }
+.inv-lot-closed  { color: #5c6278; border-color: rgba(92,98,120,0.3);   background: rgba(92,98,120,0.05); }
+
+/* ── AVG position ─────────────────────────── */
+
+.inv-position {
+  display: flex;
+  gap: 40px;
+  padding: 12px 24px;
+  align-items: baseline;
+}
+
+.inv-position-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inv-position-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+}
+
+.inv-position-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  color: #c0bdb4;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Lot row expand ───────────────────────── */
+
+.inv-lot-row {
+  cursor: pointer;
+}
+
+.inv-lot-row-expanded {
+  background: rgba(112, 144, 196, 0.04);
+}
+
+/* ── Lot disposal panel ───────────────────── */
+
+.inv-disposal-panel {
+  background: rgba(0, 0, 0, 0.18);
+  border-top: 1px solid rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  margin-bottom: 1px;
+}
+
+.inv-disposal-table {
+  padding: 6px 16px 8px;
+}
+
+.inv-disposal-header,
+.inv-disposal-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr 1fr 1fr 80px;
+  gap: 0;
+  align-items: center;
+}
+
+.inv-disposal-header {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 2px;
+}
+
+.inv-disposal-header span {
+  padding: 3px 8px;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+}
+
+.inv-disposal-row {
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.inv-disposal-row:last-child { border-bottom: none; }
+
+.inv-disposal-row span {
+  padding: 4px 8px;
+  font-size: 10px;
+  color: #6a7096;
+}
+
+.inv-disposal-row span.num { text-align: right; }

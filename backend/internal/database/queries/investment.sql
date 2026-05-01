@@ -4,6 +4,15 @@ SELECT investment_id, account_id, asset_type, currency, symbol,
 FROM investments
 WHERE investment_id = ?;
 
+-- name: GetInvestmentPaged :many
+SELECT investment_id, account_id, asset_type, currency, symbol,
+       name, cost_method, is_active, version,
+       COUNT(*) OVER() AS total
+FROM investments
+ORDER BY investment_id ASC
+    LIMIT @limit
+OFFSET @offset;
+
 -- name: GetInvestmentBySymbol :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
        name, cost_method, is_active, version
@@ -21,6 +30,26 @@ SELECT lot_id, investment_id, movement_id, acquired_date, txn_id,
 FROM investment_lots
 WHERE investment_id = ? AND status != ?
 ORDER BY acquired_date, lot_id;
+
+-- name: GetOpenLotsPaged :many
+SELECT lot_id, investment_id, movement_id, acquired_date, txn_id,
+       quantity, unit_cost, total_cost, remaining_qty, status,
+       COUNT(*) OVER() AS total
+FROM investment_lots
+WHERE investment_id = ?
+ORDER BY acquired_date, lot_id ASC
+    LIMIT @limit
+OFFSET @offset;
+
+-- name: GetOpenLotDisposalsPaged :many
+SELECT lot_id, movement_id, quantity, cost_basis, sale_proceeds, capital_gain,
+       holding_period_days, disposal_date,
+       COUNT(*) OVER() AS total
+FROM investment_lot_disposals
+WHERE lot_id = ?
+ORDER BY disposal_date ASC
+    LIMIT @limit
+OFFSET @offset;
 
 -- name: GetInvestmentMovements :many
 SELECT movement_id, investment_id, event_id, txn_id, movement_type,
@@ -89,6 +118,13 @@ WHERE movement_id = ?;
 UPDATE investment_positions
 SET total_quantity = total_quantity * ?
 WHERE investment_id = ?;
+
+-- name: UpdateInvestmentPositionSold :exec
+UPDATE investment_positions
+SET total_quantity = total_quantity - @total_quantity,
+    total_cost = total_cost - @total_cost
+WHERE investment_id = @investment_id
+    AND total_quantity - @total_quantity >= 0;
 
 -- name: UpdateInvestmentLotSplit :exec
 UPDATE investment_lots

@@ -1,0 +1,62 @@
+/* ── Expand / collapse tree rows ────────── */
+
+.expandable {
+  cursor: pointer;
+}
+
+.expandable:hover {
+  background-color: rgba(255, 255, 255, 0.025);
+}
+
+.expand-icon {
+  display: inline-block;
+  width: 1em;
+  font-size: 0.7em;
+  color: #5c6278;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.expand-icon--empty {
+  visibility: hidden;
+}
+
+.indent {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── Account ID prefix input ─────────────── */
+
+.acct-id-field {
+  display: flex;
+  align-items: baseline;
+  border-bottom: 1px solid #2e3348;
+  transition: border-color 0.2s;
+}
+.acct-id-field:focus-within { border-bottom-color: #c44040; }
+
+.acct-id-prefix {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: #5c6278;
+  white-space: nowrap;
+  padding: 8px 4px 8px 0;
+  user-select: none;
+}
+
+.acct-id-input {
+  border-bottom: none !important;
+  flex: 1;
+  min-width: 0;
+}
+.acct-id-input:focus { border-bottom-color: transparent !important; }
+
+.acct-id-preview {
+  display: block;
+  margin-top: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #5c6278;
+}

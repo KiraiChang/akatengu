@@ -1,7 +1,8 @@
 -- name: GetAllAccounts :many
-SELECT account_id, parent_id, name, type, normal_balance,
-       currency, is_summary, is_active, note, version
-FROM accounts;
+SELECT a.account_id, a.parent_id, a.name, a.type, a.normal_balance,
+       a.currency, a.is_summary, a.is_active, a.note, a.version,
+       EXISTS (SELECT 1 FROM accounts c WHERE c.parent_id = a.account_id) AS has_child
+FROM accounts a;
 
 -- name: GetAccount :one
 SELECT account_id, parent_id, name, type, normal_balance,
@@ -9,24 +10,26 @@ SELECT account_id, parent_id, name, type, normal_balance,
 FROM accounts
 WHERE account_id = ?;
 
--- name: GetAccountsPaged :many
+-- name: GetAccountPaged :many
 SELECT
-    account_id, parent_id, name, type, normal_balance,
-    currency, is_summary, is_active, note, version,
-    COUNT(*) OVER() AS total
-FROM accounts
-WHERE parent_id IS NULL
-ORDER BY account_id ASC
-    LIMIT  @page_size
+    a.account_id, a.parent_id, a.name, a.type, a.normal_balance,
+    a.currency, a.is_summary, a.is_active, a.note, a.version,
+    COUNT(*) OVER() AS total,
+    EXISTS (SELECT 1 FROM accounts c WHERE c.parent_id = a.account_id) AS has_child
+FROM accounts a
+WHERE a.parent_id IS NULL
+ORDER BY a.account_id ASC
+    LIMIT @limit
 OFFSET @offset;
 
 -- name: GetChildrenAccount :many
 SELECT
     account_id, parent_id, name, type, normal_balance,
-    currency, is_summary, is_active, note, version
-FROM accounts
-WHERE parent_id IS @parent_id
-ORDER BY account_id ASC;
+    currency, is_summary, is_active, note, version,
+    EXISTS (SELECT 1 FROM accounts c WHERE c.parent_id = a.account_id) AS has_child
+FROM accounts a
+WHERE a.parent_id = @parent_id
+ORDER BY a.account_id ASC;
 
 -- name: GetLedger :one
 SELECT ledger_id, account_id, institution, name, type,
@@ -34,6 +37,29 @@ SELECT ledger_id, account_id, institution, name, type,
        is_active, note, version
 FROM ledger_accounts
 WHERE ledger_id = ?;
+
+-- name: GetAllLedgers :many
+SELECT ledger_id, account_id, institution, name, type,
+       account_no, currency, credit_limit, billing_day, due_day,
+       is_active, note, version
+FROM ledger_accounts
+ORDER BY ledger_id ASC;
+
+-- name: GetAllLedgerBalances :many
+SELECT ledger_id, debit_total, credit_total, normal_balance
+FROM v_account_balances
+ORDER BY ledger_id ASC;
+
+
+-- name: GetLedgerPaged :many
+SELECT ledger_id, account_id, institution, name, type,
+       account_no, currency, credit_limit, billing_day, due_day,
+       is_active, note, version,
+       COUNT(*) OVER() AS total
+FROM ledger_accounts
+ORDER BY ledger_id ASC
+    LIMIT @limit
+OFFSET @offset;
 
 -- name: CreateAccount :exec
 INSERT INTO accounts

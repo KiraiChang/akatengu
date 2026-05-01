@@ -2,6 +2,7 @@ package services
 
 import (
 	"akatengu/internal/model/request"
+	jwt2 "akatengu/internal/pkg/jwt"
 	"akatengu/internal/repos/query"
 	"context"
 	"fmt"
@@ -13,7 +14,7 @@ type AuthService interface {
 
 type authService struct {
 	user query.UserRepo
-	jwt  JwtService
+	jwt  jwt2.JwtService
 }
 
 func (a *authService) Login(ctx context.Context, req request.Login) (string, error) {
@@ -38,7 +39,7 @@ func (a *authService) Login(ctx context.Context, req request.Login) (string, err
 	return token, nil
 }
 
-func NewAuthService(user query.UserRepo, jwt JwtService) AuthService {
+func NewAuthService(user query.UserRepo, jwt jwt2.JwtService) AuthService {
 	return &authService{
 		user: user,
 		jwt:  jwt,

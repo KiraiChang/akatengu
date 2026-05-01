@@ -3,11 +3,6 @@ INSERT INTO projection_checkpoints (projection_name, last_event_id) VALUES
                                                                         ('TRANSACTION',    0)
 ON CONFLICT (projection_name) DO NOTHING;
 
-INSERT INTO aggregate_versions (aggregate_type, aggregate_id, current_version) VALUES
-                                                                                    ('ACCOUNT', '', 0),
-                                                                                    ('TRANSACTION', '', 0)
-ON CONFLICT (aggregate_type, aggregate_id) DO NOTHING;
-
 INSERT INTO accounts
 (account_id, parent_id, name, type, normal_balance, is_summary, version)
 VALUES
@@ -335,3 +330,8 @@ VALUES
     ("SYS:EQUITY:CLOSE_NET_INCOME", "3102-01"),
     ("SYS:EQUITY:EQUITY_OPENING", "3101-01")
 ON CONFLICT (sys_code) DO NOTHING;
+
+INSERT INTO users (username, password, status)
+VALUES
+    ("admin","$argon2id$v=19$m=65536,t=3,p=4$dAwHffvcmwhMyBdu17BV2A$zKcGOexREzx6GetSdqq6OwXmOHWP5cY1+MRyTV9iq/c","ACTIVE")
+    ON CONFLICT (username) DO NOTHING;

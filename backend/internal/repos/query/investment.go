@@ -3,6 +3,7 @@ package query
 import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/enums"
+	"akatengu/internal/handler/response/model"
 	"akatengu/internal/model/db/projection"
 	"context"
 	"database/sql"
@@ -18,11 +19,73 @@ type InvestmentRepo interface {
 	GetOpenLots(ctx context.Context, investmentID int64) ([]projection.InvestmentLot, error)
 	GetPosition(ctx context.Context, id int64) (*projection.InvestmentPosition, error)
 	GetMovements(ctx context.Context, investmentID int64) ([]projection.InvestmentMovement, error)
+	GetInvestmentPaged(ctx context.Context, req model.PaginationParams) ([]projection.Investment, int64, error)
+	GetLotDisposalsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLotDisposals, int64, error)
+	GetOpenLotsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLot, int64, error)
 }
 
 type sqlcdbInvestmentRepository struct {
 	q  *sqlcdb.Queries
 	db *sqlx.DB
+}
+
+func (r *sqlcdbInvestmentRepository) GetLotDisposalsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLotDisposals, int64, error) {
+	rows, err := r.q.GetOpenLotDisposalsPaged(ctx, sqlcdb.GetOpenLotDisposalsPagedParams{
+		Offset: req.Offset,
+		Limit:  req.Limit,
+		LotID:  &id,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	total := int64(0)
+	if len(rows) > 0 {
+		total = rows[0].Total
+	}
+	result := make([]projection.InvestmentLotDisposals, len(rows))
+	for i, row := range rows {
+		result[i] = projection.InvestmentLotDisposalsFromGetOpenLotDisposalsPagedRow(row)
+	}
+	return result, total, nil
+}
+
+func (r *sqlcdbInvestmentRepository) GetOpenLotsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLot, int64, error) {
+	rows, err := r.q.GetOpenLotsPaged(ctx, sqlcdb.GetOpenLotsPagedParams{
+		Offset:       req.Offset,
+		Limit:        req.Limit,
+		InvestmentID: id,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	total := int64(0)
+	if len(rows) > 0 {
+		total = rows[0].Total
+	}
+	result := make([]projection.InvestmentLot, len(rows))
+	for i, row := range rows {
+		result[i] = projection.InvestmentLotFromGetOpenLotsPagedRow(row)
+	}
+	return result, total, nil
+}
+
+func (r *sqlcdbInvestmentRepository) GetInvestmentPaged(ctx context.Context, req model.PaginationParams) ([]projection.Investment, int64, error) {
+	rows, err := r.q.GetInvestmentPaged(ctx, sqlcdb.GetInvestmentPagedParams{
+		Offset: req.Offset,
+		Limit:  req.Limit,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	total := int64(0)
+	if len(rows) > 0 {
+		total = rows[0].Total
+	}
+	result := make([]projection.Investment, len(rows))
+	for i, row := range rows {
+		result[i] = projection.InvestmentFromGetInvestmentPagedRow(row)
+	}
+	return result, total, nil
 }
 
 func newInvestmentRepo(q *sqlcdb.Queries, db *sqlx.DB) InvestmentRepo {

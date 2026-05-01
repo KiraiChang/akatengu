@@ -64,6 +64,12 @@ func resolveConversion(src, tgt FieldDef) (toExpr, fromExpr string, needsConvPkg
 	case s == "*string" && t == "*time.Time":
 		return fmt.Sprintf("dbmapconv.PtrStrToTime(%s)", mf), fmt.Sprintf("dbmapconv.PtrTimeToStr(%s)", sf), true
 
+	// bool ↔ int64 (SQLite stores booleans as INTEGER)
+	case s == "bool" && t == "int64":
+		return fmt.Sprintf("dbmapconv.BoolToInt(%s)", mf), fmt.Sprintf("dbmapconv.IntToBool(%s)", sf), true
+	case s == "int64" && t == "bool":
+		return fmt.Sprintf("dbmapconv.IntToBool(%s)", mf), fmt.Sprintf("dbmapconv.BoolToInt(%s)", sf), true
+
 	default:
 		// Types differ in a way we don't auto-handle; emit a TODO so the file
 		// still compiles only when the user fills in the conversion.

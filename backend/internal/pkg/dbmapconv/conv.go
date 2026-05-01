@@ -44,3 +44,14 @@ func PtrStrToTime(s *string) *time.Time {
 	}
 	return &t
 }
+
+// IntToBool converts a SQLite INTEGER (0/1) to bool.
+func IntToBool(v int64) bool { return v != 0 }
+
+// BoolToInt converts bool to a SQLite INTEGER (0/1).
+func BoolToInt(v bool) int64 {
+	if v {
+		return 1
+	}
+	return 0
+}

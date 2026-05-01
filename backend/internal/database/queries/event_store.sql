@@ -87,11 +87,9 @@ WHERE projection_name = ?;
 SELECT current_version FROM aggregate_versions
 WHERE aggregate_type = ? AND aggregate_id = ?;
 
--- name: UpsertAggregateVersion :exec
+-- name: InsertAggregateVersion :exec
 INSERT INTO aggregate_versions (aggregate_type, aggregate_id, current_version)
-VALUES (?, ?, ?)
-ON CONFLICT(aggregate_type, aggregate_id)
-DO UPDATE SET current_version = excluded.current_version;
+VALUES (?, ?, ?);
 
 -- name: UpdateVersionIfMatch :one
 UPDATE aggregate_versions

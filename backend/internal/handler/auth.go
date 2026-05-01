@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/handler/response"
 	"akatengu/internal/handler/response/model"
 	"akatengu/internal/model/request"
+	"akatengu/internal/pkg/jwt"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/services"
 	"encoding/json"
@@ -19,7 +20,7 @@ type authHandler struct {
 	logger *zap.Logger
 }
 
-func newAuthHandler(db *sqlx.DB, jwt services.JwtService, logger *zap.Logger) *authHandler {
+func newAuthHandler(db *sqlx.DB, jwt jwt.JwtService, logger *zap.Logger) *authHandler {
 	userRepo := query.NewUserRepo(db)
 	user := services.NewUserService(userRepo)
 	auth := services.NewAuthService(userRepo, jwt)

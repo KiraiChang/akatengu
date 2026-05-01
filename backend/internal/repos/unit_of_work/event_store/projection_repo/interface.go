@@ -54,6 +54,7 @@ type InvestmentRepo interface {
 	UpdateLot(ctx context.Context, id int64, txnId int64) error
 	PositionSplit(ctx context.Context, id int64, ratio decimal.Decimal) error
 	LotSplit(ctx context.Context, id int64, ratio decimal.Decimal) error
+	UpdateInvestmentPositionSold(ctx context.Context, position projection.InvestmentPosition) error
 }
 
 type PeriodCloseRepo interface {

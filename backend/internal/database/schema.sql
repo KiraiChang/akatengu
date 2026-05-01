@@ -235,3 +235,17 @@ CREATE TABLE users (
     password TEXT    NOT NULL,
     status   TEXT    NOT NULL DEFAULT 'INACTIVE'
 );
+
+CREATE VIEW v_account_balances AS
+SELECT
+    la.ledger_id,
+    a.normal_balance,
+    COALESCE(SUM(je.debit), 0)     AS debit_total,
+    COALESCE(SUM(je.credit), 0)     AS credit_total
+FROM ledger_accounts la
+         JOIN accounts a          ON la.account_id = a.account_id
+         LEFT JOIN journal_entries je ON la.ledger_id = je.ledger_id
+    AND la.account_id = je.account_id
+         LEFT JOIN transactions t     ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
+WHERE la.is_active = 1
+GROUP BY la.ledger_id;

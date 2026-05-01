@@ -91,6 +91,10 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "UserStatusType"
+          - column: "v_account_balances.normal_balance"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "NormalBalance"
 
           # ── Boolean columns stored as INTEGER ────────────────────────────────
           - column: "accounts.is_summary"
@@ -222,6 +226,14 @@ sql:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
           - column: "exchange_rates.rate_twd"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "v_account_balances.debit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "v_account_balances.credit_total"
             go_type:
               import: "github.com/shopspring/decimal"
               type: "Decimal"

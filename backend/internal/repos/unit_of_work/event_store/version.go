@@ -5,7 +5,6 @@ import (
 	"akatengu/internal/enums"
 	"context"
 	"database/sql"
-	"fmt"
 )
 
 type sqlcdbTxVersionRepository struct{ q *sqlcdb.Queries }
@@ -21,8 +20,8 @@ func (r *sqlcdbTxVersionRepository) Get(ctx context.Context, aggregateType enums
 	return version, err
 }
 
-func (r *sqlcdbTxVersionRepository) Upsert(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, version int64) error {
-	return r.q.UpsertAggregateVersion(ctx, sqlcdb.UpsertAggregateVersionParams{
+func (r *sqlcdbTxVersionRepository) Insert(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, version int64) error {
+	return r.q.InsertAggregateVersion(ctx, sqlcdb.InsertAggregateVersionParams{
 		AggregateType:  aggregateType,
 		AggregateID:    aggregateID,
 		CurrentVersion: version,
@@ -35,9 +34,7 @@ func (r *sqlcdbTxVersionRepository) UpdateIfVersionMatch(ctx context.Context, ag
 		AggregateID:    aggregateID,
 		CurrentVersion: version,
 	})
-	if err == sql.ErrNoRows {
-		return 0, fmt.Errorf("version %d not found in aggregate %s", version, aggregateType)
-	}
+
 	if err != nil {
 		return 0, err
 	}

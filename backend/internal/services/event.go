@@ -10,7 +10,9 @@ import (
 	"akatengu/internal/services/pipelines/factory"
 	"akatengu/internal/services/projection"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -50,7 +52,15 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 		// 版本控制
 		newVersion, err := tx.Version.UpdateIfVersionMatch(ctx, cmd.AggregateType, cmd.AggregateID, cmd.ExpectedVersion)
 		if err != nil {
-			return fmt.Errorf("update version: %d fail, error: %w", cmd.ExpectedVersion, err)
+			if errors.Is(err, sql.ErrNoRows) {
+				newVersion = cmd.ExpectedVersion + 1
+				err = tx.Version.Insert(ctx, cmd.AggregateType, cmd.AggregateID, newVersion)
+				if err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("update version: %d fail, error: %w", cmd.ExpectedVersion, err)
+			}
 		}
 
 		// 寫入事件

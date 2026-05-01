@@ -22,6 +22,21 @@ func NewEventAccountCreatedPipeline() *pipelines.TypedPipeline[pipelines.NoState
 }
 
 // ------------------------------
+// EventAccountUpdated
+// ------------------------------
+
+type eventAccountUpdatedProjector struct {
+}
+
+func (e *eventAccountUpdatedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.AccountUpdatedPayload]) error {
+	return ct.Payload.Validate()
+}
+
+func NewEventAccountUpdatedPipeline() *pipelines.TypedPipeline[pipelines.NoState, payload.AccountUpdatedPayload] {
+	return pipelines.NewTypeWithNoState[payload.AccountUpdatedPayload](&eventAccountUpdatedProjector{})
+}
+
+// ------------------------------
 // EventLedgerAccountCreated
 // ------------------------------
 
@@ -34,6 +49,21 @@ func (e *eventLedgerAccountCreatedProjector) Project(ctx context.Context, ct *pi
 
 func NewEventLedgerAccountCreatedPipeline() *pipelines.TypedPipeline[pipelines.NoState, payload.LedgerAccountCreatePayload] {
 	return pipelines.NewTypeWithNoState[payload.LedgerAccountCreatePayload](&eventLedgerAccountCreatedProjector{})
+}
+
+// ------------------------------
+// EventLedgerAccountUpdate
+// ------------------------------
+
+type eventLedgerAccountUpdatedProjector struct {
+}
+
+func (e *eventLedgerAccountUpdatedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.LedgerAccountUpdatedPayload]) error {
+	return ct.Payload.Validate()
+}
+
+func NewEventLedgerAccountUpdatedPipeline() *pipelines.TypedPipeline[pipelines.NoState, payload.LedgerAccountUpdatedPayload] {
+	return pipelines.NewTypeWithNoState[payload.LedgerAccountUpdatedPayload](&eventLedgerAccountUpdatedProjector{})
 }
 
 // ------------------------------

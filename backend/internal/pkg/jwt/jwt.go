@@ -1,4 +1,4 @@
-package services
+package jwt
 
 import (
 	"akatengu/internal/model/db"

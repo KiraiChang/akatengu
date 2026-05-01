@@ -42,7 +42,7 @@ func (p AccountCreatePayload) Validate() error {
 	return joinErrors(errs)
 }
 
-// AccountUpdatePayload 範例
+// AccountUpdatedPayload 範例
 //
 //	{
 //	  "account_id": "1110-01",
@@ -52,7 +52,7 @@ func (p AccountCreatePayload) Validate() error {
 //	  "normal_balance": "debit",
 //	  "is_summary": 0
 //	}
-type AccountUpdatePayload struct {
+type AccountUpdatedPayload struct {
 	AccountId     string              `json:"account_id"`
 	ParentId      *string             `json:"parent_id"`
 	Name          string              `json:"name"`
@@ -63,6 +63,24 @@ type AccountUpdatePayload struct {
 	IsActive      bool                `json:"is_active"`
 	Note          *string             `json:"note"`
 	Version       int64               `json:"version"`
+}
+
+func (p AccountUpdatedPayload) Validate() error {
+	var errs []string
+
+	if p.AccountId == "" {
+		errs = append(errs, "account id is required")
+	}
+
+	if p.Name == "" {
+		errs = append(errs, "account name is required")
+	}
+
+	if p.Version <= 0 {
+		errs = append(errs, "version is required")
+	}
+
+	return joinErrors(errs)
 }
 
 // LedgerAccountCreatePayload 範例
@@ -92,25 +110,25 @@ func (p LedgerAccountCreatePayload) Validate() error {
 	var errs []string
 
 	if p.AccountId == "" {
-		errs = append(errs, "account id is required")
+		errs = append(errs, "account_id is required")
 	}
 
 	if p.Name == "" {
-		errs = append(errs, "ledger name is required")
+		errs = append(errs, "name is required")
 	}
 
 	if p.Currency == "" {
-		errs = append(errs, "ledger currency is required")
+		errs = append(errs, "currency is required")
 	}
 
 	if p.Institution == "" {
-		errs = append(errs, "ledger institution is required")
+		errs = append(errs, "institution is required")
 	}
 
 	return joinErrors(errs)
 }
 
-// LedgerAccountUpdatePayload 範例
+// LedgerAccountUpdatedPayload 範例
 //
 //	{
 //	  "ledger_id": 1,
@@ -120,17 +138,48 @@ func (p LedgerAccountCreatePayload) Validate() error {
 //	  "account_no": "1234",
 //	  "currency": "TWD"
 //	}
-type LedgerAccountUpdatePayload struct {
-	LedgerId    int64            `json:"ledger_id"`
-	AccountId   string           `json:"account_id"`
-	Institution string           `json:"institution"`
-	Name        string           `json:"name"`
-	AccountNo   *string          `json:"account_no"`
-	Currency    string           `json:"currency"`
-	CreditLimit *decimal.Decimal `json:"credit_limit"`
-	BillingDay  *string          `json:"billing_day"`
-	DueDay      *string          `json:"due_day"`
-	IsActive    bool             `json:"is_active"`
-	Note        *string          `json:"note"`
-	Version     int64            `json:"version"`
+type LedgerAccountUpdatedPayload struct {
+	LedgerId    int64                   `json:"ledger_id"`
+	AccountId   string                  `json:"account_id"`
+	Institution string                  `json:"institution"`
+	Name        string                  `json:"name"`
+	AccountNo   *string                 `json:"account_no"`
+	Currency    string                  `json:"currency"`
+	CreditLimit decimal.NullDecimal     `json:"credit_limit"`
+	BillingDay  *string                 `json:"billing_day"`
+	DueDay      *string                 `json:"due_day"`
+	IsActive    bool                    `json:"is_active"`
+	Note        *string                 `json:"note"`
+	Version     int64                   `json:"version"`
+	Type        enums.LedgerAccountType `json:"type"`
+}
+
+func (p LedgerAccountUpdatedPayload) Validate() error {
+	var errs []string
+
+	if p.LedgerId <= 0 {
+		errs = append(errs, "ledger_id is required")
+	}
+
+	if p.AccountId == "" {
+		errs = append(errs, "account_id is required")
+	}
+
+	if p.Name == "" {
+		errs = append(errs, "name is required")
+	}
+
+	if p.Currency == "" {
+		errs = append(errs, "currency is required")
+	}
+
+	if p.Institution == "" {
+		errs = append(errs, "institution is required")
+	}
+
+	if p.Version <= 0 {
+		errs = append(errs, "version is required")
+	}
+
+	return joinErrors(errs)
 }
