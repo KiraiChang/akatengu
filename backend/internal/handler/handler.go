@@ -42,6 +42,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	txn := newTransactionHandler(db, logger)
 	period := newPeriodHandler(db, logger)
 	investment := newInvestmentHandler(db, logger)
+	sys := newSysHandler(db, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -78,6 +79,9 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	api.HandleFunc("GET /txn/{txn_id}", txn.GetEntries)
 
 	api.HandleFunc("GET /aggerate/{aggerate_type}", aggerate.GetVersion)
+
+	api.HandleFunc("GET /sys/account", sys.GetSysAccount)
+	api.HandleFunc("POST /sys/account", sys.UpdateSysAccount)
 
 	// ★ 全域的middleware
 

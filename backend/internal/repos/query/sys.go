@@ -10,10 +10,15 @@ import (
 
 type SysRepo interface {
 	GetSysAccount(ctx context.Context) ([]db.SysAccount, error)
+	UpdateSysAccount(ctx context.Context, s db.SysAccount) error
 }
 
 type sqlcdbSysRepo struct {
 	q *sqlcdb.Queries
+}
+
+func (s *sqlcdbSysRepo) UpdateSysAccount(ctx context.Context, sys db.SysAccount) error {
+	return s.q.UpdateSysAccount(ctx, sys.ToUpdateSysAccountParams())
 }
 
 func newSysRepo(q *sqlcdb.Queries) SysRepo {
