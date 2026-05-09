@@ -69,7 +69,7 @@ func (p TransactionCreatedPayload) Validate() error {
 	}
 	if !totalDebit.Sub(totalCredit).IsZero() {
 		errs = append(errs, fmt.Sprintf(
-			"entries not balanced: debit=%.2f credit=%.2f", totalDebit, totalCredit,
+			"entries not balanced: debit=%s credit=%s", totalDebit.StringFixed(2), totalCredit.StringFixed(2),
 		))
 	}
 

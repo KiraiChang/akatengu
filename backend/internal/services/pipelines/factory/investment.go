@@ -302,7 +302,7 @@ func (e *eventInvestmentSoldProjector) calcFIFOCostBasis(
 	}
 
 	if remaining.IsPositive() {
-		return fifoCalcResult{}, fmt.Errorf("insufficient inventory: need %.4f more", remaining)
+		return fifoCalcResult{}, fmt.Errorf("insufficient inventory: need %s more", remaining.StringFixed(4))
 	}
 	return fifoCalcResult{
 		OriginalCost:         originalCost,
