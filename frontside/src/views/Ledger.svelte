@@ -2,6 +2,8 @@
   import { getLedgerAccountAll, getLedgerBalances, invalidateLedgerCache, createLedgerAccount, updateLedgerAccount } from '../api/ledger';
   import { getAccountAll, createAccount } from '../api/account';
   import AccountSelect from '../components/AccountSelect.svelte';
+  import { type NewAccountForm, emptyNewAccountForm } from '../components/NewAccountFormSection.svelte';
+  import NewLedgerFormSection, { type NewLedgerForm, emptyNewLedgerForm } from '../components/NewLedgerFormSection.svelte';
   import type { Account, CreateAccountRequest } from '../types/account';
   import type { LedgerAccount, LedgerBalance, LedgerAccountCreatePayload, LedgerAccountUpdatePayload, LedgerAccountType } from '../types/ledger';
 
@@ -17,15 +19,6 @@
     LOAN:         'ledger-type-installment',
   };
 
-  const ACCOUNT_TYPES = ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'] as const;
-  const ACCOUNT_TYPE_LABELS: Record<string, string> = {
-    ASSET:     '資產',
-    LIABILITY: '負債',
-    EQUITY:    '權益',
-    INCOME:    '收入',
-    EXPENSE:   '費用',
-  };
-
   let ledgers     = $state<LedgerAccount[]>([]);
   let allAccounts = $state<Account[]>([]);
   let balanceMap  = $state(new Map<number, string>());
@@ -38,36 +31,15 @@
     version:          number;
   };
 
-  interface NewAccountForm {
-    parent_id:      string | null;
-    accountSuffix:  string;
-    account_id:     string;
-    name:           string;
-    type:           string;
-    normal_balance: string;
-    currency:       string;
-    is_summary:     boolean;
-    is_active:      boolean;
-  }
-
-  let showModal        = $state(false);
-  let mode             = $state<'create' | 'edit'>('create');
-  let isSaving         = $state(false);
-  let saveError        = $state('');
-  let form             = $state<LedgerForm>(emptyForm());
-  let createNewAccount = $state(false);
-  let newAccountForm   = $state<NewAccountForm>(emptyAccountForm());
-
-  const accountParent = $derived(
-    newAccountForm.parent_id
-      ? (allAccounts.find(a => a.account_id === newAccountForm.parent_id) ?? null)
-      : null,
-  );
-  const accountPrefix = $derived(accountParent?.account_id ?? '');
-
-  $effect(() => {
-    newAccountForm.account_id = accountPrefix + newAccountForm.accountSuffix;
-  });
+  let showModal          = $state(false);
+  let mode               = $state<'create' | 'edit'>('create');
+  let isSaving           = $state(false);
+  let saveError          = $state('');
+  let form               = $state<LedgerForm>(emptyForm());
+  let newLedgerForm      = $state<NewLedgerForm>(emptyNewLedgerForm());
+  let newLedgerAccountId = $state('');
+  let createNewAccount   = $state(false);
+  let newAccountForm     = $state<NewAccountForm>(emptyNewAccountForm());
 
   $effect(() => {
     void load();
@@ -98,11 +70,13 @@
   }
 
   async function openModal(): Promise<void> {
-    mode             = 'create';
-    saveError        = '';
-    createNewAccount = false;
-    form             = emptyForm();
-    newAccountForm   = emptyAccountForm();
+    mode               = 'create';
+    saveError          = '';
+    form               = emptyForm();
+    newLedgerForm      = emptyNewLedgerForm();
+    newLedgerAccountId = '';
+    createNewAccount   = false;
+    newAccountForm     = emptyNewAccountForm();
     if (allAccounts.length === 0) {
       allAccounts = await getAccountAll();
     }
@@ -136,51 +110,55 @@
 
   async function handleSubmit(e: Event): Promise<void> {
     e.preventDefault();
-    if (!form.name.trim() || !form.institution.trim()) return;
-
-    const ledgerAccountId = createNewAccount ? newAccountForm.account_id : form.account_id;
-    if (!ledgerAccountId) return;
-
     isSaving  = true;
     saveError = '';
     try {
-      if (createNewAccount) {
-        if (!newAccountForm.account_id.trim() || !newAccountForm.name.trim()) {
-          saveError = '請填寫完整的會計科目資料';
+      if (mode === 'create') {
+        let ledgerAccountId: string;
+        if (createNewAccount) {
+          if (!newAccountForm.account_id.trim() || !newAccountForm.name.trim()) {
+            saveError = '請填寫完整的會計科目資料';
+            return;
+          }
+          const accountPayload: CreateAccountRequest = {
+            account_id:     newAccountForm.account_id.trim(),
+            parent_id:      newAccountForm.parent_id || null,
+            name:           newAccountForm.name.trim(),
+            type:           newAccountForm.type,
+            normal_balance: newAccountForm.normal_balance,
+            currency:       newAccountForm.currency,
+            is_summary:     newAccountForm.is_summary,
+            is_active:      newAccountForm.is_active,
+            note:           null,
+          };
+          await createAccount(accountPayload);
+          allAccounts = [];
+          ledgerAccountId = newAccountForm.account_id.trim();
+        } else {
+          ledgerAccountId = newLedgerAccountId;
+        }
+        if (!ledgerAccountId) {
+          saveError = '請選擇或新增會計科目';
           return;
         }
-        const accountPayload: CreateAccountRequest = {
-          account_id:     newAccountForm.account_id.trim(),
-          parent_id:      newAccountForm.parent_id || null,
-          name:           newAccountForm.name.trim(),
-          type:           newAccountForm.type,
-          normal_balance: newAccountForm.normal_balance,
-          currency:       newAccountForm.currency,
-          is_summary:     newAccountForm.is_summary,
-          is_active:      newAccountForm.is_active,
-          note:           null,
-        };
-        await createAccount(accountPayload);
-        allAccounts = [];
-      }
-
-      const creditLimit = form.type === 'CREDIT_CARD' && form.creditLimitInput ? form.creditLimitInput : null;
-      if (mode === 'create') {
+        const creditLimit = newLedgerForm.type === 'CREDIT_CARD' && newLedgerForm.creditLimitInput
+          ? newLedgerForm.creditLimitInput : null;
         const payload: LedgerAccountCreatePayload = {
           account_id:   ledgerAccountId,
-          institution:  form.institution.trim(),
-          name:         form.name.trim(),
-          type:         form.type,
-          account_no:   form.account_no?.trim() || null,
-          currency:     form.currency,
+          institution:  newLedgerForm.institution.trim(),
+          name:         newLedgerForm.name.trim(),
+          type:         newLedgerForm.type,
+          account_no:   newLedgerForm.account_no?.trim() || null,
+          currency:     newLedgerForm.currency,
           credit_limit: creditLimit,
-          billing_day:  form.type === 'CREDIT_CARD' ? form.billing_day : null,
-          due_day:      form.type === 'CREDIT_CARD' ? form.due_day : null,
-          is_active:    form.is_active,
+          billing_day:  newLedgerForm.type === 'CREDIT_CARD' ? newLedgerForm.billing_day || null : null,
+          due_day:      newLedgerForm.type === 'CREDIT_CARD' ? newLedgerForm.due_day || null : null,
+          is_active:    newLedgerForm.is_active,
           note:         form.note?.trim() || null,
         };
         await createLedgerAccount(payload);
       } else {
+        const creditLimit = form.type === 'CREDIT_CARD' && form.creditLimitInput ? form.creditLimitInput : null;
         const payload: LedgerAccountUpdatePayload = {
           ledger_id:    form.ledger_id,
           account_id:   form.account_id,
@@ -227,26 +205,16 @@
     };
   }
 
-  function emptyAccountForm(): NewAccountForm {
-    return {
-      parent_id:      null,
-      accountSuffix:  '',
-      account_id:     '',
-      name:           '',
-      type:           'ASSET',
-      normal_balance: 'DEBIT',
-      currency:       'TWD',
-      is_summary:     false,
-      is_active:      true,
-    };
-  }
-
   const canSubmit = $derived(
-    form.name.trim() !== '' &&
-    form.institution.trim() !== '' &&
-    (createNewAccount
-      ? newAccountForm.account_id.trim() !== '' && newAccountForm.name.trim() !== ''
-      : form.account_id !== ''),
+    mode === 'create'
+      ? newLedgerForm.name.trim()        !== '' &&
+        newLedgerForm.institution.trim() !== '' &&
+        (createNewAccount
+          ? newAccountForm.account_id.trim() !== '' && newAccountForm.name.trim() !== ''
+          : newLedgerAccountId !== '')
+      : form.name.trim()        !== '' &&
+        form.institution.trim() !== '' &&
+        form.account_id         !== '',
   );
 </script>
 
@@ -273,7 +241,7 @@
     </div>
   </header>
 
-  <div class="table-wrap">
+  <div class="table-wrap ldgr-table-wrap">
     <table class="data-table" aria-label="帳戶列表">
       <thead>
         <tr>
@@ -327,6 +295,47 @@
       </tbody>
     </table>
   </div>
+
+  <div class="ldgr-card-list">
+    {#if isLoading && ledgers.length === 0}
+      <div class="table-empty">載入中...</div>
+    {:else if ledgers.length === 0}
+      <div class="table-empty">無資料</div>
+    {:else}
+      {#each ledgers as ledger (ledger.ledger_id)}
+        {@const balAmt = balanceMap.get(ledger.ledger_id)}
+        {@const balClass = balAmt !== undefined ? (parseFloat(balAmt) < 0 ? 'ldgr-card-balance-neg' : 'ldgr-card-balance-pos') : ''}
+        <div class="ldgr-card">
+          <div class="ldgr-card-head">
+            <span class="ldgr-card-name">{ledger.name}</span>
+            <button class="btn-ghost" style="padding:2px 10px;font-size:11px;" onclick={() => openEditModal(ledger)}>編輯</button>
+          </div>
+          {#if ledger.institution}
+            <div class="ldgr-card-institution">{ledger.institution}</div>
+          {/if}
+          <div class="ldgr-card-row">
+            <span class="badge {TYPE_CSS[ledger.type]}">{TYPE_LABELS[ledger.type]}</span>
+            <span class="ldgr-card-meta">{ledger.currency}</span>
+            {#if ledger.account_no}
+              <span class="ldgr-card-meta mono">{ledger.account_no}</span>
+            {/if}
+          </div>
+          <div class="ldgr-card-acct mono">{ledger.account_id}</div>
+          <div class="ldgr-card-footer">
+            <span class="ldgr-card-balance {balClass}">{fmtBalance(balAmt)}</span>
+            {#if ledger.is_active}
+              <span class="badge approved">啟用</span>
+            {:else}
+              <span class="badge pending">停用</span>
+            {/if}
+          </div>
+          {#if ledger.note && ledger.note !== '—'}
+            <div class="ldgr-card-note">{ledger.note}</div>
+          {/if}
+        </div>
+      {/each}
+    {/if}
+  </div>
 </section>
 
 <!-- ── 新增帳戶 Modal ─────────────────────── -->
@@ -343,214 +352,62 @@
           <p class="query-error" role="alert" style="margin-bottom:16px;">{saveError}</p>
         {/if}
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="f-institution">金融機構 *</label>
-            <input
-              id="f-institution"
-              class="form-input"
-              type="text"
-              bind:value={form.institution}
-              placeholder="例：玉山銀行"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="f-name">帳戶名稱 *</label>
-            <input
-              id="f-name"
-              class="form-input"
-              type="text"
-              bind:value={form.name}
-              placeholder="例：玉山數位帳戶"
-              required
-            />
-          </div>
-        </div>
-
-        <div class="form-row">
-          {#if mode === 'create'}
+        {#if mode === 'create'}
+          <NewLedgerFormSection
+            accounts={allAccounts}
+            bind:form={newLedgerForm}
+            required={true}
+            bind:createNewAccount={createNewAccount}
+            bind:newAccountForm={newAccountForm}
+            bind:accountId={newLedgerAccountId}
+          />
+        {:else}
+          <div class="form-row">
             <div class="form-group">
-              <label class="form-label" for="f-type">帳戶類型 *</label>
-              <select id="f-type" class="form-select" bind:value={form.type}>
-                <option value="BANK_ACCOUNT">銀行帳戶</option>
-                <option value="CREDIT_CARD">信用卡</option>
-                <option value="LOAN">貸款</option>
-              </select>
+              <label class="form-label" for="f-institution">金融機構 *</label>
+              <input
+                id="f-institution"
+                class="form-input"
+                type="text"
+                bind:value={form.institution}
+                placeholder="例：玉山銀行"
+                required
+              />
             </div>
-          {:else}
+            <div class="form-group">
+              <label class="form-label" for="f-name">帳戶名稱 *</label>
+              <input
+                id="f-name"
+                class="form-input"
+                type="text"
+                bind:value={form.name}
+                placeholder="例：玉山數位帳戶"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="f-type-display">帳戶類型</label>
               <input id="f-type-display" class="form-input" type="text" value={TYPE_LABELS[form.type]} readonly style="background:#f5f0e8;cursor:default;" />
             </div>
-          {/if}
-          <div class="form-group">
-            <label class="form-label" for="f-account-no">帳號 ／ 卡號後四碼</label>
-            <input
-              id="f-account-no"
-              class="form-input"
-              type="text"
-              value={form.account_no ?? ''}
-              oninput={(e) => { form.account_no = (e.target as HTMLInputElement).value || null; }}
-              placeholder="選填"
-            />
-          </div>
-        </div>
-
-        {#if mode === 'create'}
-          <div class="form-group" style="margin-bottom:4px;">
-            <span class="form-label">關聯會計科目 *</span>
-            <div class="acct-mode-toggle">
-              <button
-                type="button"
-                class="acct-mode-btn"
-                class:acct-mode-btn--active={!createNewAccount}
-                onclick={() => { createNewAccount = false; }}
-              >選擇現有科目</button>
-              <button
-                type="button"
-                class="acct-mode-btn"
-                class:acct-mode-btn--active={createNewAccount}
-                onclick={() => { createNewAccount = true; newAccountForm = emptyAccountForm(); }}
-              >＋ 新增科目</button>
+            <div class="form-group">
+              <label class="form-label" for="f-account-no">帳號 ／ 卡號後四碼</label>
+              <input
+                id="f-account-no"
+                class="form-input"
+                type="text"
+                value={form.account_no ?? ''}
+                oninput={(e) => { form.account_no = (e.target as HTMLInputElement).value || null; }}
+                placeholder="選填"
+              />
             </div>
           </div>
 
-          {#if !createNewAccount}
-            <div class="form-row">
-              <div class="form-group">
-                <!-- svelte-ignore a11y_label_has_associated_control -->
-                <AccountSelect
-                  accounts={allAccounts}
-                  value={form.account_id}
-                  placeholder="搜尋並選擇科目…"
-                  onselect={(id) => { form.account_id = id; }}
-                />
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="f-currency">幣別</label>
-                <input
-                  id="f-currency"
-                  class="form-input"
-                  type="text"
-                  bind:value={form.currency}
-                  placeholder="TWD"
-                />
-              </div>
-            </div>
-          {:else}
-            <div class="new-account-section">
-              <div class="form-group">
-                <!-- svelte-ignore a11y_label_has_associated_control -->
-                <label class="form-label">父類別科目</label>
-                <AccountSelect
-                  accounts={allAccounts}
-                  value={newAccountForm.parent_id ?? ''}
-                  placeholder="無（頂層科目）"
-                  onselect={(id) => {
-                    newAccountForm.parent_id   = id || null;
-                    newAccountForm.accountSuffix = '';
-                    const parent = allAccounts.find(a => a.account_id === id) ?? null;
-                    if (parent) {
-                      newAccountForm.type           = parent.type;
-                      newAccountForm.normal_balance = parent.normal_balance;
-                      newAccountForm.currency       = parent.currency;
-                    }
-                  }}
-                />
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label" for="f-new-acct-id">科目編號 *</label>
-                  <div class="acct-id-field">
-                    {#if accountPrefix}
-                      <span class="acct-id-prefix">{accountPrefix}</span>
-                    {/if}
-                    <input
-                      id="f-new-acct-id"
-                      class="form-input acct-id-input"
-                      type="text"
-                      bind:value={newAccountForm.accountSuffix}
-                      placeholder={accountPrefix ? '後綴，例：-01' : '例：1101'}
-                      required={createNewAccount}
-                    />
-                  </div>
-                  {#if accountPrefix && newAccountForm.account_id}
-                    <span class="acct-id-preview">完整編號：{newAccountForm.account_id}</span>
-                  {/if}
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="f-new-acct-name">科目名稱 *</label>
-                  <input
-                    id="f-new-acct-name"
-                    class="form-input"
-                    type="text"
-                    bind:value={newAccountForm.name}
-                    placeholder="例：玉山銀行存款"
-                    required={createNewAccount}
-                  />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label" for="f-new-acct-type">科目類型 *</label>
-                  <select id="f-new-acct-type" class="form-select" bind:value={newAccountForm.type}>
-                    {#each ACCOUNT_TYPES as t}
-                      <option value={t}>{ACCOUNT_TYPE_LABELS[t]}</option>
-                    {/each}
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="f-new-acct-balance">正常餘額 *</label>
-                  <select id="f-new-acct-balance" class="form-select" bind:value={newAccountForm.normal_balance}>
-                    <option value="DEBIT">借（Debit）</option>
-                    <option value="CREDIT">貸（Credit）</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label" for="f-new-acct-currency">幣別</label>
-                  <input
-                    id="f-new-acct-currency"
-                    class="form-input"
-                    type="text"
-                    bind:value={newAccountForm.currency}
-                    placeholder="TWD"
-                  />
-                </div>
-                <div class="form-group" style="display:flex;gap:20px;padding-top:26px;">
-                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#9a8a6a;letter-spacing:0.06em;">
-                    <input type="checkbox" bind:checked={newAccountForm.is_summary} />
-                    摘要科目
-                  </label>
-                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#9a8a6a;letter-spacing:0.06em;">
-                    <input type="checkbox" bind:checked={newAccountForm.is_active} />
-                    啟用
-                  </label>
-                </div>
-              </div>
-
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label" for="f-ledger-currency">帳戶幣別</label>
-                <input
-                  id="f-ledger-currency"
-                  class="form-input"
-                  type="text"
-                  bind:value={form.currency}
-                  placeholder="TWD"
-                />
-              </div>
-            </div>
-          {/if}
-        {:else}
           <div class="form-row">
             <div class="form-group">
-              <!-- svelte-ignore a11y_label_has_associated_control -->
-              <label class="form-label">關聯會計科目 *</label>
+              <label class="form-label" for="account_id">關聯會計科目 *</label>
               <AccountSelect
                 accounts={allAccounts}
                 value={form.account_id}
@@ -569,60 +426,60 @@
               />
             </div>
           </div>
-        {/if}
 
-        {#if form.type === 'CREDIT_CARD'}
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="f-credit-limit">信用額度</label>
-              <input
-                id="f-credit-limit"
-                class="form-input"
-                type="number"
-                min="0"
-                step="1"
-                bind:value={form.creditLimitInput}
-                placeholder="例：100000"
-              />
+          {#if form.type === 'CREDIT_CARD'}
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="f-credit-limit">信用額度</label>
+                <input
+                  id="f-credit-limit"
+                  class="form-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  bind:value={form.creditLimitInput}
+                  placeholder="例：100000"
+                />
+              </div>
+              <div class="form-group"></div>
             </div>
-            <div class="form-group"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="f-billing-day">帳單截止日（日）</label>
-              <input
-                id="f-billing-day"
-                class="form-input"
-                type="number"
-                min="1"
-                max="31"
-                value={form.billing_day ?? ''}
-                oninput={(e) => { form.billing_day = (e.target as HTMLInputElement).value || null; }}
-                placeholder="例：25"
-              />
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="f-billing-day">帳單截止日（日）</label>
+                <input
+                  id="f-billing-day"
+                  class="form-input"
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={form.billing_day ?? ''}
+                  oninput={(e) => { form.billing_day = (e.target as HTMLInputElement).value || null; }}
+                  placeholder="例：25"
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="f-due-day">繳費截止日（日）</label>
+                <input
+                  id="f-due-day"
+                  class="form-input"
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={form.due_day ?? ''}
+                  oninput={(e) => { form.due_day = (e.target as HTMLInputElement).value || null; }}
+                  placeholder="例：15"
+                />
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label" for="f-due-day">繳費截止日（日）</label>
-              <input
-                id="f-due-day"
-                class="form-input"
-                type="number"
-                min="1"
-                max="31"
-                value={form.due_day ?? ''}
-                oninput={(e) => { form.due_day = (e.target as HTMLInputElement).value || null; }}
-                placeholder="例：15"
-              />
-            </div>
+          {/if}
+
+          <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:4px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#9a8a6a;letter-spacing:0.06em;">
+              <input type="checkbox" bind:checked={form.is_active} />
+              啟用此帳戶
+            </label>
           </div>
         {/if}
-
-        <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:4px;">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#9a8a6a;letter-spacing:0.06em;">
-            <input type="checkbox" bind:checked={form.is_active} />
-            啟用此帳戶
-          </label>
-        </div>
 
         <div class="form-group" style="margin-top:16px;">
           <label class="form-label" for="f-note">備註</label>

@@ -64,6 +64,10 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "CostMethod"
+          - column: "investments.ifrs_category"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "IFRSCategory"
           - column: "investments.is_active"
             go_type:
               type: "bool"
@@ -87,6 +91,14 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "PeriodTypeStatus"
+          - column: "account_balance_snapshots.debit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "account_balance_snapshots.credit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
           - column: "users.status"
             go_type:
               import: "akatengu/internal/enums"
@@ -173,6 +185,10 @@ sql:
             go_type:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
+          - column: "investment_lots.unrealized_unit_twd"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
           - column: "investment_movements.quantity"
             go_type:
               import: "github.com/shopspring/decimal"
@@ -206,6 +222,10 @@ sql:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
           - column: "investment_positions.avg_cost"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "investment_positions.market_price_twd"
             go_type:
               import: "github.com/shopspring/decimal"
               type: "Decimal"

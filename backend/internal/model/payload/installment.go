@@ -48,8 +48,7 @@ func (p InstallmentCreatedPayload) Validate() error {
 		errs = append(errs, "ledger_id is required")
 	}
 
-	if p.InterestType != enums.InterestTypeFree.Enum() ||
-		p.InterestType != enums.InterestTypeFixedRate.Enum() {
+	if !p.InterestType.In(enums.AllInterestType()...) {
 		errs = append(errs, "interest_type is required")
 	}
 

@@ -210,7 +210,7 @@
       <span>日期</span>
       <span>摘要</span>
       <span class="num">金額</span>
-      <span>幣別</span>
+      <span class="txn-cell--currency">幣別</span>
       <span>狀態</span>
       <span></span>
     </div>
@@ -232,7 +232,7 @@
             <span class="txn-cell">{txn.txn_date}</span>
             <span class="txn-cell txn-desc">{txn.description}</span>
             <span class="txn-cell num">{fmtAmount(txn.total_amount)}</span>
-            <span class="txn-cell">{txn.currency}</span>
+            <span class="txn-cell txn-cell--currency">{txn.currency}</span>
             <span class="txn-cell">
               <span class="txn-status txn-status--{txn.status.toLowerCase().replace('_', '-')}">
                 {STATUS_LABEL[txn.status] ?? txn.status}
@@ -255,7 +255,7 @@
                     <span>帳戶</span>
                     <span class="num">借方</span>
                     <span class="num">貸方</span>
-                    <span>備註</span>
+                    <span class="entry-cell--note">備註</span>
                   </div>
                   {#each rows as entry (entry.entry_id)}
                     {@const acct = allAccounts.find(a => a.account_id === entry.account_id)}
@@ -279,7 +279,7 @@
                       </span>
                       <span class="entry-cell num">{parseFloat(entry.debit) > 0 ? fmtAmount(entry.debit) : ''}</span>
                       <span class="entry-cell num">{parseFloat(entry.credit) > 0 ? fmtAmount(entry.credit) : ''}</span>
-                      <span class="entry-cell entry-note">{entry.note ?? ''}</span>
+                      <span class="entry-cell entry-note entry-cell--note">{entry.note ?? ''}</span>
                     </div>
                   {/each}
                 {/if}

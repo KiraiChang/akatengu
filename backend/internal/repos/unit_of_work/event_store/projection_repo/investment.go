@@ -12,6 +12,13 @@ type sqlxInvestmentRepo struct {
 	q *sqlcdb.Queries
 }
 
+func (r *sqlxInvestmentRepo) UpdateDisposalTxn(ctx context.Context, lotId int64, txnId int64) error {
+	return r.q.UpdateInvestmentLotDisposalTxn(ctx, sqlcdb.UpdateInvestmentLotDisposalTxnParams{
+		TxnID: &txnId,
+		ID:    lotId,
+	})
+}
+
 func (r *sqlxInvestmentRepo) UpdateInvestmentPositionSold(ctx context.Context, p projection.InvestmentPosition) error {
 	return r.q.UpdateInvestmentPositionSold(ctx, p.ToUpdateInvestmentPositionSoldParams())
 }
@@ -58,7 +65,7 @@ func (r *sqlxInvestmentRepo) UpdateMovement(ctx context.Context, id int64, txn_i
 	})
 }
 
-func (r *sqlxInvestmentRepo) InsertLotDisposals(ctx context.Context, d projection.InvestmentLotDisposals) error {
+func (r *sqlxInvestmentRepo) InsertLotDisposals(ctx context.Context, d projection.InvestmentLotDisposals) (int64, error) {
 	return r.q.InsertInvestmentLotDisposal(ctx, d.ToInsertInvestmentLotDisposalParams())
 }
 
@@ -71,10 +78,28 @@ func (r *sqlxInvestmentRepo) CreateInvestment(ctx context.Context, p projection.
 	return r.q.CreateInvestment(ctx, p.ToCreateInvestmentParams())
 }
 
+func (r *sqlxInvestmentRepo) UpdatePositionFairValue(ctx context.Context, investmentId int64, marketPriceTWD decimal.Decimal) error {
+	err := r.q.UpdateInvestmentPositionFairValue(ctx, sqlcdb.UpdateInvestmentPositionFairValueParams{
+		MarketPriceTwd: marketPriceTWD,
+		InvestmentID:   investmentId,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (r *sqlxInvestmentRepo) UpdateInvestment(ctx context.Context, p projection.Investment) error {
 	return r.q.UpdateInvestment(ctx, p.ToUpdateInvestmentParams())
 }
 
+func (r *sqlxInvestmentRepo) UpdateLotUnrealizedUnit(ctx context.Context, lotId int64, unrealizedUnitTWD decimal.Decimal) error {
+	return r.q.UpdateLotUnrealizedUnit(ctx, sqlcdb.UpdateLotUnrealizedUnitParams{
+		UnrealizedUnitTwd: unrealizedUnitTWD,
+		LotID:             lotId,
+	})
+}
+
 func NewInvestmentRepo(q *sqlcdb.Queries) InvestmentRepo {
-	return &sqlxInvestmentRepo{q}
+	return &sqlxInvestmentRepo{q: q}
 }

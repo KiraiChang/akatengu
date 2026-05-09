@@ -5,7 +5,8 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
-	"log/slog"
+
+	"go.uber.org/zap"
 )
 
 //go:embed seeds/*.sql
@@ -57,22 +58,23 @@ func (s *SQLFileSeeder) Seed(ctx context.Context, db *sql.DB) error {
 // SeedRunner 管理並執行所有 seeder
 type SeedRunner struct {
 	db      *sql.DB
+	l       *zap.Logger
 	seeders []Seeder
 }
 
-func NewSeedRunner(db *sql.DB, seeders ...Seeder) *SeedRunner {
-	return &SeedRunner{db: db, seeders: seeders}
+func NewSeedRunner(db *sql.DB, logger *zap.Logger, seeders ...Seeder) *SeedRunner {
+	return &SeedRunner{db: db, l: logger, seeders: seeders}
 }
 
 func (sr *SeedRunner) Run(ctx context.Context) error {
 	for _, s := range sr.seeders {
-		slog.Info("running seeder", "name", s.Name())
+		sr.l.Info("running seeder", zap.String("name", s.Name()))
 
 		if err := s.Seed(ctx, sr.db); err != nil {
 			return fmt.Errorf("seeder [%s]: %w", s.Name(), err)
 		}
 
-		slog.Info("seeder completed", "name", s.Name())
+		sr.l.Info("seeder completed", zap.String("name", s.Name()))
 	}
 	return nil
 }

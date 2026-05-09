@@ -74,6 +74,8 @@
   font-weight: 300;
   letter-spacing: 0.14em;
   color: #5c6278;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
 }
 
 .header-right {
@@ -545,4 +547,86 @@
 @keyframes content-rise {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Hamburger button (desktop: hidden) ── */
+
+.header-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid #252836;
+  color: #7a8096;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.header-menu-btn:hover {
+  border-color: #c44040;
+  color: #e07070;
+}
+
+/* ── Sidebar backdrop (mobile only) ─────── */
+
+.sidebar-backdrop {
+  display: none;
+}
+
+/* ── RWD: mobile (< 768px) ───────────────── */
+
+@media (max-width: 767px) {
+  .header-menu-btn {
+    display: flex;
+  }
+
+  .app-body {
+    grid-template-columns: 1fr;
+  }
+
+  .app-sidebar {
+    display: none;
+    position: fixed;
+    inset: 52px 0 36px 0;
+    z-index: 50;
+    width: 240px;
+    background: rgba(8, 10, 15, 0.97);
+    border-right: 1px solid #1e2230;
+  }
+
+  .app-sidebar.sidebar-open {
+    display: flex;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 49;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .app-content {
+    padding: 20px 16px;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── RWD: tablet (768px – 1023px) ────────── */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-content {
+    padding: 28px 24px;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

@@ -20,7 +20,7 @@ import (
 
 type TransactionProjectionService struct{}
 
-func (s *TransactionProjectionService) Name() string { return string(enums.AggregateTransaction) }
+func (s *TransactionProjectionService) Name() string { return enums.ProjectionTypeTransaction.String() }
 
 func (s *TransactionProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, t event_types.EventType, ct *pipelines.Result) error {
 	switch t.Val() {
@@ -165,7 +165,7 @@ func (s *TransactionProjectionService) applyPeriodAnnualReopened(ctx context.Con
 }
 
 func (s *TransactionProjectionService) applyInvestmentBought(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
-	p, err := checkAndGetPayload[payload.InvestmentBoughtPayload](ct)
+	_, err := checkAndGetPayload[payload.InvestmentBoughtPayload](ct)
 	if err != nil {
 		return err
 	}
@@ -174,15 +174,7 @@ func (s *TransactionProjectionService) applyInvestmentBought(ctx context.Context
 		return err
 	}
 
-	// 業務邏輯：組裝 proj model
-	payload := payload.TransactionCreatedPayload{
-		TransactionDate: p.Date,
-		Description:     fmt.Sprintf("買入 %s", st.Investment.Name),
-		Currency:        "TWD",
-		Entries:         s.buyEntries(st, p),
-	}
-
-	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum())
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum())
 	if err != nil {
 		return err
 	}
@@ -202,7 +194,7 @@ func (s *TransactionProjectionService) applyInvestmentBought(ctx context.Context
 }
 
 func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
-	p, err := checkAndGetPayload[payload.InvestmentSoldPayload](ct)
+	_, err := checkAndGetPayload[payload.InvestmentSoldPayload](ct)
 	if err != nil {
 		return err
 	}
@@ -211,15 +203,7 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 		return err
 	}
 
-	// 業務邏輯：組裝 proj model
-	payload := payload.TransactionCreatedPayload{
-		TransactionDate: p.Date,
-		Description:     fmt.Sprintf("賣出 %s", st.Investment.Name),
-		Currency:        "TWD",
-		Entries:         s.sellEntries(*p, *st),
-	}
-
-	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum())
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum())
 	if err != nil {
 		return err
 	}
@@ -229,29 +213,16 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 		return err
 	}
 
-	return nil
-}
+	if st.LotDisposals != nil {
+		for _, lot := range st.LotDisposals {
+			err = tx.Projection.InvestmentRepo.UpdateDisposalTxn(ctx, lot.LotId, txnId)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
-func (s *TransactionProjectionService) buyEntries(st *state.InvestmentBoughtState, p *payload.InvestmentBoughtPayload) []payload.TransactionEntryPayload {
-	cost := p.Quantity.Mul(p.UnitPrice).Mul(p.ExchangeRate)
-	totalCost := cost.Add(p.Fee).Add(p.Tax)
-	entries := []payload.TransactionEntryPayload{
-		// 資產增加
-		{AccountId: st.Investment.AccountId, Debit: cost, Credit: decimal.Zero},
-		// 扣款帳戶
-		{AccountId: st.Ledger.AccountId, LedgerId: &p.LedgerId, Debit: decimal.Zero, Credit: totalCost},
-	}
-	if p.Fee.IsPositive() {
-		entries = append(entries,
-			payload.TransactionEntryPayload{AccountId: "5940", Debit: p.Fee, Credit: decimal.Zero},
-		)
-	}
-	if p.Tax.IsPositive() {
-		entries = append(entries,
-			payload.TransactionEntryPayload{AccountId: "5950", Debit: p.Tax, Credit: decimal.Zero},
-		)
-	}
-	return entries
+	return nil
 }
 
 func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx event_store.EventStoreRepositories, p payload.TransactionCreatedPayload, status enums.TransactionStatus) (int64, error) {
@@ -295,31 +266,6 @@ func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx 
 	return txnId, nil
 }
 
-func (s *TransactionProjectionService) sellEntries(
-	p payload.InvestmentSoldPayload,
-	ct state.InvestmentSoldState,
-) []payload.TransactionEntryPayload {
-	entries := []payload.TransactionEntryPayload{
-		// 入帳
-		{AccountId: ct.Ledger.AccountId, LedgerId: &p.LedgerId, Debit: ct.NetProceeds, Credit: decimal.Zero},
-		// 成本沖銷
-		{AccountId: ct.Investment.AccountId, Debit: decimal.Zero, Credit: ct.CostBasis},
-	}
-	if p.Fee.IsPositive() {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: "5940", Debit: p.Fee, Credit: decimal.Zero})
-	}
-	if p.Tax.IsPositive() {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: "5950", Debit: p.Tax, Credit: decimal.Zero})
-	}
-	// 已實現損益（正=利，負=損）
-	if ct.RealizedGain.GreaterThanOrEqual(decimal.Zero) {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: "4230", Debit: decimal.Zero, Credit: ct.RealizedGain})
-	} else {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: "4230", Debit: ct.RealizedGain.Abs(), Credit: decimal.Zero})
-	}
-	return entries
-}
-
 func (s *TransactionProjectionService) applyDevidendReceived(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
 	_, err := checkAndGetPayload[payload.DividendReceivedPayload](ct)
 	if err != nil {
@@ -358,9 +304,9 @@ func (s *TransactionProjectionService) applyInstallmentCreated(ctx context.Conte
 	case enums.InterestTypeFree:
 		entries = []payload.TransactionEntryPayload{
 			// 獲得資產，或支付費用
-			{AccountId: p.AccountId, LedgerId: &p.LedgerId, Debit: p.Amount, Credit: decimal.Zero},
+			{AccountId: p.AccountId, Debit: p.Amount, Credit: decimal.Zero},
 			// 應付帳款
-			{AccountId: st.Ledger.AccountId, Debit: decimal.Zero, Credit: p.Amount},
+			{AccountId: st.Ledger.AccountId, LedgerId: &p.LedgerId, Debit: decimal.Zero, Credit: p.Amount},
 		}
 	case enums.InterestTypeFixedRate:
 		interest := decimal.Zero
@@ -369,11 +315,11 @@ func (s *TransactionProjectionService) applyInstallmentCreated(ctx context.Conte
 		}
 		entries = []payload.TransactionEntryPayload{
 			// 獲得資產，或支付費用
-			{AccountId: p.AccountId, LedgerId: &p.LedgerId, Debit: p.Amount, Credit: decimal.Zero},
+			{AccountId: p.AccountId, Debit: p.Amount, Credit: decimal.Zero},
 			// 預付利息
 			{AccountId: st.SysAccountAssetPrepaidInterest, Debit: p.Amount, Credit: decimal.Zero},
 			// 應付帳款
-			{AccountId: st.Ledger.AccountId, Debit: decimal.Zero, Credit: p.Amount.Add(interest)},
+			{AccountId: st.Ledger.AccountId, LedgerId: &p.LedgerId, Debit: decimal.Zero, Credit: p.Amount.Add(interest)},
 		}
 	default:
 		return fmt.Errorf("invalid interest type: %s", p.InterestType.Val())

@@ -2,7 +2,6 @@ package query
 
 import (
 	"akatengu/internal/database/sqlcdb"
-	"akatengu/internal/enums"
 	"akatengu/internal/handler/response/model"
 	"akatengu/internal/model/db/projection"
 	"context"
@@ -22,11 +21,32 @@ type InvestmentRepo interface {
 	GetInvestmentPaged(ctx context.Context, req model.PaginationParams) ([]projection.Investment, int64, error)
 	GetLotDisposalsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLotDisposals, int64, error)
 	GetOpenLotsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLot, int64, error)
+	GetMovementPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentMovement, int64, error)
 }
 
 type sqlcdbInvestmentRepository struct {
 	q  *sqlcdb.Queries
 	db *sqlx.DB
+}
+
+func (r *sqlcdbInvestmentRepository) GetMovementPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentMovement, int64, error) {
+	rows, err := r.q.GetInvestmentMovementsPaged(ctx, sqlcdb.GetInvestmentMovementsPagedParams{
+		Offset:       req.Offset,
+		Limit:        req.Limit,
+		InvestmentID: id,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	total := int64(0)
+	if len(rows) > 0 {
+		total = rows[0].Total
+	}
+	result := make([]projection.InvestmentMovement, len(rows))
+	for i, row := range rows {
+		result[i] = projection.InvestmentMovementFromGetInvestmentMovementsPagedRow(row)
+	}
+	return result, total, nil
 }
 
 func (r *sqlcdbInvestmentRepository) GetLotDisposalsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLotDisposals, int64, error) {
@@ -97,28 +117,24 @@ func NewInvestmentRepo(db *sqlx.DB) InvestmentRepo {
 }
 
 func (r *sqlcdbInvestmentRepository) GetByID(ctx context.Context, id int64) (*projection.Investment, error) {
-	row, err := r.q.GetInvestment(ctx, id)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+	result, err := r.q.GetInvestment(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return projection.InvestmentPtrFromInvestment(row), nil
+
+	return projection.InvestmentPtrFromInvestment(result), nil
 }
 
 func (r *sqlcdbInvestmentRepository) GetBySymbol(ctx context.Context, symbol, currency string) (*projection.Investment, error) {
-	row, err := r.q.GetInvestmentBySymbol(ctx, sqlcdb.GetInvestmentBySymbolParams{
+	result, err := r.q.GetInvestmentBySymbol(ctx, sqlcdb.GetInvestmentBySymbolParams{
 		Symbol:   symbol,
 		Currency: currency,
 	})
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, err
 	}
-	return projection.InvestmentPtrFromInvestment(row), nil
+
+	return projection.InvestmentPtrFromInvestment(result), nil
 }
 
 func (r *sqlcdbInvestmentRepository) GetSummary(ctx context.Context, id int64) (*projection.InvestmentSummary, error) {
@@ -149,7 +165,6 @@ func (r *sqlcdbInvestmentRepository) GetAllSummaries(ctx context.Context) ([]pro
 func (r *sqlcdbInvestmentRepository) GetOpenLots(ctx context.Context, investmentID int64) ([]projection.InvestmentLot, error) {
 	rows, err := r.q.GetOpenLots(ctx, sqlcdb.GetOpenLotsParams{
 		InvestmentID: investmentID,
-		Status:       enums.LotStatusClose.Enum(),
 	})
 	if err != nil {
 		return nil, err
@@ -162,10 +177,7 @@ func (r *sqlcdbInvestmentRepository) GetOpenLots(ctx context.Context, investment
 }
 
 func (r *sqlcdbInvestmentRepository) GetPosition(ctx context.Context, id int64) (*projection.InvestmentPosition, error) {
-	row, err := r.q.GetInvestmentPosition(ctx, id)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+	row, err := r.q.GetPosition(ctx, id)
 	if err != nil {
 		return nil, err
 	}

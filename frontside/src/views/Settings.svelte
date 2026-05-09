@@ -5,14 +5,6 @@
   import type { SysAccount } from '../types/sys';
   import type { Account } from '../types/account';
 
-  const SYS_CODE_LABELS: Record<string, string> = {
-    'SYS:ASSET:PREPAID_INTEREST':          '預付利息（資產）',
-    'SYS:EXPENSE:LOAN:INTEREST':           '貸款利息費用',
-    'SYS:EXPENSE:CREDIT_CARD:INTEREST':    '信用卡利息費用',
-    'SYS:EQUITY:CLOSE_NET_INCOME':         '結清淨收益（權益）',
-    'SYS:EQUITY:EQUITY_OPENING':           '期初權益',
-  };
-
   let sysAccounts = $state<SysAccount[]>([]);
   let accounts    = $state<Account[]>([]);
   let isLoading   = $state(false);
@@ -21,7 +13,7 @@
   let showModal  = $state(false);
   let isSaving   = $state(false);
   let saveError  = $state('');
-  let editForm   = $state<SysAccount>({ sys_code: '', account_id: '' });
+  let editForm   = $state<SysAccount>({ sys_code: '', description: '', account_id: '' });
 
   const accountMap = $derived(new Map(accounts.map(a => [a.account_id, a])));
 
@@ -42,7 +34,7 @@
   }
 
   function openEditModal(entry: SysAccount): void {
-    editForm   = { sys_code: entry.sys_code, account_id: entry.account_id };
+    editForm   = { sys_code: entry.sys_code, description: entry.description, account_id: entry.account_id };
     saveError  = '';
     showModal  = true;
   }
@@ -65,10 +57,6 @@
     } finally {
       isSaving = false;
     }
-  }
-
-  function labelOf(sysCode: string): string {
-    return SYS_CODE_LABELS[sysCode] ?? sysCode;
   }
 </script>
 
@@ -112,7 +100,7 @@
           {#each sysAccounts as entry (entry.sys_code)}
             {@const acct = accountMap.get(entry.account_id)}
             <tr>
-              <td>{labelOf(entry.sys_code)}</td>
+              <td>{entry.description}</td>
               <td class="mono">{entry.sys_code}</td>
               <td class="mono">{entry.account_id || '—'}</td>
               <td>{acct?.name ?? '—'}</td>
@@ -145,18 +133,17 @@
         {/if}
 
         <div class="form-group">
-          <label class="form-label">用途</label>
-          <p style="font-size:13px;color:#dedad3;margin:0;padding:8px 0;">{labelOf(editForm.sys_code)}</p>
+          <label class="form-label" for="sys_code">用途</label>
+          <p style="font-size:13px;color:#dedad3;margin:0;padding:8px 0;">{editForm.description}</p>
         </div>
 
         <div class="form-group">
-          <label class="form-label">系統代碼</label>
+          <label class="form-label" for="sys_code">系統代碼</label>
           <p class="mono" style="font-size:11px;color:#5c6278;margin:0;padding:8px 0;">{editForm.sys_code}</p>
         </div>
 
         <div class="form-group">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="form-label">對應科目 *</label>
+          <label class="form-label" for="account_id">對應科目 *</label>
           <AccountSelect
             {accounts}
             value={editForm.account_id}

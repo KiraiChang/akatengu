@@ -13,15 +13,16 @@ import (
 //dbmap:sqlcdb=UpdateInvestmentParams
 //dbmap:sqlcdb=GetInvestmentPagedRow
 type Investment struct {
-	InvestmentId int64            `db:"investment_id" json:"investment_id"`
-	AccountId    string           `db:"account_id" json:"account_id"`
-	AssetType    enums.AssetType  `db:"asset_type" json:"asset_type"`
-	Currency     string           `db:"currency" json:"currency"`
-	Symbol       string           `db:"symbol" json:"symbol"`
-	Name         string           `db:"name" json:"name"`
-	CostMethod   enums.CostMethod `db:"cost_method" json:"cost_method"`
-	IsActive     bool             `db:"is_active" json:"is_active"`
-	Version      int64            `db:"version" json:"version"`
+	InvestmentId int64              `db:"investment_id" json:"investment_id"`
+	AccountId    string             `db:"account_id" json:"account_id"`
+	AssetType    enums.AssetType    `db:"asset_type" json:"asset_type"`
+	Currency     string             `db:"currency" json:"currency"`
+	Symbol       string             `db:"symbol" json:"symbol"`
+	Name         string             `db:"name" json:"name"`
+	CostMethod   enums.CostMethod   `db:"cost_method" json:"cost_method"`
+	IFRSCategory enums.IFRSCategory `db:"ifrs_category" json:"ifrs_category"`
+	IsActive     bool               `db:"is_active" json:"is_active"`
+	Version      int64              `db:"version" json:"version"`
 }
 
 // InvestmentLot 投資庫存表
@@ -30,16 +31,17 @@ type Investment struct {
 //dbmap:sqlcdb=InsertInvestmentLotParams
 //dbmap:sqlcdb=GetOpenLotsPagedRow
 type InvestmentLot struct {
-	LotId         int64           `db:"lot_id" json:"lot_id"`
-	InvestmentId  int64           `db:"investment_id" json:"investment_id"`
-	MovementId    int64           `db:"movement_id" json:"movement_id"`
-	AcquiredDate  string          `db:"acquired_date" json:"acquired_date"`
-	TransactionId *int64          `db:"txn_id" json:"txn_id"`
-	Quantity      decimal.Decimal `db:"quantity" json:"quantity"`
-	UnitCost      decimal.Decimal `db:"unit_cost" json:"unit_cost"`
-	TotalCost     decimal.Decimal `db:"total_cost" json:"total_cost"`
-	RemainingQty  decimal.Decimal `db:"remaining_qty" json:"remaining_qty"`
-	Status        enums.LotStatus `db:"status" json:"status"`
+	LotId             int64           `db:"lot_id" json:"lot_id"`
+	InvestmentId      int64           `db:"investment_id" json:"investment_id"`
+	MovementId        int64           `db:"movement_id" json:"movement_id"`
+	AcquiredDate      string          `db:"acquired_date" json:"acquired_date"`
+	TransactionId     *int64          `db:"txn_id" json:"txn_id"`
+	Quantity          decimal.Decimal `db:"quantity" json:"quantity"`
+	UnitCost          decimal.Decimal `db:"unit_cost" json:"unit_cost"`
+	TotalCost         decimal.Decimal `db:"total_cost" json:"total_cost"`
+	RemainingQty      decimal.Decimal `db:"remaining_qty" json:"remaining_qty"`
+	Status            enums.LotStatus `db:"status" json:"status"`
+	UnrealizedUnitTWD decimal.Decimal `db:"unrealized_unit_twd" json:"unrealized_unit_twd"`
 }
 
 //dbmap:sqlcdb=InvestmentLotDisposal
@@ -48,6 +50,7 @@ type InvestmentLot struct {
 type InvestmentLotDisposals struct {
 	Id                int64           `db:"id" json:"id"`
 	LotId             int64           `db:"lot_id" json:"lot_id"`
+	TransactionId     *int64          `db:"txn_id" json:"txn_id"`
 	MovementId        int64           `db:"movement_id" json:"movement_id"`
 	Quantity          decimal.Decimal `db:"quantity" json:"quantity"`
 	CostBasis         decimal.Decimal `db:"cost_basis" json:"cost_basis"`
@@ -60,12 +63,14 @@ type InvestmentLotDisposals struct {
 //dbmap:sqlcdb=InvestmentPosition
 //dbmap:sqlcdb=UpsertInvestmentPositionParams
 //dbmap:sqlcdb=UpdateInvestmentPositionSoldParams
+//dbmap:sqlcdb=UpdateInvestmentPositionFairValueParams
 type InvestmentPosition struct {
-	Id            int64           `db:"id" json:"id"`
-	InvestmentId  int64           `db:"investment_id" json:"investment_id"`
-	TotalQuantity decimal.Decimal `db:"total_quantity" json:"total_quantity"`
-	TotalCost     decimal.Decimal `db:"total_cost" json:"total_cost"`
-	AvgCost       decimal.Decimal `db:"avg_cost" json:"avg_cost"`
+	Id              int64           `db:"id" json:"id"`
+	InvestmentId    int64           `db:"investment_id" json:"investment_id"`
+	TotalQuantity   decimal.Decimal `db:"total_quantity" json:"total_quantity"`
+	TotalCost       decimal.Decimal `db:"total_cost" json:"total_cost"`
+	AvgCost         decimal.Decimal `db:"avg_cost" json:"avg_cost"`
+	MarketPriceTWD  decimal.Decimal `db:"market_price_twd" json:"market_price_twd"`
 }
 
 // InvestmentMovement 投資異動表
@@ -73,26 +78,27 @@ type InvestmentPosition struct {
 //dbmap:sqlcdb=InvestmentMovement
 //dbmap:sqlcdb=InsertInvestmentMovementParams
 //dbmap:sqlcdb=GetInvestmentMovementsRow
+//dbmap:sqlcdb=GetInvestmentMovementsPagedRow
 type InvestmentMovement struct {
-	MovementId    int64               `db:"movement_id"`
-	InvestmentId  int64               `db:"investment_id"`
-	EventId       int64               `db:"event_id"`
-	TransactionId *int64              `db:"txn_id"`
-	MovementType  enums.MovementType  `db:"movement_type"`
-	MovementDate  string              `db:"movement_date"`
-	Quantity      decimal.Decimal     `db:"quantity"`
-	UnitPrice     decimal.Decimal     `db:"unit_price"`
-	UnitPriceTWD  decimal.Decimal     `db:"unit_price_twd"`
-	ExchangeRate  decimal.Decimal     `db:"exchange_rate"`
-	Fee           decimal.Decimal     `db:"fee"`
-	Tax           decimal.Decimal     `db:"tax"`
-	RealizedGain  decimal.NullDecimal `db:"realized_gain"`
-	CostBasis     decimal.NullDecimal `db:"cost_basis"`
+	MovementId    int64               `db:"movement_id" json:"movement_id"`
+	InvestmentId  int64               `db:"investment_id" json:"investment_id"`
+	EventId       int64               `db:"event_id" json:"event_id"`
+	TransactionId *int64              `db:"txn_id" json:"txn_id"`
+	MovementType  enums.MovementType  `db:"movement_type" json:"movement_type"`
+	MovementDate  string              `db:"movement_date" json:"movement_date"`
+	Quantity      decimal.Decimal     `db:"quantity" json:"quantity"`
+	UnitPrice     decimal.Decimal     `db:"unit_price" json:"unit_price"`
+	UnitPriceTWD  decimal.Decimal     `db:"unit_price_twd" json:"unit_price_twd"`
+	ExchangeRate  decimal.Decimal     `db:"exchange_rate" json:"exchange_rate"`
+	Fee           decimal.Decimal     `db:"fee" json:"fee"`
+	Tax           decimal.Decimal     `db:"tax" json:"tax"`
+	RealizedGain  decimal.NullDecimal `db:"realized_gain" json:"realized_gain"`
+	CostBasis     decimal.NullDecimal `db:"cost_basis" json:"cost_basis"`
 
 	// --- Income (Cash Dividend) ---
-	GrossAmount    decimal.NullDecimal `db:"gross_amount"`    // 含稅
-	NetAmount      decimal.NullDecimal `db:"net_amount"`      // 入帳金額
-	WithholdingTax decimal.NullDecimal `db:"withholding_tax"` // 預扣稅
+	GrossAmount    decimal.NullDecimal `db:"gross_amount" json:"gross_amount"`       // 含稅
+	NetAmount      decimal.NullDecimal `db:"net_amount" json:"net_amount"`           // 入帳金額
+	WithholdingTax decimal.NullDecimal `db:"withholding_tax" json:"withholding_tax"` // 預扣稅
 
 	// --- Corporate Action ---
 	SplitRatio decimal.NullDecimal `db:"split_ratio"`

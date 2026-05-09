@@ -22,7 +22,7 @@ type Repo struct {
 func NewQueryRepository(db *sqlx.DB) *Repo {
 	q := sqlcdb.New(db)
 	return &Repo{
-		Account:     newAccountRepo(q),
+		Account:     newAccountRepo(q, db),
 		Event:       newEventRepo(q),
 		Investment:  newInvestmentRepo(q, db),
 		Report:      newReportRepo(q),

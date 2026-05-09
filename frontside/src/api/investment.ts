@@ -1,6 +1,6 @@
 import { apiFetch } from './http';
 import { getAggregateVersion, appendEvent } from './aggregate';
-import type { Investment, InvestmentLot, InvestmentPosition, InvestmentCreatedPayload, InvestmentUpdatedPayload, InvestmentBoughtPayload, InvestmentSoldPayload, InvestmentLotDisposal } from '../types/investment';
+import type { Investment, InvestmentLot, InvestmentPosition, InvestmentCreatedPayload, InvestmentUpdatedPayload, InvestmentBoughtPayload, InvestmentSoldPayload, InvestmentLotDisposal, InvestmentMovement } from '../types/investment';
 import type { PaginatedResponse } from '../types/pagination';
 
 export const getInvestmentPaged = async (params: {
@@ -95,6 +95,23 @@ export const getLotDisposalsPaged = async (
     lot_id:    String(lotId),
   });
   const response = await apiFetch(`/api/investment/lot_disposal/paged?${qs}`);
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '查詢失敗');
+  }
+  return response.json();
+};
+
+export const getMovementPaged = async (
+  investmentId: number,
+  params: { page: number; pageSize: number },
+): Promise<PaginatedResponse<InvestmentMovement>> => {
+  const qs = new URLSearchParams({
+    page:          String(params.page),
+    page_size:     String(params.pageSize),
+    investment_id: String(investmentId),
+  });
+  const response = await apiFetch(`/api/investment/movement/paged?${qs}`);
   if (!response.ok) {
     const problem = await response.json();
     throw new Error(problem.detail ?? problem.title ?? '查詢失敗');

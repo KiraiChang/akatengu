@@ -74,8 +74,9 @@ CREATE TABLE IF NOT EXISTS ledger_accounts (
 );
 
 CREATE TABLE IF NOT EXISTS sys_accounts (
-    sys_code   TEXT PRIMARY KEY,
-    account_id TEXT NOT NULL REFERENCES accounts(account_id)
+    sys_code    TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    account_id  TEXT NOT NULL REFERENCES accounts(account_id)
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -117,7 +118,6 @@ CREATE TABLE IF NOT EXISTS installments (
     description       TEXT    NOT NULL,
     total_amount      REAL    NOT NULL,
     total_periods     INTEGER NOT NULL,
-    paid_periods      INTEGER DEFAULT 0,
     amount_per_period REAL    NOT NULL,
     start_date        TEXT    NOT NULL,
     end_date          TEXT,
@@ -211,6 +211,8 @@ CREATE TABLE IF NOT EXISTS investments (
     cost_method   TEXT    NOT NULL DEFAULT 'FIFO',
     is_active     INTEGER NOT NULL DEFAULT 1,
     version       INTEGER NOT NULL,
+    ifrs_category TEXT NOT NULL DEFAULT 'FVTPL',
+    CONSTRAINT chk_ifrs_category CHECK(ifrs_category IN ('FVTPL','FVOCI','AC')),
     CONSTRAINT chk_asset_type  CHECK (asset_type IN ('STOCK', 'FUND', 'GOLD', 'FX')),
     CONSTRAINT chk_cost_method CHECK (cost_method IN ('AVG', 'FIFO')),
     CONSTRAINT chk_currency    CHECK (length(currency) = 3)
@@ -229,6 +231,7 @@ CREATE TABLE IF NOT EXISTS investment_lots (
     total_cost    REAL    NOT NULL,
     remaining_qty REAL    NOT NULL,
     status        TEXT    NOT NULL DEFAULT 'OPEN',
+    unrealized_unit_twd REAL NOT NULL DEFAULT 0,
     CONSTRAINT chk_lot_status     CHECK (status IN ('OPEN', 'PARTIAL', 'CLOSED')),
     CONSTRAINT chk_lot_qty        CHECK (quantity > 0),
     CONSTRAINT chk_remaining_qty  CHECK (remaining_qty >= 0 AND remaining_qty <= quantity)
@@ -256,7 +259,7 @@ CREATE TABLE IF NOT EXISTS investment_movements (
     net_amount      REAL,
     withholding_tax REAL,
     UNIQUE(investment_id, event_id),
-    CONSTRAINT chk_movement_type CHECK (movement_type IN ('BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'CONVERT'))
+    CONSTRAINT chk_movement_type CHECK (movement_type IN ('BUY', 'SELL', 'DIVIDEND', 'SPLIT', 'CONVERT', 'MARK'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_movements_investment ON investment_movements(investment_id, movement_date);
@@ -267,6 +270,7 @@ CREATE TABLE IF NOT EXISTS investment_positions (
     investment_id INTEGER NOT NULL REFERENCES investments(investment_id),
     total_quantity REAL   NOT NULL,
     total_cost    REAL    NOT NULL,
+    market_price_twd REAL NOT NULL DEFAULT 0,
     avg_cost      REAL    GENERATED ALWAYS AS (
         CASE WHEN total_quantity = 0 THEN 0
              ELSE total_cost / total_quantity
@@ -278,6 +282,7 @@ CREATE TABLE IF NOT EXISTS investment_positions (
 CREATE TABLE IF NOT EXISTS investment_lot_disposals (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     lot_id              INTEGER REFERENCES investment_lots(lot_id),
+    txn_id              INTEGER,
     movement_id         INTEGER REFERENCES investment_movements(movement_id),
     quantity            REAL    NOT NULL,
     cost_basis          REAL    NOT NULL,

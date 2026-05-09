@@ -49,8 +49,10 @@ func checkAndGetState[T any](ct *pipelines.Result) (*T, error) {
 func NewProjection() []Projection {
 	return []Projection{
 		&InvestmentProjectionService{},
+		&InstallmentProjectionService{},
 		&AccountProjectionService{},
 		&PeriodProjectionService{},
 		&TransactionProjectionService{},
+		&AccountBalanceSnapshotProjection{},
 	}
 }

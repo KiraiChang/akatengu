@@ -16,7 +16,7 @@ import (
 
 type AccountProjectionService struct{}
 
-func (s *AccountProjectionService) Name() string { return string(enums.AggregateAccount) }
+func (s *AccountProjectionService) Name() string { return enums.ProjectionTypeAccount.String() }
 
 func (s *AccountProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, t event_types.EventType, ct *pipelines.Result) error {
 	switch t.Val() {

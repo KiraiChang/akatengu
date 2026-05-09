@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/enums/sys_codes"
 	"akatengu/internal/model/request/cmd"
@@ -65,22 +66,99 @@ func (p *registry) register(query *query.Repo) {
 	p.rules[event_types.EventDividendReceived.Enum()] = NewEventDividendReceivedPipeline(query)
 
 	p.rules[event_types.EventRateUpdated.Enum()] = NewEventRateUpdatedPipeline(query)
+	p.rules[event_types.EventUnrealizedMarked.Enum()] = NewEventUnrealizedMarkedPipeline(query)
 
 	// Installment
 	p.rules[event_types.EventInstallmentCreated.Enum()] = NewEventInstallmentCreatedPipeline(query)
 	p.rules[event_types.EventInstallmentPeriodPaid.Enum()] = NewEventInstallmentPeriodPaidPipeline(query)
 }
 
-func GetSysAccountCode(ctx context.Context, sys query.SysRepo, enum sys_codes.SysAccount) (string, error) {
+func getSysAccountCode(ctx context.Context, sys query.SysRepo, enum sys_codes.SysAccount) (string, error) {
+	return getSysAccountCodeByString(ctx, sys, enum.String())
+}
+
+func getSysAccountCodeByString(ctx context.Context, sys query.SysRepo, sysCode string) (string, error) {
 	codes, err := sys.GetSysAccount(ctx)
 	if err != nil {
 		return "", err
 	}
 
 	for _, code := range codes {
-		if code.SysCode == enum.String() {
+		if code.SysCode == sysCode {
 			return code.AccountId, nil
 		}
 	}
 	return "", fmt.Errorf("sys account not found")
+}
+
+func getAccountIdByFunc(ctx context.Context, sys query.SysRepo, assetType enums.AssetType, getter func(enums.AssetType) (string, error)) (string, error) {
+	code, err := getter(assetType)
+	if err != nil {
+		return "", err
+	}
+	accountId, err := getSysAccountCodeByString(ctx, sys, code)
+	if err != nil {
+		return "", err
+	}
+	return accountId, nil
+}
+
+func getAssetTypeFeeSysCode(assetType enums.AssetType) (string, error) {
+	switch assetType.Val() {
+	case enums.AssetTypeStock:
+		return sys_codes.SysAccountExpenseInvestmentStockFee.String(), nil
+	case enums.AssetTypeFund:
+		return sys_codes.SysAccountExpenseInvestmentFundFee.String(), nil
+	case enums.AssetTypeGold:
+		return sys_codes.SysAccountExpenseInvestmentGoldFee.String(), nil
+	case enums.AssetTypeFX:
+		return sys_codes.SysAccountExpenseInvestmentFXFee.String(), nil
+	default:
+		return "", fmt.Errorf("invalid investment asset type")
+	}
+}
+
+func getAssetTypeTaxSysCode(assetType enums.AssetType) (string, error) {
+	switch assetType.Val() {
+	case enums.AssetTypeStock:
+		return sys_codes.SysAccountExpenseInvestmentStockTax.String(), nil
+	case enums.AssetTypeFund:
+		return sys_codes.SysAccountExpenseInvestmentFundTax.String(), nil
+	case enums.AssetTypeGold:
+		return sys_codes.SysAccountExpenseInvestmentGoldTax.String(), nil
+	case enums.AssetTypeFX:
+		return sys_codes.SysAccountExpenseInvestmentFXTax.String(), nil
+	default:
+		return "", fmt.Errorf("invalid investment asset type")
+	}
+}
+
+func getAssetTypeGainSysCode(assetType enums.AssetType) (string, error) {
+	switch assetType.Val() {
+	case enums.AssetTypeStock:
+		return sys_codes.SysAccountIncomeFVTPLStockNetIncome.String(), nil
+	case enums.AssetTypeFund:
+		return sys_codes.SysAccountIncomeFVTPLFundNetIncome.String(), nil
+	case enums.AssetTypeGold:
+		return sys_codes.SysAccountIncomeFVTPLGoldNetIncome.String(), nil
+	case enums.AssetTypeFX:
+		return sys_codes.SysAccountIncomeFVTPLFXNetIncome.String(), nil
+	default:
+		return "", fmt.Errorf("invalid investment asset type")
+	}
+}
+
+func getAssetTypeLossSysCode(assetType enums.AssetType) (string, error) {
+	switch assetType.Val() {
+	case enums.AssetTypeStock:
+		return sys_codes.SysAccountExpenseFVTPLStockLoss.String(), nil
+	case enums.AssetTypeFund:
+		return sys_codes.SysAccountExpenseFVTPLFundLoss.String(), nil
+	case enums.AssetTypeGold:
+		return sys_codes.SysAccountExpenseFVTPLGoldLoss.String(), nil
+	case enums.AssetTypeFX:
+		return sys_codes.SysAccountExpenseFVTPLFXLoss.String(), nil
+	default:
+		return "", fmt.Errorf("invalid investment asset type")
+	}
 }

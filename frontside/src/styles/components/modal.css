@@ -82,6 +82,7 @@
   text-transform: uppercase;
   color: #9a8a6a;
   margin-bottom: 8px;
+  white-space: nowrap;
 }
 
 .form-input,
@@ -535,3 +536,12 @@
 }
 
 .ldgr-item--selected .ldgr-item-name { color: #e07070; }
+
+/* ── RWD: mobile form-row stack ─────────── */
+
+@media (max-width: 599px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}

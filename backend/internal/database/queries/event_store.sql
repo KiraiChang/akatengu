@@ -83,6 +83,13 @@ UPDATE projection_checkpoints
 SET last_event_id = ?, updated_at = datetime('now')
 WHERE projection_name = ?;
 
+-- name: UpsertCheckpoint :exec
+INSERT INTO projection_checkpoints (projection_name, last_event_id, updated_at)
+VALUES (@projection_name, @last_event_id, datetime('now'))
+    ON CONFLICT(projection_name) DO UPDATE SET
+    last_event_id = excluded.last_event_id,
+    updated_at = excluded.updated_at;
+
 -- name: GetAggregateVersion :one
 SELECT current_version FROM aggregate_versions
 WHERE aggregate_type = ? AND aggregate_id = ?;

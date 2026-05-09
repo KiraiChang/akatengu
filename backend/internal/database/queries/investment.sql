@@ -1,52 +1,55 @@
 -- name: GetInvestment :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
-       name, cost_method, is_active, version
+       name, cost_method, ifrs_category, is_active, version
 FROM investments
 WHERE investment_id = ?;
 
 -- name: GetInvestmentPaged :many
+WITH total AS (SELECT COUNT(*) AS cnt FROM investments)
 SELECT investment_id, account_id, asset_type, currency, symbol,
-       name, cost_method, is_active, version,
-       COUNT(*) OVER() AS total
-FROM investments
+       name, cost_method, ifrs_category, is_active, version,
+       total.cnt AS total
+FROM investments, total
 ORDER BY investment_id ASC
     LIMIT @limit
 OFFSET @offset;
 
 -- name: GetInvestmentBySymbol :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
-       name, cost_method, is_active, version
+       name, cost_method, ifrs_category, is_active, version
 FROM investments
 WHERE symbol = ? AND currency = ?;
 
--- name: GetInvestmentPosition :one
-SELECT id, investment_id, total_quantity, total_cost, avg_cost
+-- name: GetPosition :one
+SELECT id, investment_id, total_quantity, total_cost, avg_cost, market_price_twd
 FROM investment_positions
 WHERE investment_id = ?;
 
 -- name: GetOpenLots :many
 SELECT lot_id, investment_id, movement_id, acquired_date, txn_id,
-       quantity, unit_cost, total_cost, remaining_qty, status
+       quantity, unit_cost, total_cost, remaining_qty, status, unrealized_unit_twd
 FROM investment_lots
 WHERE investment_id = ? AND status != ?
 ORDER BY acquired_date, lot_id;
 
 -- name: GetOpenLotsPaged :many
-SELECT lot_id, investment_id, movement_id, acquired_date, txn_id,
-       quantity, unit_cost, total_cost, remaining_qty, status,
-       COUNT(*) OVER() AS total
-FROM investment_lots
-WHERE investment_id = ?
+WITH total AS (SELECT COUNT(*) AS cnt FROM investment_lots AS p2 WHERE p2.investment_id = @investment_id)
+SELECT lot_id, p.investment_id, movement_id, acquired_date, txn_id,
+       quantity, unit_cost, total_cost, remaining_qty, status, unrealized_unit_twd,
+       total.cnt AS total
+FROM investment_lots AS p, total
+WHERE p.investment_id = @investment_id
 ORDER BY acquired_date, lot_id ASC
     LIMIT @limit
 OFFSET @offset;
 
 -- name: GetOpenLotDisposalsPaged :many
-SELECT lot_id, movement_id, quantity, cost_basis, sale_proceeds, capital_gain,
-       holding_period_days, disposal_date,
-       COUNT(*) OVER() AS total
-FROM investment_lot_disposals
-WHERE lot_id = ?
+WITH total AS (SELECT COUNT(*) AS cnt FROM investment_lot_disposals AS d2 WHERE d2.lot_id = @lot_id)
+SELECT d.lot_id, movement_id, quantity, cost_basis, sale_proceeds, capital_gain,
+       holding_period_days, disposal_date, txn_id,
+       total.cnt AS total
+FROM investment_lot_disposals AS d, total
+WHERE d.lot_id = @lot_id
 ORDER BY disposal_date ASC
     LIMIT @limit
 OFFSET @offset;
@@ -60,10 +63,23 @@ FROM investment_movements
 WHERE investment_id = ?
 ORDER BY movement_date, movement_id;
 
+-- name: GetInvestmentMovementsPaged :many
+WITH total AS (SELECT COUNT(*) AS cnt FROM investment_movements AS m2 WHERE m2.investment_id = @investment_id)
+SELECT movement_id, m.investment_id, event_id, txn_id, movement_type,
+       movement_date, quantity, unit_price, unit_price_twd, exchange_rate,
+       fee, tax, realized_gain, cost_basis, gross_amount, net_amount,
+       withholding_tax, split_ratio,
+       total.cnt AS total
+FROM investment_movements AS m, total
+WHERE m.investment_id = @investment_id
+ORDER BY movement_date, movement_id
+    LIMIT @limit
+OFFSET @offset;
+
 -- name: CreateInvestment :exec
 INSERT INTO investments
-    (account_id, asset_type, currency, symbol, name, cost_method, is_active, version)
-VALUES (?, ?, ?, ?, ?, ?, ?, 1);
+    (account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1);
 
 -- name: UpdateInvestment :exec
 UPDATE investments
@@ -95,11 +111,21 @@ UPDATE investment_lots
 SET txn_id = ?
 WHERE lot_id = ?;
 
--- name: InsertInvestmentLotDisposal :exec
+-- name: UpdateLotUnrealizedUnit :exec
+UPDATE investment_lots
+SET unrealized_unit_twd = @unrealized_unit_twd
+WHERE lot_id = @lot_id;
+
+-- name: InsertInvestmentLotDisposal :execlastid
 INSERT INTO investment_lot_disposals
     (lot_id, movement_id, quantity, cost_basis, sale_proceeds, capital_gain,
      holding_period_days, disposal_date)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: UpdateInvestmentLotDisposalTxn :exec
+UPDATE investment_lot_disposals
+SET txn_id = @txn_id
+WHERE id = @id;
 
 -- name: InsertInvestmentMovement :execlastid
 INSERT INTO investment_movements
@@ -132,6 +158,11 @@ SET quantity      = quantity      * ?,
     remaining_qty = remaining_qty * ?,
     unit_cost     = unit_cost     / ?
 WHERE investment_id = ? AND status != 'CLOSED';
+
+-- name: UpdateInvestmentPositionFairValue :exec
+UPDATE investment_positions
+SET market_price_twd = ?
+WHERE investment_id = ?;
 
 -- name: UpsertExchangeRate :exec
 INSERT INTO exchange_rates (currency, rate_date, rate_twd, source)

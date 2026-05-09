@@ -1,11 +1,16 @@
 <script lang="ts">
-  import { getInvestmentPaged, createInvestment, updateInvestment, buyInvestment, sellInvestment, getOpenLotsPaged, getPosition, getLotDisposalsPaged } from '../api/investment';
-  import { getAccountAll } from '../api/account';
-  import { getLedgerAccountAll } from '../api/ledger';
+  import { getInvestmentPaged, createInvestment, updateInvestment, buyInvestment, sellInvestment, getOpenLotsPaged, getPosition, getLotDisposalsPaged, getMovementPaged } from '../api/investment';
+  import { getAccountAll, createAccount } from '../api/account';
+  import { getLedgerAccountAll, createLedgerAccount, invalidateLedgerCache } from '../api/ledger';
+  import { getEntries } from '../api/transaction';
   import AccountSelect from '../components/AccountSelect.svelte';
-  import LedgerSelect from '../components/LedgerSelect.svelte';
-  import type { Investment, AssetType, CostMethod, InvestmentCreatedPayload, InvestmentLot, InvestmentPosition, InvestmentLotDisposal, LotStatus } from '../types/investment';
-  import type { Account } from '../types/account';
+  import NewAccountFormSection, { type NewAccountForm, emptyNewAccountForm } from '../components/NewAccountFormSection.svelte';
+  import LedgerSelectSection from '../components/LedgerSelectSection.svelte';
+  import TxnEntryPanel from '../components/TxnEntryPanel.svelte';
+  import { type NewLedgerForm, emptyNewLedgerForm } from '../components/NewLedgerFormSection.svelte';
+  import type { Investment, AssetType, CostMethod, IFRSCategory, InvestmentCreatedPayload, InvestmentLot, InvestmentPosition, InvestmentLotDisposal, LotStatus, InvestmentMovement, MovementType } from '../types/investment';
+  import type { Entry } from '../types/transaction';
+  import type { Account, CreateAccountRequest } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
   import type { PaginatedMeta } from '../types/pagination';
 
@@ -23,8 +28,23 @@
     FIFO: '先進先出',
   };
 
-  const ASSET_TYPES:  AssetType[]  = ['STOCK', 'FUND', 'GOLD', 'FX'];
-  const COST_METHODS: CostMethod[] = ['AVG', 'FIFO'];
+  const IFRS_CATEGORY_LABELS: Record<IFRSCategory, string> = {
+    FVTPL: '損益公允價值',
+    FVOCI: '其他綜合損益',
+    AC:    '攤銷成本',
+  };
+
+  const MOVEMENT_TYPE_LABELS: Record<MovementType, string> = {
+    BUY:      '購入',
+    SELL:     '賣出',
+    DIVIDEND: '配息',
+    SPLIT:    '分割',
+    CONVERT:  '轉換',
+  };
+
+  const ASSET_TYPES:      AssetType[]    = ['STOCK', 'FUND', 'GOLD', 'FX'];
+  const COST_METHODS:     CostMethod[]   = ['AVG', 'FIFO'];
+  const IFRS_CATEGORIES:  IFRSCategory[] = ['FVTPL', 'FVOCI', 'AC'];
 
   let page        = $state(1);
   let investments = $state<Investment[]>([]);
@@ -33,28 +53,33 @@
   let error       = $state('');
 
   // ── 新增 / 修改投資 modal ──
-  let showModal   = $state(false);
-  let mode        = $state<'create' | 'edit'>('create');
-  let isSaving    = $state(false);
-  let saveError   = $state('');
-  let accounts    = $state<Account[]>([]);
-  let editId      = $state(0);
-  let editVersion = $state(0);
-  let form        = $state<InvestmentCreatedPayload>({
-    account_id:  '',
-    asset_type:  'STOCK',
-    currency:    'TWD',
-    symbol:      '',
-    name:        '',
-    cost_method: 'AVG',
-    is_active:   true,
+  let showModal        = $state(false);
+  let mode             = $state<'create' | 'edit'>('create');
+  let isSaving         = $state(false);
+  let saveError        = $state('');
+  let accounts         = $state<Account[]>([]);
+  let editId           = $state(0);
+  let editVersion      = $state(0);
+  let createNewAccount = $state(false);
+  let newAccountForm   = $state<NewAccountForm>(emptyNewAccountForm());
+  let form             = $state<InvestmentCreatedPayload>({
+    account_id:    '',
+    asset_type:    'STOCK',
+    currency:      'TWD',
+    symbol:        '',
+    name:          '',
+    cost_method:   'AVG',
+    ifrs_category: 'FVTPL',
+    is_active:     true,
   });
 
   const isFormValid = $derived(
-    form.account_id.trim() !== '' &&
-    form.symbol.trim()     !== '' &&
-    form.name.trim()       !== '' &&
-    form.currency.trim()   !== ''
+    (createNewAccount
+      ? newAccountForm.account_id.trim() !== '' && newAccountForm.name.trim() !== ''
+      : form.account_id.trim() !== '') &&
+    form.symbol.trim()   !== '' &&
+    form.name.trim()     !== '' &&
+    form.currency.trim() !== ''
   );
 
   // ── 持倉展開 ──
@@ -116,6 +141,136 @@
   let expandedLotId = $state<number | null>(null);
   let disposalMap   = $state(new Map<number, DisposalState>());
 
+  // ── 批次分錄展開 ──
+  interface EntriesState {
+    rows:    Entry[];
+    loading: boolean;
+    error:   string;
+  }
+
+  let expandedLotEntryId      = $state<number | null>(null);
+  let lotEntriesMap           = $state(new Map<number, EntriesState>());
+  let expandedDisposalEntryId = $state<number | null>(null);
+  let disposalEntriesMap      = $state(new Map<number, EntriesState>());
+
+  // ── 異動標籤 ──
+  let holdingTabMap = $state(new Map<number, 'holding' | 'movement'>());
+
+  // ── 異動列表 ──
+  interface MovementState {
+    items:   InvestmentMovement[];
+    loading: boolean;
+    error:   string;
+    page:    number;
+    meta:    PaginatedMeta | null;
+  }
+
+  let movementMap = $state(new Map<number, MovementState>());
+
+  // ── 異動分錄展開 ──
+  let expandedMovementEntryId = $state<number | null>(null);
+  let movementEntriesMap      = $state(new Map<number, EntriesState>());
+
+  async function toggleLotEntries(lot: InvestmentLot, e: MouseEvent): Promise<void> {
+    e.stopPropagation();
+    if (!lot.txn_id) return;
+    const txnId = lot.txn_id;
+
+    if (expandedLotEntryId === lot.lot_id) {
+      expandedLotEntryId = null;
+      return;
+    }
+    expandedLotEntryId = lot.lot_id;
+    if (lotEntriesMap.has(lot.lot_id)) return;
+
+    lotEntriesMap = new Map(lotEntriesMap).set(lot.lot_id, { rows: [], loading: true, error: '' });
+    await Promise.all([ensureAccounts(), ensureLedgers()]);
+    try {
+      const rows = await getEntries(txnId);
+      lotEntriesMap = new Map(lotEntriesMap).set(lot.lot_id, { rows, loading: false, error: '' });
+    } catch (err) {
+      lotEntriesMap = new Map(lotEntriesMap).set(lot.lot_id, {
+        rows: [], loading: false,
+        error: err instanceof Error ? err.message : '查詢失敗',
+      });
+    }
+  }
+
+  async function toggleDisposalEntries(txnId: number): Promise<void> {
+    if (expandedDisposalEntryId === txnId) {
+      expandedDisposalEntryId = null;
+      return;
+    }
+    expandedDisposalEntryId = txnId;
+    if (disposalEntriesMap.has(txnId)) return;
+
+    disposalEntriesMap = new Map(disposalEntriesMap).set(txnId, { rows: [], loading: true, error: '' });
+    await Promise.all([ensureAccounts(), ensureLedgers()]);
+    try {
+      const rows = await getEntries(txnId);
+      disposalEntriesMap = new Map(disposalEntriesMap).set(txnId, { rows, loading: false, error: '' });
+    } catch (err) {
+      disposalEntriesMap = new Map(disposalEntriesMap).set(txnId, {
+        rows: [], loading: false,
+        error: err instanceof Error ? err.message : '查詢失敗',
+      });
+    }
+  }
+
+  function getHoldingTab(investmentId: number): 'holding' | 'movement' {
+    return holdingTabMap.get(investmentId) ?? 'holding';
+  }
+
+  function setHoldingTab(investmentId: number, tab: 'holding' | 'movement'): void {
+    holdingTabMap = new Map(holdingTabMap).set(investmentId, tab);
+    if (tab === 'movement' && !movementMap.has(investmentId)) {
+      void loadMovements(investmentId, 1);
+    }
+  }
+
+  async function loadMovements(investmentId: number, p: number): Promise<void> {
+    movementMap = new Map(movementMap).set(investmentId, {
+      items: [], loading: true, error: '', page: p, meta: null,
+    });
+    try {
+      const res = await getMovementPaged(investmentId, { page: p, pageSize: 50 });
+      movementMap = new Map(movementMap).set(investmentId, {
+        items: res.data, loading: false, error: '', page: p, meta: res.meta,
+      });
+    } catch (err) {
+      movementMap = new Map(movementMap).set(investmentId, {
+        items: [], loading: false,
+        error: err instanceof Error ? err.message : '查詢失敗',
+        page: p, meta: null,
+      });
+    }
+  }
+
+  async function toggleMovementEntries(mov: InvestmentMovement, e: MouseEvent): Promise<void> {
+    e.stopPropagation();
+    if (!mov.txn_id) return;
+    const txnId = mov.txn_id;
+
+    if (expandedMovementEntryId === mov.movement_id) {
+      expandedMovementEntryId = null;
+      return;
+    }
+    expandedMovementEntryId = mov.movement_id;
+    if (movementEntriesMap.has(mov.movement_id)) return;
+
+    movementEntriesMap = new Map(movementEntriesMap).set(mov.movement_id, { rows: [], loading: true, error: '' });
+    await Promise.all([ensureAccounts(), ensureLedgers()]);
+    try {
+      const rows = await getEntries(txnId);
+      movementEntriesMap = new Map(movementEntriesMap).set(mov.movement_id, { rows, loading: false, error: '' });
+    } catch (err) {
+      movementEntriesMap = new Map(movementEntriesMap).set(mov.movement_id, {
+        rows: [], loading: false,
+        error: err instanceof Error ? err.message : '查詢失敗',
+      });
+    }
+  }
+
   async function toggleDisposal(lot: InvestmentLot): Promise<void> {
     if (expandedLotId === lot.lot_id) {
       expandedLotId = null;
@@ -173,9 +328,20 @@
     tax:           '0',
     ledger_id:     '',
   });
+  let txnCreateNewLedger    = $state(false);
+  let txnNewLedgerForm      = $state<NewLedgerForm>(emptyNewLedgerForm());
+  let txnNewLedgerAccountId = $state('');
+  let txnCreateNewAccount   = $state(false);
+  let txnNewAccountForm     = $state<NewAccountForm>(emptyNewAccountForm());
 
   const isTxnValid = $derived(
-    txnForm.ledger_id !== '' &&
+    (txnCreateNewLedger
+      ? txnNewLedgerForm.institution.trim() !== '' &&
+        txnNewLedgerForm.name.trim()        !== '' &&
+        (txnCreateNewAccount
+          ? txnNewAccountForm.account_id.trim() !== '' && txnNewAccountForm.name.trim() !== ''
+          : txnNewLedgerAccountId                  !== '')
+      : txnForm.ledger_id !== '') &&
     parseFloat(txnForm.quantity)      > 0 &&
     parseFloat(txnForm.unit_price)    > 0 &&
     parseFloat(txnForm.exchange_rate) > 0
@@ -203,17 +369,20 @@
 
   async function openCreateModal(): Promise<void> {
     await ensureAccounts();
-    mode        = 'create';
-    editId      = 0;
-    editVersion = 0;
+    mode             = 'create';
+    editId           = 0;
+    editVersion      = 0;
+    createNewAccount = false;
+    newAccountForm   = emptyNewAccountForm();
     form = {
-      account_id:  '',
-      asset_type:  'STOCK',
-      currency:    'TWD',
-      symbol:      '',
-      name:        '',
-      cost_method: 'AVG',
-      is_active:   true,
+      account_id:    '',
+      asset_type:    'STOCK',
+      currency:      'TWD',
+      symbol:        '',
+      name:          '',
+      cost_method:   'AVG',
+      ifrs_category: 'FVTPL',
+      is_active:     true,
     };
     saveError = '';
     showModal = true;
@@ -225,20 +394,21 @@
     editId      = inv.investment_id;
     editVersion = inv.version;
     form = {
-      account_id:  inv.account_id,
-      asset_type:  inv.asset_type,
-      currency:    inv.currency,
-      symbol:      inv.symbol,
-      name:        inv.name,
-      cost_method: inv.cost_method,
-      is_active:   inv.is_active,
+      account_id:    inv.account_id,
+      asset_type:    inv.asset_type,
+      currency:      inv.currency,
+      symbol:        inv.symbol,
+      name:          inv.name,
+      cost_method:   inv.cost_method,
+      ifrs_category: inv.ifrs_category,
+      is_active:     inv.is_active,
     };
     saveError = '';
     showModal = true;
   }
 
   async function openTxnModal(inv: Investment, m: 'buy' | 'sell'): Promise<void> {
-    await ensureLedgers();
+    await Promise.all([ensureLedgers(), ensureAccounts()]);
     txnMode  = m;
     txnInvId = inv.investment_id;
     txnForm  = {
@@ -250,6 +420,11 @@
       tax:           '0',
       ledger_id:     '',
     };
+    txnCreateNewLedger    = false;
+    txnNewLedgerForm      = emptyNewLedgerForm();
+    txnNewLedgerAccountId = '';
+    txnCreateNewAccount   = false;
+    txnNewAccountForm     = emptyNewAccountForm();
     txnError     = '';
     showTxnModal = true;
   }
@@ -276,15 +451,41 @@
   async function handleSubmit(e: Event): Promise<void> {
     e.preventDefault();
     if (!isFormValid) return;
+
+    if (mode === 'create' && createNewAccount) {
+      if (!newAccountForm.account_id.trim() || !newAccountForm.name.trim()) {
+        saveError = '請填寫完整的會計科目資料';
+        return;
+      }
+    }
+
     isSaving  = true;
     saveError = '';
     try {
       if (mode === 'create') {
+        if (createNewAccount) {
+          const accountPayload: CreateAccountRequest = {
+            account_id:     newAccountForm.account_id.trim(),
+            parent_id:      newAccountForm.parent_id || null,
+            name:           newAccountForm.name.trim(),
+            type:           newAccountForm.type,
+            normal_balance: newAccountForm.normal_balance,
+            currency:       newAccountForm.currency,
+            is_summary:     newAccountForm.is_summary,
+            is_active:      newAccountForm.is_active,
+            note:           null,
+          };
+          await createAccount(accountPayload);
+          accounts = [];
+        }
+
+        const targetAccountId = createNewAccount ? newAccountForm.account_id : form.account_id;
         await createInvestment({
           ...form,
-          symbol:   form.symbol.trim().toUpperCase(),
-          currency: form.currency.trim().toUpperCase(),
-          name:     form.name.trim(),
+          account_id: targetAccountId,
+          symbol:     form.symbol.trim().toUpperCase(),
+          currency:   form.currency.trim().toUpperCase(),
+          name:       form.name.trim(),
         });
       } else {
         await updateInvestment({
@@ -311,6 +512,59 @@
     isTxnSaving = true;
     txnError    = '';
     try {
+      let finalLedgerId: number;
+
+      if (txnCreateNewLedger) {
+        let ledgerAccountId: string;
+        if (txnCreateNewAccount) {
+          if (!txnNewAccountForm.account_id.trim() || !txnNewAccountForm.name.trim()) {
+            txnError = '請填寫完整的會計科目資料';
+            return;
+          }
+          const accountPayload: CreateAccountRequest = {
+            account_id:     txnNewAccountForm.account_id.trim(),
+            parent_id:      txnNewAccountForm.parent_id || null,
+            name:           txnNewAccountForm.name.trim(),
+            type:           txnNewAccountForm.type,
+            normal_balance: txnNewAccountForm.normal_balance,
+            currency:       txnNewAccountForm.currency,
+            is_summary:     txnNewAccountForm.is_summary,
+            is_active:      txnNewAccountForm.is_active,
+            note:           null,
+          };
+          await createAccount(accountPayload);
+          accounts = [];
+          ledgerAccountId = txnNewAccountForm.account_id.trim();
+        } else {
+          ledgerAccountId = txnNewLedgerAccountId;
+        }
+
+        const creditLimit = txnNewLedgerForm.type === 'CREDIT_CARD' && txnNewLedgerForm.creditLimitInput
+          ? txnNewLedgerForm.creditLimitInput : null;
+        await createLedgerAccount({
+          account_id:   ledgerAccountId,
+          institution:  txnNewLedgerForm.institution.trim(),
+          name:         txnNewLedgerForm.name.trim(),
+          type:         txnNewLedgerForm.type,
+          account_no:   txnNewLedgerForm.account_no?.trim() || null,
+          currency:     txnNewLedgerForm.currency,
+          credit_limit: creditLimit,
+          billing_day:  txnNewLedgerForm.type === 'CREDIT_CARD' ? txnNewLedgerForm.billing_day || null : null,
+          due_day:      txnNewLedgerForm.type === 'CREDIT_CARD' ? txnNewLedgerForm.due_day || null : null,
+          is_active:    txnNewLedgerForm.is_active,
+          note:         null,
+        });
+
+        invalidateLedgerCache();
+        const freshLedgers = await getLedgerAccountAll(true);
+        ledgers = freshLedgers;
+        const created = freshLedgers.find(l => l.account_id === ledgerAccountId);
+        if (!created) throw new Error('無法取得新建帳戶，請重試');
+        finalLedgerId = created.ledger_id;
+      } else {
+        finalLedgerId = parseInt(txnForm.ledger_id, 10);
+      }
+
       const payload = {
         investment_id: txnInvId,
         date:          txnForm.date,
@@ -319,7 +573,7 @@
         exchange_rate: txnForm.exchange_rate,
         fee:           txnForm.fee || '0',
         tax:           txnForm.tax || '0',
-        ledger_id:     parseInt(txnForm.ledger_id, 10),
+        ledger_id:     finalLedgerId,
       };
       if (txnMode === 'buy') {
         await buyInvestment(payload);
@@ -332,6 +586,9 @@
       nextHolding.delete(txnInvId);
       holdingMap = nextHolding;
       disposalMap = new Map();
+      const nextMovement = new Map(movementMap);
+      nextMovement.delete(txnInvId);
+      movementMap = nextMovement;
       if (expandedId === txnInvId) expandedId = null;
       expandedLotId = null;
       if (page === 1) { await load(1); } else { page = 1; }
@@ -354,6 +611,236 @@
   <p class="query-error" role="alert">{error}</p>
 {/if}
 
+{#snippet invHoldingInner(inv: Investment)}
+  {@const holding = holdingMap.get(inv.investment_id)}
+  {@const activeTab = getHoldingTab(inv.investment_id)}
+  <div class="inv-tab-bar">
+    <button
+      type="button"
+      class="inv-tab-btn"
+      class:inv-tab-btn--active={activeTab === 'holding'}
+      onclick={() => setHoldingTab(inv.investment_id, 'holding')}
+    >持倉</button>
+    <button
+      type="button"
+      class="inv-tab-btn"
+      class:inv-tab-btn--active={activeTab === 'movement'}
+      onclick={() => setHoldingTab(inv.investment_id, 'movement')}
+    >異動列表</button>
+  </div>
+  {#if activeTab === 'holding'}
+  {#if holding?.loading}
+    <span class="inv-holding-msg">查詢中…</span>
+  {:else if holding?.error}
+    <span class="inv-holding-msg inv-holding-error">{holding.error}</span>
+  {:else if inv.cost_method === 'FIFO'}
+    {#if holding && holding.lots.length > 0}
+      <div class="inv-lot-table">
+        <div class="inv-lot-header">
+          <span>取得日期</span>
+          <span class="num">數量</span>
+          <span class="num">成本單價</span>
+          <span class="num">總成本</span>
+          <span class="num">剩餘數量</span>
+          <span class="num">未實現單位公允(TWD)</span>
+          <span>狀態</span>
+        </div>
+        {#each holding.lots as lot (lot.lot_id)}
+          {@const isLotExpanded = expandedLotId === lot.lot_id}
+          {@const isEntryExpanded = expandedLotEntryId === lot.lot_id}
+          {@const disposal = disposalMap.get(lot.lot_id)}
+          {@const entryState = lotEntriesMap.get(lot.lot_id)}
+          <div
+            class="inv-lot-row"
+            class:inv-lot-row-expanded={isLotExpanded}
+            role="button"
+            tabindex="0"
+            onclick={() => toggleDisposal(lot)}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleDisposal(lot); }}
+          >
+            <span class="mono" style="display:flex;align-items:center;gap:6px;">
+              <span class="inv-expand-icon">{isLotExpanded ? '▼' : '▶'}</span>
+              {lot.acquired_date}
+              {#if lot.txn_id !== null}
+                <button
+                  type="button"
+                  class="btn-ghost"
+                  style="padding:1px 6px;font-size:10px;"
+                  class:acct-mode-btn--active={isEntryExpanded}
+                  onclick={(e) => toggleLotEntries(lot, e)}
+                >分錄</button>
+              {/if}
+            </span>
+            <span class="num mono">{fmtDec(lot.quantity)}</span>
+            <span class="num mono">{fmtDec(lot.unit_cost)}</span>
+            <span class="num mono">{fmtDec(lot.total_cost)}</span>
+            <span class="num mono">{fmtDec(lot.remaining_qty)}</span>
+            <span class="num mono">{fmtDec(lot.unrealized_unit_twd)}</span>
+            <span>
+              <span class="badge inv-lot-{lot.status.toLowerCase()}">{LOT_STATUS_LABELS[lot.status]}</span>
+            </span>
+          </div>
+          {#if isEntryExpanded}
+            <div class="inv-disposal-panel">
+              <TxnEntryPanel
+                rows={entryState?.rows ?? []}
+                loading={entryState?.loading ?? false}
+                error={entryState?.error ?? ''}
+                accounts={accounts}
+                ledgers={ledgers}
+              />
+            </div>
+          {/if}
+          {#if isLotExpanded}
+            <div class="inv-disposal-panel">
+              {#if disposal?.loading}
+                <span class="inv-holding-msg">查詢中…</span>
+              {:else if disposal?.error}
+                <span class="inv-holding-msg inv-holding-error">{disposal.error}</span>
+              {:else if disposal && disposal.items.length > 0}
+                <div class="inv-disposal-table">
+                  <div class="inv-disposal-header">
+                    <span>處分日期</span>
+                    <span class="num">數量</span>
+                    <span class="num">成本基礎</span>
+                    <span class="num">出售金額</span>
+                    <span class="num">資本利得</span>
+                    <span class="num">持有天數</span>
+                  </div>
+                  {#each disposal.items as d (d.id)}
+                    {@const isDisposalEntryExpanded = d.txn_id !== null && expandedDisposalEntryId === d.txn_id}
+                    {@const disposalEntryState = d.txn_id !== null ? disposalEntriesMap.get(d.txn_id) : undefined}
+                    <div class="inv-disposal-row">
+                      <span class="mono" style="display:flex;align-items:center;gap:6px;">
+                        {d.disposal_date}
+                        {#if d.txn_id !== null}
+                          <button
+                            type="button"
+                            class="btn-ghost"
+                            style="padding:1px 6px;font-size:10px;"
+                            class:acct-mode-btn--active={isDisposalEntryExpanded}
+                            onclick={() => toggleDisposalEntries(d.txn_id!)}
+                          >分錄</button>
+                        {/if}
+                      </span>
+                      <span class="num mono">{fmtDec(d.quantity)}</span>
+                      <span class="num mono">{fmtDec(d.cost_basis)}</span>
+                      <span class="num mono">{fmtDec(d.sale_proceeds)}</span>
+                      <span class="num mono">{fmtDec(d.capital_gain)}</span>
+                      <span class="num">{d.holding_period_days ?? '—'}</span>
+                    </div>
+                    {#if isDisposalEntryExpanded}
+                      <div class="inv-disposal-panel">
+                        <TxnEntryPanel
+                          rows={disposalEntryState?.rows ?? []}
+                          loading={disposalEntryState?.loading ?? false}
+                          error={disposalEntryState?.error ?? ''}
+                          accounts={accounts}
+                          ledgers={ledgers}
+                        />
+                      </div>
+                    {/if}
+                  {/each}
+                </div>
+              {:else}
+                <span class="inv-holding-msg">尚無處分紀錄</span>
+              {/if}
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {:else}
+      <span class="inv-holding-msg">尚無庫存批次</span>
+    {/if}
+  {:else}
+    {#if holding?.position}
+      {@const pos = holding.position}
+      <div class="inv-position">
+        <div class="inv-position-item">
+          <span class="inv-position-label">總數量</span>
+          <span class="inv-position-value">{fmtDec(pos.total_quantity)}</span>
+        </div>
+        <div class="inv-position-item">
+          <span class="inv-position-label">總成本</span>
+          <span class="inv-position-value">{fmtDec(pos.total_cost)}</span>
+        </div>
+        <div class="inv-position-item">
+          <span class="inv-position-label">平均成本</span>
+          <span class="inv-position-value">{fmtDec(pos.avg_cost)}</span>
+        </div>
+        <div class="inv-position-item">
+          <span class="inv-position-label">公允單價(TWD)</span>
+          <span class="inv-position-value">{fmtDec(pos.market_price_twd)}</span>
+        </div>
+      </div>
+    {:else}
+      <span class="inv-holding-msg">尚無持倉資料</span>
+    {/if}
+  {/if}
+  {:else}
+    {@const movState = movementMap.get(inv.investment_id)}
+    {#if movState?.loading}
+      <span class="inv-holding-msg">查詢中…</span>
+    {:else if movState?.error}
+      <span class="inv-holding-msg inv-holding-error">{movState.error}</span>
+    {:else if movState && movState.items.length > 0}
+      <div class="inv-movement-table">
+        <div class="inv-movement-header">
+          <span>異動日期</span>
+          <span>類型</span>
+          <span class="num">數量</span>
+          <span class="num">單價(TWD)</span>
+          <span class="num">手續費</span>
+          <span class="num">稅金</span>
+          <span class="num">資本利得</span>
+          <span></span>
+        </div>
+        {#each movState.items as mov (mov.movement_id)}
+          {@const isMovEntryExpanded = expandedMovementEntryId === mov.movement_id}
+          {@const movEntryState = movementEntriesMap.get(mov.movement_id)}
+          <div class="inv-movement-row">
+            <span class="mono">{mov.movement_date}</span>
+            <span>
+              <span class="badge inv-mov-{mov.movement_type}">
+                {MOVEMENT_TYPE_LABELS[mov.movement_type]}
+              </span>
+            </span>
+            <span class="num mono">{fmtDec(mov.quantity)}</span>
+            <span class="num mono">{fmtDec(mov.unit_price_twd)}</span>
+            <span class="num mono">{fmtDec(mov.fee)}</span>
+            <span class="num mono">{fmtDec(mov.tax)}</span>
+            <span class="num mono">{mov.realized_gain !== null ? fmtDec(mov.realized_gain) : '—'}</span>
+            <span>
+              {#if mov.txn_id !== null}
+                <button
+                  type="button"
+                  class="btn-ghost"
+                  style="padding:1px 6px;font-size:10px;"
+                  class:acct-mode-btn--active={isMovEntryExpanded}
+                  onclick={(e) => toggleMovementEntries(mov, e)}
+                >分錄</button>
+              {/if}
+            </span>
+          </div>
+          {#if isMovEntryExpanded}
+            <div class="inv-disposal-panel">
+              <TxnEntryPanel
+                rows={movEntryState?.rows ?? []}
+                loading={movEntryState?.loading ?? false}
+                error={movEntryState?.error ?? ''}
+                accounts={accounts}
+                ledgers={ledgers}
+              />
+            </div>
+          {/if}
+        {/each}
+      </div>
+    {:else}
+      <span class="inv-holding-msg">尚無異動紀錄</span>
+    {/if}
+  {/if}
+{/snippet}
+
 <section class="section">
   <header class="section-header">
     <h2 class="section-title">投資清單</h2>
@@ -368,8 +855,8 @@
     </div>
   </header>
 
-  <div class="table-wrap">
-    <table class="data-table" aria-label="投資清單">
+  <div class="table-wrap inv-table-wrap">
+    <table class="data-table inv-table" aria-label="投資清單">
       <thead>
         <tr>
           <th>名稱</th>
@@ -378,18 +865,18 @@
           <th>幣別</th>
           <th>關聯科目</th>
           <th>計價方法</th>
+          <th>IFRS 分類</th>
           <th>狀態</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {#if isLoading && investments.length === 0}
-          <tr><td colspan="8" class="table-empty">載入中...</td></tr>
+          <tr><td colspan="9" class="table-empty">載入中...</td></tr>
         {:else if investments.length === 0}
-          <tr><td colspan="8" class="table-empty">無資料</td></tr>
+          <tr><td colspan="9" class="table-empty">無資料</td></tr>
         {:else}
           {#each investments as inv (inv.investment_id)}
-            {@const holding = holdingMap.get(inv.investment_id)}
             {@const isExpanded = expandedId === inv.investment_id}
             <tr
               class:inv-row-expanded={isExpanded}
@@ -410,6 +897,11 @@
               <td class="mono">{inv.account_id}</td>
               <td>{COST_METHOD_LABELS[inv.cost_method]}</td>
               <td>
+                <span class="badge inv-ifrs-{inv.ifrs_category.toLowerCase()}">
+                  {IFRS_CATEGORY_LABELS[inv.ifrs_category]}
+                </span>
+              </td>
+              <td>
                 {#if inv.is_active}
                   <span class="badge approved">持有中</span>
                 {:else}
@@ -425,103 +917,8 @@
 
             {#if isExpanded}
               <tr class="inv-holding-row">
-                <td colspan="8" class="inv-holding-cell">
-                  {#if holding?.loading}
-                    <span class="inv-holding-msg">查詢中…</span>
-                  {:else if holding?.error}
-                    <span class="inv-holding-msg inv-holding-error">{holding.error}</span>
-                  {:else if inv.cost_method === 'FIFO'}
-                    {#if holding && holding.lots.length > 0}
-                      <div class="inv-lot-table">
-                        <div class="inv-lot-header">
-                          <span>取得日期</span>
-                          <span class="num">數量</span>
-                          <span class="num">成本單價</span>
-                          <span class="num">總成本</span>
-                          <span class="num">剩餘數量</span>
-                          <span>狀態</span>
-                        </div>
-                        {#each holding.lots as lot (lot.lot_id)}
-                          {@const isLotExpanded = expandedLotId === lot.lot_id}
-                          {@const disposal = disposalMap.get(lot.lot_id)}
-                          <div
-                            class="inv-lot-row"
-                            class:inv-lot-row-expanded={isLotExpanded}
-                            role="button"
-                            tabindex="0"
-                            onclick={() => toggleDisposal(lot)}
-                            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleDisposal(lot); }}
-                          >
-                            <span class="mono">
-                              <span class="inv-expand-icon">{isLotExpanded ? '▼' : '▶'}</span>
-                              {lot.acquired_date}
-                            </span>
-                            <span class="num mono">{fmtDec(lot.quantity)}</span>
-                            <span class="num mono">{fmtDec(lot.unit_cost)}</span>
-                            <span class="num mono">{fmtDec(lot.total_cost)}</span>
-                            <span class="num mono">{fmtDec(lot.remaining_qty)}</span>
-                            <span>
-                              <span class="badge inv-lot-{lot.status.toLowerCase()}">{LOT_STATUS_LABELS[lot.status]}</span>
-                            </span>
-                          </div>
-                          {#if isLotExpanded}
-                            <div class="inv-disposal-panel">
-                              {#if disposal?.loading}
-                                <span class="inv-holding-msg">查詢中…</span>
-                              {:else if disposal?.error}
-                                <span class="inv-holding-msg inv-holding-error">{disposal.error}</span>
-                              {:else if disposal && disposal.items.length > 0}
-                                <div class="inv-disposal-table">
-                                  <div class="inv-disposal-header">
-                                    <span>處分日期</span>
-                                    <span class="num">數量</span>
-                                    <span class="num">成本基礎</span>
-                                    <span class="num">出售金額</span>
-                                    <span class="num">資本利得</span>
-                                    <span class="num">持有天數</span>
-                                  </div>
-                                  {#each disposal.items as d, i (i)}
-                                    <div class="inv-disposal-row">
-                                      <span class="mono">{d.disposal_date}</span>
-                                      <span class="num mono">{fmtDec(d.quantity)}</span>
-                                      <span class="num mono">{fmtDec(d.cost_basis)}</span>
-                                      <span class="num mono">{fmtDec(d.sale_proceeds)}</span>
-                                      <span class="num mono">{fmtDec(d.capital_gain)}</span>
-                                      <span class="num">{d.holding_period_days ?? '—'}</span>
-                                    </div>
-                                  {/each}
-                                </div>
-                              {:else}
-                                <span class="inv-holding-msg">尚無處分紀錄</span>
-                              {/if}
-                            </div>
-                          {/if}
-                        {/each}
-                      </div>
-                    {:else}
-                      <span class="inv-holding-msg">尚無庫存批次</span>
-                    {/if}
-                  {:else}
-                    {#if holding?.position}
-                      {@const pos = holding.position}
-                      <div class="inv-position">
-                        <div class="inv-position-item">
-                          <span class="inv-position-label">總數量</span>
-                          <span class="inv-position-value">{fmtDec(pos.total_quantity)}</span>
-                        </div>
-                        <div class="inv-position-item">
-                          <span class="inv-position-label">總成本</span>
-                          <span class="inv-position-value">{fmtDec(pos.total_cost)}</span>
-                        </div>
-                        <div class="inv-position-item">
-                          <span class="inv-position-label">平均成本</span>
-                          <span class="inv-position-value">{fmtDec(pos.avg_cost)}</span>
-                        </div>
-                      </div>
-                    {:else}
-                      <span class="inv-holding-msg">尚無持倉資料</span>
-                    {/if}
-                  {/if}
+                <td colspan="9" class="inv-holding-cell">
+                  {@render invHoldingInner(inv)}
                 </td>
               </tr>
             {/if}
@@ -529,6 +926,56 @@
         {/if}
       </tbody>
     </table>
+  </div>
+
+  <div class="inv-card-list">
+    {#if isLoading && investments.length === 0}
+      <p class="query-loading" style="padding:16px 0;">載入中...</p>
+    {:else if investments.length === 0}
+      <p style="padding:16px 0;font-size:12px;color:#3d4258;">無資料</p>
+    {:else}
+      {#each investments as inv (inv.investment_id)}
+        {@const isExpanded = expandedId === inv.investment_id}
+        <div class="inv-card {isExpanded ? 'inv-card-expanded' : ''}">
+          <div class="inv-card-main" role="button" tabindex="0" onclick={() => toggleHolding(inv)} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleHolding(inv)} style="cursor:pointer;">
+            <div class="inv-card-head">
+              <span class="inv-card-title">
+                <span class="inv-expand-icon">{isExpanded ? '▼' : '▶'}</span>
+                {inv.name}
+              </span>
+              <span class="badge inv-type-{inv.asset_type}">{ASSET_TYPE_LABELS[inv.asset_type]}</span>
+            </div>
+            <div class="inv-card-meta-row">
+              <span class="inv-card-symbol mono">{inv.symbol}</span>
+              <span class="inv-card-sep">·</span>
+              <span class="inv-card-currency">{inv.currency}</span>
+            </div>
+            <div class="inv-card-acct mono">{inv.account_id}</div>
+            <div class="inv-card-attrs">
+              <span class="inv-card-attr">{COST_METHOD_LABELS[inv.cost_method]}</span>
+              <span class="badge inv-ifrs-{inv.ifrs_category.toLowerCase()}">{IFRS_CATEGORY_LABELS[inv.ifrs_category]}</span>
+            </div>
+            <div class="inv-card-footer">
+              {#if inv.is_active}
+                <span class="badge approved">持有中</span>
+              {:else}
+                <span class="badge pending">已結清</span>
+              {/if}
+              <div>
+                <button class="btn-ghost" style="padding:2px 8px;font-size:11px;" onclick={(e) => { e.stopPropagation(); openTxnModal(inv, 'buy'); }}>購買</button>
+                <button class="btn-ghost" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick={(e) => { e.stopPropagation(); openTxnModal(inv, 'sell'); }}>出售</button>
+                <button class="btn-ghost" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick={(e) => { e.stopPropagation(); openEditModal(inv); }}>編輯</button>
+              </div>
+            </div>
+          </div>
+          {#if isExpanded}
+            <div class="inv-card-holding">
+              {@render invHoldingInner(inv)}
+            </div>
+          {/if}
+        </div>
+      {/each}
+    {/if}
   </div>
 
   {#if meta && meta.total_pages > 1}
@@ -566,16 +1013,51 @@
           <p class="query-error" role="alert" style="margin-bottom:16px;">{saveError}</p>
         {/if}
 
-        <div class="form-group">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="form-label">關聯科目 *</label>
-          <AccountSelect
-            accounts={accounts}
-            value={form.account_id}
-            placeholder="選擇投資關聯的會計科目…"
-            onselect={(id) => { form.account_id = id; }}
-          />
-        </div>
+        {#if mode === 'create'}
+          <div class="form-group" style="margin-bottom:4px;">
+            <span class="form-label">關聯科目 *</span>
+            <div class="acct-mode-toggle">
+              <button
+                type="button"
+                class="acct-mode-btn"
+                class:acct-mode-btn--active={!createNewAccount}
+                onclick={() => { createNewAccount = false; }}
+              >選擇現有科目</button>
+              <button
+                type="button"
+                class="acct-mode-btn"
+                class:acct-mode-btn--active={createNewAccount}
+                onclick={() => { createNewAccount = true; newAccountForm = emptyNewAccountForm(); }}
+              >＋ 新增科目</button>
+            </div>
+          </div>
+          {#if !createNewAccount}
+            <div class="form-group">
+              <AccountSelect
+                accounts={accounts}
+                value={form.account_id}
+                placeholder="選擇投資關聯的會計科目…"
+                onselect={(id) => { form.account_id = id; }}
+              />
+            </div>
+          {:else}
+            <NewAccountFormSection
+              accounts={accounts}
+              bind:form={newAccountForm}
+              required={createNewAccount}
+            />
+          {/if}
+        {:else}
+          <div class="form-group">
+            <label class="form-label" for="account_id">關聯科目 *</label>
+            <AccountSelect
+              accounts={accounts}
+              value={form.account_id}
+              placeholder="選擇投資關聯的會計科目…"
+              onselect={(id) => { form.account_id = id; }}
+            />
+          </div>
+        {/if}
 
         <div class="form-row">
           <div class="form-group">
@@ -612,12 +1094,21 @@
               {/each}
             </select>
           </div>
-          <div class="form-group" style="display:flex;align-items:center;padding-top:26px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#9a8a6a;letter-spacing:0.06em;">
-              <input type="checkbox" bind:checked={form.is_active} />
-              啟用（持有中）
-            </label>
+          <div class="form-group">
+            <label class="form-label" for="f-ifrs-category">IFRS 分類 *</label>
+            <select id="f-ifrs-category" class="form-select" onchange={(e) => { form.ifrs_category = (e.target as HTMLSelectElement).value as IFRSCategory; }}>
+              {#each IFRS_CATEGORIES as c}
+                <option value={c} selected={form.ifrs_category === c}>{IFRS_CATEGORY_LABELS[c]}</option>
+              {/each}
+            </select>
           </div>
+        </div>
+
+        <div class="form-group" style="display:flex;align-items:center;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#9a8a6a;letter-spacing:0.06em;">
+            <input type="checkbox" bind:checked={form.is_active} />
+            啟用（持有中）
+          </label>
         </div>
 
         <div class="modal-footer" style="padding:0;margin-top:8px;">
@@ -645,15 +1136,17 @@
           <p class="query-error" role="alert" style="margin-bottom:16px;">{txnError}</p>
         {/if}
 
-        <div class="form-group">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="form-label">{txnMode === 'buy' ? '扣款帳戶' : '入帳帳戶'} *</label>
-          <LedgerSelect
-            ledgers={activeLedgers}
-            value={txnForm.ledger_id}
-            onselect={(id) => { txnForm.ledger_id = id; }}
-          />
-        </div>
+        <LedgerSelectSection
+          ledgers={activeLedgers}
+          accounts={accounts}
+          bind:ledgerId={txnForm.ledger_id}
+          bind:createNew={txnCreateNewLedger}
+          bind:newLedgerForm={txnNewLedgerForm}
+          bind:createNewAccount={txnCreateNewAccount}
+          bind:newAccountForm={txnNewAccountForm}
+          bind:accountId={txnNewLedgerAccountId}
+          label={txnMode === 'buy' ? '扣款帳戶' : '入帳帳戶'}
+        />
 
         <div class="form-row">
           <div class="form-group">

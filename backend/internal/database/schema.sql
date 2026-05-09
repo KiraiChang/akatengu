@@ -62,8 +62,9 @@ CREATE TABLE ledger_accounts (
 );
 
 CREATE TABLE sys_accounts (
-    sys_code   TEXT PRIMARY KEY,
-    account_id TEXT NOT NULL
+    sys_code    TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    account_id  TEXT NOT NULL
 );
 
 CREATE TABLE transactions (
@@ -97,7 +98,6 @@ CREATE TABLE installments (
     description       TEXT    NOT NULL,
     total_amount      REAL    NOT NULL,
     total_periods     INTEGER NOT NULL,
-    paid_periods      INTEGER NOT NULL DEFAULT 0,
     amount_per_period REAL    NOT NULL,
     start_date        TEXT    NOT NULL,
     end_date          TEXT,
@@ -155,6 +155,15 @@ CREATE TABLE period_closings (
     reopen_reason  TEXT
 );
 
+CREATE TABLE account_balance_snapshots (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    closing_id   INTEGER NOT NULL REFERENCES period_closings(closing_id),
+    account_id   TEXT    NOT NULL REFERENCES accounts(account_id),
+    debit_total  REAL    NOT NULL DEFAULT 0,
+    credit_total REAL    NOT NULL DEFAULT 0,
+    UNIQUE(closing_id, account_id)
+);
+
 CREATE TABLE investments (
     investment_id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id    TEXT    NOT NULL,
@@ -163,6 +172,7 @@ CREATE TABLE investments (
     symbol        TEXT    NOT NULL,
     name          TEXT    NOT NULL,
     cost_method   TEXT    NOT NULL DEFAULT 'FIFO',
+    ifrs_category TEXT    NOT NULL DEFAULT 'FVTPL',
     is_active     INTEGER NOT NULL DEFAULT 1,
     version       INTEGER NOT NULL
 );
@@ -176,8 +186,9 @@ CREATE TABLE investment_lots (
     quantity      REAL    NOT NULL,
     unit_cost     REAL    NOT NULL,
     total_cost    REAL    NOT NULL,
-    remaining_qty REAL    NOT NULL,
-    status        TEXT    NOT NULL DEFAULT 'OPEN'
+    remaining_qty       REAL NOT NULL,
+    status              TEXT NOT NULL DEFAULT 'OPEN',
+    unrealized_unit_twd REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE investment_movements (
@@ -202,16 +213,18 @@ CREATE TABLE investment_movements (
 );
 
 CREATE TABLE investment_positions (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    investment_id  INTEGER NOT NULL UNIQUE,
-    total_quantity REAL    NOT NULL,
-    total_cost     REAL    NOT NULL,
-    avg_cost       REAL    NOT NULL DEFAULT 0
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    investment_id   INTEGER NOT NULL UNIQUE,
+    total_quantity  REAL    NOT NULL,
+    total_cost      REAL    NOT NULL,
+    avg_cost        REAL    NOT NULL DEFAULT 0,
+    market_price_twd REAL   NOT NULL DEFAULT 0
 );
 
 CREATE TABLE investment_lot_disposals (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     lot_id              INTEGER,
+    txn_id              INTEGER,
     movement_id         INTEGER,
     quantity            REAL    NOT NULL,
     cost_basis          REAL    NOT NULL,

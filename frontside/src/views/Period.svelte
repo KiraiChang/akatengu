@@ -8,7 +8,7 @@
     closeAnnualPeriod,
     reopenAnnualPeriod,
   } from '../api/period';
-  import type { PeriodClosing, PeriodType, PeriodStatus } from '../types/period';
+  import type { PeriodClosing, PeriodStatus } from '../types/period';
 
   const PAGE_SIZE = 20;
 

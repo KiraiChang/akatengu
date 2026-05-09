@@ -173,7 +173,7 @@ func (e eventPeriodAnnualClosedProjector) Project(ctx context.Context, ct *pipel
 	}
 	netIncome := is.NetIncome
 
-	closing, err := GetSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountEquityCloseNetIncome.Enum())
+	closing, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountEquityCloseNetIncome.Enum())
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (e eventPeriodAnnualClosedProjector) Project(ctx context.Context, ct *pipel
 		return fmt.Errorf("closing entry: %w", err)
 	}
 
-	opening, err := GetSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountEquityEquityOpening.Enum())
+	opening, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountEquityEquityOpening.Enum())
 	if err != nil {
 		return err
 	}

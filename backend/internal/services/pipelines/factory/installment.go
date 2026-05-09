@@ -45,7 +45,7 @@ func (e *eventInstallmentCreatedProjector) Project(ctx context.Context, ct *pipe
 		return err
 	}
 	c.InstallmentPayments = payments
-	code, err := GetSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountAssetPrepaidInterest.Enum())
+	code, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountAssetPrepaidInterest.Enum())
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (e *eventInstallmentPeriodPaidProjector) Project(ctx context.Context, ct *p
 	}
 	c.Ledger = ledger
 
-	code, err := GetSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountAssetPrepaidInterest.Enum())
+	code, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountAssetPrepaidInterest.Enum())
 	if err != nil {
 		return err
 	}
@@ -121,12 +121,12 @@ func (e *eventInstallmentPeriodPaidProjector) Project(ctx context.Context, ct *p
 
 	switch c.Ledger.Type.Val() {
 	case enums.LedgerAccountTypeLoan:
-		code, err = GetSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountExpenseLoanInterestExpense.Enum())
+		code, err = getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountExpenseLoanInterestExpense.Enum())
 		if err != nil {
 			return err
 		}
 	case enums.LedgerAccountTypeCreditCard:
-		code, err = GetSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountExpenseCreditCardInterestExpense.Enum())
+		code, err = getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountExpenseCreditCardInterestExpense.Enum())
 		if err != nil {
 			return err
 		}

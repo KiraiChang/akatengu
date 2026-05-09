@@ -1,8 +1,3 @@
-INSERT INTO projection_checkpoints (projection_name, last_event_id) VALUES
-                                                                        ('ACCOUNT',        0),
-                                                                        ('TRANSACTION',    0)
-ON CONFLICT (projection_name) DO NOTHING;
-
 INSERT INTO accounts
 (account_id, parent_id, name, type, normal_balance, is_summary, version)
 VALUES
@@ -194,11 +189,15 @@ VALUES
 -- 孫科目 — 4203
 ('4203-01', '4203', '股票處分利得',     'INCOME', 'CREDIT', FALSE, 1),
 ('4203-02', '4203', '基金處分利得',     'INCOME', 'CREDIT', FALSE, 1),
-('4203-03', '4203', '不動產處分利得',   'INCOME', 'CREDIT', FALSE, 1),
+('4203-03', '4203', '黃金處分利得',     'INCOME', 'CREDIT', FALSE, 1),
+('4203-04', '4203', '外幣處分利得',     'INCOME', 'CREDIT', FALSE, 1),
+('4203-10', '4203', '不動產處分利得',   'INCOME', 'CREDIT', FALSE, 1),
 
 -- 孫科目 — 4204
 ('4204-01', '4204', '股票未實現評價利益', 'INCOME', 'CREDIT', FALSE, 1),
 ('4204-02', '4204', '基金未實現評價利益', 'INCOME', 'CREDIT', FALSE, 1),
+('4204-03', '4204', '黃金未實現評價利益', 'INCOME', 'CREDIT', FALSE, 1),
+('4204-04', '4204', '外幣未實現評價利益', 'INCOME', 'CREDIT', FALSE, 1),
 
 -- 子科目 — 430
 ('4301', '430', '租金收入', 'INCOME', 'CREDIT', TRUE, 1),
@@ -303,10 +302,19 @@ VALUES
 ('5401-04', '5401', '信用卡分期手續費', 'EXPENSE', 'DEBIT', FALSE, 1),
 
 -- 孫科目 — 5402
-('5402-01', '5402', '股票交易手續費及證交稅', 'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-01', '5402', '股票交易手續費', 'EXPENSE', 'DEBIT', FALSE, 1),
 ('5402-02', '5402', '基金申購/贖回手續費',    'EXPENSE', 'DEBIT', FALSE, 1),
-('5402-03', '5402', '處分投資損失',           'EXPENSE', 'DEBIT', FALSE, 1),
-('5402-04', '5402', '公允價值變動損失 (FVTPL)', 'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-03', '5402', '黃金申購/贖回手續費',    'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-04', '5402', '外幣申購/贖回手續費',    'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-05', '5402', '股票交易證交稅', 'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-06', '5402', '基金交易稅', 'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-07', '5402', '黃金交易稅', 'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-08', '5402', '外匯交易稅', 'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-11', '5402', '處分股票投資損失',           'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-12', '5402', '處分基金投資損失',           'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-13', '5402', '處分黃金投資損失',           'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-14', '5402', '處分外幣投資損失',           'EXPENSE', 'DEBIT', FALSE, 1),
+('5402-21', '5402', '公允價值變動損失 (FVTPL)', 'EXPENSE', 'DEBIT', FALSE, 1),
 
 -- 子科目 — 550
 ('5501', '550', '折舊費用', 'EXPENSE', 'DEBIT', TRUE, 1),
@@ -322,13 +330,39 @@ VALUES
 ('5502-02', '5502', '無形資產攤銷',             'EXPENSE', 'DEBIT', FALSE, 1)
 ON CONFLICT (account_id) DO NOTHING;
 
-INSERT INTO sys_accounts(sys_code, account_id)
+INSERT INTO sys_accounts(sys_code, description, account_id)
 VALUES
-    ("SYS:ASSET:PREPAID_INTEREST", "1104-04"),
-    ("SYS:EXPENSE:LOAN:INTEREST", "5401-01"),
-    ("SYS:EXPENSE:CREDIT_CARD:INTEREST", "5401-02"),
-    ("SYS:EQUITY:CLOSE_NET_INCOME", "3102-01"),
-    ("SYS:EQUITY:EQUITY_OPENING", "3101-01")
+    ("SYS:ASSET:PREPAID_INTEREST", "預付利息（資產）", "1104-04"),
+    ("SYS:EXPENSE:LOAN:INTEREST", "貸款利息費用", "5401-01"),
+    ("SYS:EXPENSE:CREDIT_CARD:INTEREST", "信用卡利息費用", "5401-02"),
+    ("SYS:EQUITY:CLOSE_NET_INCOME", "結清淨收益（權益）", "3102-01"),
+    ("SYS:EQUITY:EQUITY_OPENING", "期初權益", "3101-01"),
+
+    ("SYS:INCOME:FVTPL_STOCK_NET_INCOME", "按公允價值衡量之股票投資收益","4203-01"),
+	("SYS:INCOME:FVTPL_FUND_NET_INCOME", "按公允價值衡量之基金投資收益","4203-02"),
+	("SYS:INCOME:FVTPL_GOLD_NET_INCOME", "按公允價值衡量之貴金屬投資收益","4203-03"),
+	("SYS:INCOME:FVTPL_FX_NET_INCOME", "按公允價值衡量之外幣投資收益","4203-04"),
+
+    ("SYS:Expense:FVTPL_STOCK_LOSS", "按公允價值衡量之股票投資損失","5402-11"),
+	("SYS:Expense:FVTPL_FUND_LOSS", "按公允價值衡量之基金投資損失","5402-12"),
+	("SYS:Expense:FVTPL_GOLD_LOSS", "按公允價值衡量之貴金屬投資損失","5402-13"),
+	("SYS:Expense:FVTPL_FX_LOSS", "按公允價值衡量之外幣投資損失","5402-14"),
+
+    ("SYS:EXPENSE:INVESTMENT_STOCK_FEE", "投資股票手續費","5402-01"),
+    ("SYS:EXPENSE:INVESTMENT_FUND_FEE", "投資基金手續費","5402-02"),
+    ("SYS:EXPENSE:INVESTMENT_GOLD_FEE", "投資貴金屬手續費","5402-03"),
+    ("SYS:EXPENSE:INVESTMENT_FX_FEE", "投資外匯手續費","5402-04"),
+	("SYS:EXPENSE:INVESTMENT_STOCK_TAX", "投資股票稅金","5402-05"),
+    ("SYS:EXPENSE:INVESTMENT_FUND_TAX", "投資基金稅金","5402-06"),
+    ("SYS:EXPENSE:INVESTMENT_GOLD_TAX", "投資貴金屬稅金","5402-07"),
+    ("SYS:EXPENSE:INVESTMENT_FX_TAX", "投資外幣稅金","5402-08"),
+
+    ("SYS:INCOME:FVTPL_STOCK_UNREALIZED", "FVTPL 股票未實現評價利益","4204-01"),
+    ("SYS:INCOME:FVTPL_FUND_UNREALIZED",  "FVTPL 基金未實現評價利益","4204-02"),
+    ("SYS:INCOME:FVTPL_GOLD_UNREALIZED",  "FVTPL 黃金未實現評價利益","4204-03"),
+    ("SYS:INCOME:FVTPL_FX_UNREALIZED",    "FVTPL 外幣未實現評價利益","4204-04"),
+    ("SYS:EXPENSE:FVTPL_UNREALIZED_LOSS", "FVTPL 公允價值變動損失","5402-21"),
+    ("SYS:EQUITY:OCI",                    "其他綜合損益 FVOCI 未實現損益","3102-02")
 ON CONFLICT (sys_code) DO NOTHING;
 
 INSERT INTO users (username, password, status)

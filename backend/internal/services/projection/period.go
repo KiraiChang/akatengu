@@ -15,7 +15,7 @@ import (
 
 type PeriodProjectionService struct{}
 
-func (s *PeriodProjectionService) Name() string { return "PERIOD_CLOSED" }
+func (s *PeriodProjectionService) Name() string { return enums.ProjectionTypePeriod.String() }
 
 func (s *PeriodProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, t event_types.EventType, ct *pipelines.Result) error {
 	switch t.Val() {

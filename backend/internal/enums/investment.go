@@ -50,6 +50,7 @@ const (
 	MovementTypeDividend movementTypeVal = "DIVIDEND"
 	MovementTypeSplit    movementTypeVal = "SPLIT"
 	MovementTypeConvert  movementTypeVal = "CONVERT"
+	MovementTypeMark     movementTypeVal = "MARK"
 )
 
 // ─────────────────────────────────────────
@@ -66,6 +67,22 @@ const (
 	LotStatusOpen    lotStatusVal = "OPEN"
 	LotStatusPartial lotStatusVal = "PARTIAL"
 	LotStatusClose   lotStatusVal = "CLOSED"
+)
+
+// ─────────────────────────────────────────
+// IFRSCategory IFRS 9 分類
+// ─────────────────────────────────────────
+
+// IFRSCategory IFRS 9 金融工具分類
+type IFRSCategory = enumx.Enum[ifrsCategoryVal]
+
+//enumx:enum
+type ifrsCategoryVal string
+
+const (
+	IFRSCategoryFVTPL ifrsCategoryVal = "FVTPL"
+	IFRSCategoryFVOCI ifrsCategoryVal = "FVOCI"
+	IFRSCategoryAC    ifrsCategoryVal = "AC"
 )
 
 // ─────────────────────────────────────────

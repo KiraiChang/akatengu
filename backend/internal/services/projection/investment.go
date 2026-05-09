@@ -9,11 +9,12 @@ import (
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"
+	"fmt"
 )
 
 type InvestmentProjectionService struct{}
 
-func (s *InvestmentProjectionService) Name() string { return string(enums.AggregateAccount) }
+func (s *InvestmentProjectionService) Name() string { return enums.ProjectionTypeInvestment.String() }
 
 func (s *InvestmentProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, t event_types.EventType, ct *pipelines.Result) error {
 	switch t.Val() {
@@ -34,6 +35,8 @@ func (s *InvestmentProjectionService) Apply(ctx context.Context, tx event_store.
 		return s.applyStockSplit(ctx, tx, ct)
 	case event_types.EventDividendReceived:
 		return s.applyDividendReceived(ctx, tx, ct)
+	case event_types.EventUnrealizedMarked:
+		return s.applyUnrealizedMarked(ctx, tx, ct)
 	}
 	return nil
 }
@@ -49,14 +52,19 @@ func (s *InvestmentProjectionService) applyInvestmentCreated(ctx context.Context
 	}
 
 	// 業務邏輯：組裝 proj model
+	ifrsCategory := p.IFRSCategory
+	if ifrsCategory.IsZero() {
+		ifrsCategory = enums.IFRSCategoryFVTPL.Enum()
+	}
 	if err := tx.Projection.InvestmentRepo.CreateInvestment(ctx, projection.Investment{
-		AccountId:  p.AccountId,
-		AssetType:  p.AssetType,
-		Currency:   coalesce(p.Currency, "TWD"),
-		Symbol:     p.Symbol,
-		Name:       p.Name,
-		CostMethod: p.CostMethod,
-		IsActive:   p.IsActive,
+		AccountId:    p.AccountId,
+		AssetType:    p.AssetType,
+		Currency:     coalesce(p.Currency, "TWD"),
+		Symbol:       p.Symbol,
+		Name:         p.Name,
+		CostMethod:   p.CostMethod,
+		IFRSCategory: ifrsCategory,
+		IsActive:     p.IsActive,
 	}); err != nil {
 		return err
 	}
@@ -165,7 +173,7 @@ func (s *InvestmentProjectionService) applyInvestmentSold(ctx context.Context, t
 	} else {
 		for _, lots := range st.LotDisposals {
 			lots.MovementId = st.Movement.MovementId
-			err := tx.Projection.InvestmentRepo.InsertLotDisposals(ctx, lots)
+			lots.LotId, err = tx.Projection.InvestmentRepo.InsertLotDisposals(ctx, lots)
 			if err != nil {
 				return err
 			}
@@ -234,5 +242,38 @@ func (s *InvestmentProjectionService) applyDividendReceived(ctx context.Context,
 			return err
 		}
 	}
+	return nil
+}
+
+func (s *InvestmentProjectionService) applyUnrealizedMarked(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	_, err := checkAndGetPayload[payload.UnrealizedMarkedPayload](ct)
+	if err != nil {
+		return err
+	}
+	st, err := checkAndGetState[state.UnrealizedMarkedState](ct)
+	if err != nil {
+		return err
+	}
+
+	// 1. 插入 movement（MARK）
+	st.Movement.EventId = ct.Event.EventId
+	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
+	if err != nil {
+		return fmt.Errorf("insert mark movement: %w", err)
+	}
+
+	// 2. 更新公允價值：AVG 更新 position，FIFO 更新各批次 unrealized_unit_twd
+	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
+		if err := tx.Projection.InvestmentRepo.UpdatePositionFairValue(ctx, st.Investment.InvestmentId, st.NewMarketPriceTWD); err != nil {
+			return fmt.Errorf("update position fair value: %w", err)
+		}
+	} else {
+		for _, u := range st.LotUnrealizedUpdates {
+			if err := tx.Projection.InvestmentRepo.UpdateLotUnrealizedUnit(ctx, u.LotId, u.UnrealizedUnitTWD); err != nil {
+				return fmt.Errorf("update lot unrealized (lot %d): %w", u.LotId, err)
+			}
+		}
+	}
+
 	return nil
 }

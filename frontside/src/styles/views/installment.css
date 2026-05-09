@@ -1,0 +1,201 @@
+/* ── Installment status badges ────────────── */
+
+.inst-status-active    { color: #6ab88a; border-color: rgba(106,184,138,0.3); background: rgba(106,184,138,0.05); }
+.inst-status-completed { color: #5c6278; border-color: rgba(92,98,120,0.3);   background: rgba(92,98,120,0.05); }
+.inst-status-canceled  { color: #c07070; border-color: rgba(192,112,112,0.3); background: rgba(192,112,112,0.05); }
+
+/* ── Payment status badges ────────────────── */
+
+.inst-pay-pending { color: #c49040; border-color: rgba(196,144,64,0.3); background: rgba(196,144,64,0.05); }
+.inst-pay-paid    { color: #6ab88a; border-color: rgba(106,184,138,0.3); background: rgba(106,184,138,0.05); }
+
+/* ── Row expand ───────────────────────────── */
+
+.inst-expand-icon {
+  display: inline-block;
+  font-size: 8px;
+  color: #3d4258;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.data-table tr.inst-row-expanded > td {
+  background: rgba(106, 184, 138, 0.03);
+}
+
+/* ── Payment panel ────────────────────────── */
+
+.inst-payment-row > .inst-payment-cell {
+  padding: 0 !important;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid #1a1c28;
+}
+
+.inst-payment-msg {
+  display: block;
+  padding: 12px 24px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #3d4258;
+}
+
+.inst-payment-error { color: #c07070; }
+
+/* ── Payment schedule table ───────────────── */
+
+.inst-payment-table {
+  padding: 8px 24px 12px;
+  overflow-x: auto;
+}
+
+.inst-payment-header,
+.inst-payment-item {
+  display: grid;
+  grid-template-columns: 40px 110px 1fr 1fr 1fr 110px 70px 72px;
+  gap: 0;
+  align-items: center;
+}
+
+.inst-payment-header {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 2px;
+}
+
+.inst-payment-header span {
+  padding: 4px 8px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+  min-width: 0;
+}
+
+.inst-payment-item {
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.inst-payment-item:last-child { border-bottom: none; }
+
+.inst-payment-item span {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #7a8096;
+  min-width: 0;
+}
+
+.inst-payment-item span.num { text-align: right; }
+
+/* ── Progress bar ─────────────────────────── */
+
+.inst-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inst-progress-bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 40px;
+}
+
+.inst-progress-fill {
+  height: 100%;
+  background: #6ab88a;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.inst-progress-text {
+  font-size: 10px;
+  color: #5c6278;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Amount cell ──────────────────────────── */
+
+.inst-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Mobile card list ─────────────────────── */
+
+.inst-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+@media (min-width: 768px) {
+  .inst-card-list { display: none; }
+}
+
+@media (max-width: 767px) {
+  .inst-table-wrap { display: none; }
+}
+
+.inst-card {
+  border: 1px solid #1e2230;
+  background: rgba(13, 15, 24, 0.6);
+}
+
+.inst-card-expanded { border-color: rgba(106, 184, 138, 0.3); }
+
+.inst-card-main {
+  padding: 14px 16px;
+}
+
+.inst-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.inst-card-title {
+  font-size: 13px;
+  color: #e8e5dc;
+  letter-spacing: 0.03em;
+}
+
+.inst-card-amounts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #c0bdb4;
+}
+
+.inst-card-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+}
+
+.inst-card-sep {
+  color: #2e3348;
+}
+
+.inst-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.inst-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #5c6278;
+}

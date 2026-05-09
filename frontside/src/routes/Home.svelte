@@ -16,6 +16,7 @@
   import JournalEntry from '../views/JournalEntry.svelte';
   import Period       from '../views/Period.svelte';
   import Investment   from '../views/Investment.svelte';
+  import Installment  from '../views/Installment.svelte';
   import Reports      from '../views/Reports.svelte';
   import Settings     from '../views/Settings.svelte';
 
@@ -32,6 +33,7 @@
     { label: '會計期間', path: '/home/period' },
     { label: '財務報表', path: '/home/reports' },
     { label: '投資管理', path: '/home/investment' },
+    { label: '分期管理', path: '/home/installment' },
     { label: '系統設定', path: '/home/settings' },
   ];
 
@@ -44,14 +46,17 @@
     '/home/period':         Period,
     '/home/reports':        Reports,
     '/home/investment':     Investment,
+    '/home/installment':    Installment,
     '/home/settings':       Settings,
   };
 
-  let currentPath = $state(window.location.hash.replace(/^#/, '') || '/home');
+  let currentPath  = $state(window.location.hash.replace(/^#/, '') || '/home');
+  let sidebarOpen  = $state(false);
 
   $effect(() => {
     const onHashChange = (): void => {
       currentPath = window.location.hash.replace(/^#/, '') || '/home';
+      sidebarOpen = false;
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -73,6 +78,12 @@
   <!-- ── Header ──────────────────────────── -->
   <header class="app-header">
     <div class="header-brand">
+      <button
+        class="header-menu-btn"
+        aria-label={sidebarOpen ? '關閉選單' : '開啟選單'}
+        aria-expanded={sidebarOpen}
+        onclick={() => sidebarOpen = !sidebarOpen}
+      >☰</button>
       <div class="header-brand-mark" aria-hidden="true">赤</div>
       <div class="header-brand-text">
         <span class="header-brand-name">AKATENGU</span>
@@ -91,11 +102,20 @@
   <!-- ── Body ───────────────────────────── -->
   <div class="app-body">
 
+    <!-- Mobile backdrop -->
+    {#if sidebarOpen}
+      <div
+        class="sidebar-backdrop"
+        role="presentation"
+        onclick={() => sidebarOpen = false}
+      ></div>
+    {/if}
+
     <!-- Left sidebar -->
-    <nav class="app-sidebar" aria-label="主選單">
+    <nav class="app-sidebar" class:sidebar-open={sidebarOpen} aria-label="主選單">
       <ul class="sidebar-nav">
         {#each menuItems as item, i}
-          {#if i === 7}
+          {#if i === 8}
             <hr class="sidebar-sep" />
           {/if}
           <li>

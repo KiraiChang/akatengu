@@ -43,6 +43,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	period := newPeriodHandler(db, logger)
 	investment := newInvestmentHandler(db, logger)
 	sys := newSysHandler(db, logger)
+	installment := newInstallmentHandler(db, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -74,6 +75,10 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	api.HandleFunc("GET /investment/lot/paged", investment.GetOpenLotsPaged)
 	api.HandleFunc("GET /investment/position", investment.GetPosition)
 	api.HandleFunc("GET /investment/lot_disposal/paged", investment.GetLotDisposalsPaged)
+	api.HandleFunc("GET /investment/movement/paged", investment.GetMovementPaged)
+
+	api.HandleFunc("GET /installment/paged", installment.GetInstallmentPaged)
+	api.HandleFunc("GET /installment/payment", installment.GetPaymentPaged)
 
 	api.HandleFunc("GET /txn/paged", txn.GetTransactionPaged)
 	api.HandleFunc("GET /txn/{txn_id}", txn.GetEntries)

@@ -48,13 +48,16 @@ type InvestmentRepo interface {
 	UpsertExchangeRate(ctx context.Context, rate projection.ExchangeRate) error
 	UpsertPosition(ctx context.Context, position projection.InvestmentPosition) error
 	InsertLot(ctx context.Context, lot projection.InvestmentLot) (int64, error)
-	InsertLotDisposals(ctx context.Context, disposals projection.InvestmentLotDisposals) error
+	InsertLotDisposals(ctx context.Context, disposals projection.InvestmentLotDisposals) (int64, error)
 	InsertMovement(ctx context.Context, movement projection.InvestmentMovement) (int64, error)
 	UpdateMovement(ctx context.Context, id int64, txnId int64) error
 	UpdateLot(ctx context.Context, id int64, txnId int64) error
 	PositionSplit(ctx context.Context, id int64, ratio decimal.Decimal) error
 	LotSplit(ctx context.Context, id int64, ratio decimal.Decimal) error
 	UpdateInvestmentPositionSold(ctx context.Context, position projection.InvestmentPosition) error
+	UpdateDisposalTxn(ctx context.Context, lotId int64, txnId int64) error
+	UpdatePositionFairValue(ctx context.Context, investmentId int64, marketPriceTWD decimal.Decimal) error
+	UpdateLotUnrealizedUnit(ctx context.Context, lotId int64, unrealizedUnitTWD decimal.Decimal) error
 }
 
 type PeriodCloseRepo interface {
@@ -62,4 +65,9 @@ type PeriodCloseRepo interface {
 	UpdatePeriodCloseSnapshotByPeriod(ctx context.Context, id int64, snapshot string, closedAt *string) error
 	ReopenPeriodClose(ctx context.Context, id int64, reason string, at string) error
 	UpdatePeriodCloseTxnId(ctx context.Context, id int64, closingTxnId *int64, openingTxnId *int64) error
+}
+
+type AccountBalanceSnapshotRepo interface {
+	BulkInsert(ctx context.Context, closingId int64) error
+	DeleteByClosingId(ctx context.Context, closingId int64) error
 }

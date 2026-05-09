@@ -31,6 +31,12 @@ type EventStoreRepositories struct {
 	Snap       SnapshotRepository
 	Check      CheckpointRepository
 	Projection *projection_repo.TxProjectionRepository
+	Truncate   TruncateRepository
+}
+
+// TruncateRepository 提供重建 projection 前的清除能力
+type TruncateRepository interface {
+	TruncateProjections(ctx context.Context) error
 }
 
 // EventRepository 是 transaction 內的操作，不需要傳 tx，由 UnitOfWork 管理
@@ -50,4 +56,5 @@ type SnapshotRepository interface {
 
 type CheckpointRepository interface {
 	Update(ctx context.Context, projectionName string, lastEventID int64) error
+	Upsert(ctx context.Context, projectionName string, lastEventID int64) error
 }

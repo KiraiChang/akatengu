@@ -2,6 +2,7 @@
 
 .txn-table {
   border: 1px solid #1e2230;
+  overflow-x: auto;
 }
 
 .txn-thead {
@@ -62,6 +63,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .txn-chevron {
@@ -140,7 +142,7 @@
 }
 
 .entry-ledger { color: #5c6278; }
-.entry-note   { color: #5c6278; font-size: 10px; }
+.entry-note   { color: #5c6278; font-size: 10px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .entry-stack {
   display: flex;
@@ -220,6 +222,7 @@
 .je-lines {
   border: 1px solid #1e2230;
   margin-bottom: 16px;
+  overflow-x: auto;
 }
 
 .je-lines-header {
@@ -369,4 +372,20 @@
   color: #c07070;
   margin-right: auto;
   align-self: center;
+}
+
+/* ── RWD: mobile (< 768px) ───────────────── */
+
+@media (max-width: 767px) {
+  .txn-thead,
+  .txn-main {
+    grid-template-columns: 110px 1fr 130px 100px 28px;
+  }
+  .txn-cell--currency { display: none; }
+
+  .entry-header,
+  .entry-row {
+    grid-template-columns: 150px 130px 120px 120px;
+  }
+  .entry-cell--note { display: none; }
 }

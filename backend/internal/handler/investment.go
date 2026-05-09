@@ -113,3 +113,28 @@ func (h *investmentHandler) GetLotDisposalsPaged(w http.ResponseWriter, r *http.
 
 	response.OK(w, model.PaginateWithTotal(result, req, total))
 }
+
+func (h *investmentHandler) GetMovementPaged(w http.ResponseWriter, r *http.Request) {
+	method := "get movement paged"
+	ctx := r.Context()
+	q := r.URL.Query()
+
+	page, _ := strconv.ParseInt(q.Get("page"), 10, 64)
+	pageSize, _ := strconv.ParseInt(q.Get("page_size"), 10, 64)
+	req := model.PaginationParams{
+		Page:     int64(page),
+		PageSize: int64(pageSize),
+	}
+	req.SetDefaults()
+
+	investmentId, _ := strconv.ParseInt(q.Get("investment_id"), 10, 64)
+
+	result, total, err := h.s.GetMovementPaged(ctx, req, investmentId)
+	if err != nil {
+		h.l.Error(method+" fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+
+	response.OK(w, model.PaginateWithTotal(result, req, total))
+}

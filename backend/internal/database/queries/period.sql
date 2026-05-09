@@ -6,12 +6,14 @@ FROM period_closings
 WHERE period_type = ? AND period_start = ?;
 
 -- name: GetPeriodPagedByType :many
+WITH total AS (SELECT COUNT(*) AS cnt FROM period_closings AS p2
+               WHERE p2.period_type = @period_type)
 SELECT closing_id, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
        reopen_at, reopen_reason,
-       COUNT(*) OVER() AS total
-FROM period_closings
-WHERE period_type = @period_type
+       total.cnt AS total
+FROM period_closings AS p, total
+WHERE p.period_type = @period_type
 ORDER BY period_end DESC
     LIMIT @limit
 OFFSET @offset;
@@ -62,7 +64,8 @@ WHERE closing_id = ?;
 UPDATE period_closings
 SET status        = ?,
     reopen_reason = ?,
-    reopen_at     = ?
+    reopen_at     = ?,
+    snapshot      = NULL
 WHERE closing_id = ?;
 
 -- name: UpdatePeriodCloseTxnID :exec

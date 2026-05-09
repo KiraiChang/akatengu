@@ -16,7 +16,7 @@ import (
 
 type InstallmentProjectionService struct{}
 
-func (s *InstallmentProjectionService) Name() string { return string(enums.AggregateTransaction) }
+func (s *InstallmentProjectionService) Name() string { return enums.ProjectionTypeInstallment.String() }
 
 func (s *InstallmentProjectionService) Apply(ctx context.Context, tx event_store.EventStoreRepositories, t event_types.EventType, ct *pipelines.Result) error {
 	switch t.Val() {

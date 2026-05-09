@@ -5,10 +5,11 @@ FROM transactions
 WHERE txn_id = ?;
 
 -- name: GetTransactionPaged :many
+WITH total AS(SELECT COUNT(*) AS cnt FROM transactions)
 SELECT txn_id, txn_date, description, total_amount, currency,
        status, installment_id, receipt_no, note, version, ref_txn_id,
-       COUNT(*) OVER() AS total
-FROM transactions
+       total.cnt AS total
+FROM transactions, total
 ORDER BY txn_id DESC
     LIMIT @limit
 OFFSET @offset;

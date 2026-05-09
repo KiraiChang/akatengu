@@ -12,10 +12,15 @@ type InvestmentService interface {
 	GetOpenLotsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLot, int64, error)
 	GetLotDisposalsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLotDisposals, int64, error)
 	GetPosition(ctx context.Context, id int64) (*projection.InvestmentPosition, error)
+	GetMovementPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentMovement, int64, error)
 }
 
 type investmentService struct {
 	r query.InvestmentRepo
+}
+
+func (i investmentService) GetMovementPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentMovement, int64, error) {
+	return i.r.GetMovementPaged(ctx, req, id)
 }
 
 func (i investmentService) GetOpenLotsPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentLot, int64, error) {

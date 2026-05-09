@@ -33,6 +33,7 @@
 
 .period-table {
   border: 1px solid #1e2230;
+  overflow-x: auto;
 }
 
 .period-thead {
@@ -48,6 +49,7 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #5c6278;
+  white-space: nowrap;
 }
 
 .period-empty {

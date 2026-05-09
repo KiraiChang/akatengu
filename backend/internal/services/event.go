@@ -90,6 +90,9 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 			if err := proj.Apply(ctx, tx, cmd.EventType, ct); err != nil {
 				return fmt.Errorf("apply projection %s: %w", proj.Name(), err)
 			}
+			if err = tx.Check.Upsert(ctx, proj.Name(), eventID); err != nil {
+				return fmt.Errorf("upsert projection %s: %w", proj.Name(), err)
+			}
 		}
 
 		// snapshot 決策
@@ -114,11 +117,84 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 	return &ct.Event, nil
 }
 
-// Replay 從指定 event_id 之後重播事件（用於重建 projection）
+// Replay 重播事件以重建 projection。
+// fromEventID == 0 代表全量重建：先清除所有 projection 資料再重播全部事件。
+// fromEventID > 0 代表增量補播：不清除，直接從該 event_id 之後的事件繼續套用。
 func (s *EventStoreService) Replay(ctx context.Context, fromEventID int64, aggregateType *enums.AggregateType) ([]db.EventStore, error) {
+	// 1. 取得待重播的事件
 	events, err := s.query.Event.Replay(ctx, fromEventID, aggregateType)
 	if err != nil {
 		return nil, err
+	}
+
+	// 2. 全量重播：先清除 projection 資料並重置 checkpoint
+	if fromEventID == 0 {
+		if err := s.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
+			if err := tx.Truncate.TruncateProjections(ctx); err != nil {
+				return err
+			}
+			seen := make(map[string]struct{})
+			for _, proj := range s.projections {
+				if _, ok := seen[proj.Name()]; ok {
+					continue
+				}
+				seen[proj.Name()] = struct{}{}
+				if err := tx.Check.Update(ctx, proj.Name(), 0); err != nil {
+					return fmt.Errorf("reset checkpoint %s: %w", proj.Name(), err)
+				}
+			}
+			return nil
+		}); err != nil {
+			return nil, fmt.Errorf("truncate projections: %w", err)
+		}
+	}
+
+	// 3. 逐一重播每個事件：執行 pipeline 取得 Result，再在 transaction 內套用所有 projection
+	for _, event := range events {
+		appCmd := cmd.AppendCmd{
+			AggregateType:   event.AggregateType,
+			AggregateID:     event.AggregateId,
+			ExpectedVersion: event.AggregateVersion - 1,
+			EventType:       event.EventType,
+			Payload:         event.Payload,
+		}
+
+		ct, err := s.factory.Dispatch(ctx, appCmd)
+		if err != nil {
+			return nil, fmt.Errorf("dispatch event %d: %w", event.EventId, err)
+		}
+		ct.Event = event
+
+		if err := s.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
+			for _, proj := range s.projections {
+				if err := proj.Apply(ctx, tx, event.EventType, ct); err != nil {
+					return fmt.Errorf("projection %s: %w", proj.Name(), err)
+				}
+			}
+			return nil
+		}); err != nil {
+			return nil, fmt.Errorf("replay event %d: %w", event.EventId, err)
+		}
+	}
+
+	// 4. 更新所有 projection 的 checkpoint 至最後一個重播的 event_id
+	if len(events) > 0 {
+		lastID := events[len(events)-1].EventId
+		seen := make(map[string]struct{})
+		if err := s.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
+			for _, proj := range s.projections {
+				if _, ok := seen[proj.Name()]; ok {
+					continue
+				}
+				seen[proj.Name()] = struct{}{}
+				if err := tx.Check.Update(ctx, proj.Name(), lastID); err != nil {
+					return fmt.Errorf("checkpoint %s: %w", proj.Name(), err)
+				}
+			}
+			return nil
+		}); err != nil {
+			return nil, fmt.Errorf("update checkpoints: %w", err)
+		}
 	}
 
 	return events, nil

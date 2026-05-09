@@ -188,9 +188,9 @@
     </td>
     <td>{account.name}</td>
     <td>{labelOf(ACCOUNT_TYPE_LABELS, account.type)}</td>
-    <td>{labelOf(NORMAL_BALANCE_LABELS, account.normal_balance)}</td>
-    <td>{account.currency}</td>
-    <td>
+    <td class="hidden md:table-cell">{labelOf(NORMAL_BALANCE_LABELS, account.normal_balance)}</td>
+    <td class="hidden md:table-cell">{account.currency}</td>
+    <td class="hidden md:table-cell">
       {#if account.is_summary}
         <span class="badge approved">是</span>
       {:else}
@@ -204,7 +204,7 @@
         <span class="badge pending">停用</span>
       {/if}
     </td>
-    <td class="note-cell">{account.note ?? '—'}</td>
+    <td class="note-cell hidden md:table-cell">{account.note ?? '—'}</td>
     <td onclick={(e) => e.stopPropagation()}>
       <button class="btn-ghost" style="padding:2px 10px;font-size:11px;" onclick={() => openEditModal(account)}>編輯</button>
     </td>
@@ -246,11 +246,11 @@
           <th>科目編號</th>
           <th>科目名稱</th>
           <th>類型</th>
-          <th>正常餘額</th>
-          <th>幣別</th>
-          <th>摘要科目</th>
+          <th class="hidden md:table-cell">正常餘額</th>
+          <th class="hidden md:table-cell">幣別</th>
+          <th class="hidden md:table-cell">摘要科目</th>
           <th>狀態</th>
-          <th>備註</th>
+          <th class="hidden md:table-cell">備註</th>
           <th></th>
         </tr>
       </thead>
@@ -284,8 +284,7 @@
         {/if}
 
         <div class="form-group">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="form-label">父科目</label>
+          <label class="form-label" for="parent_id">父科目</label>
           <AccountSelect
             accounts={accounts}
             value={form.parent_id ?? ''}

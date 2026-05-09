@@ -41,7 +41,7 @@ func InitDB(cfg DBConfig, logger *zap.Logger) (*sqlx.DB, error) {
 		database.NewSQLFileSeeder("accounts", "accounts.sql"),
 	}
 
-	runner := database.NewSeedRunner(sqlxdb.DB, seeders...)
+	runner := database.NewSeedRunner(sqlxdb.DB, logger, seeders...)
 	if err := runner.Run(ctx); err != nil {
 		return nil, fmt.Errorf("seed: %w", err)
 	}

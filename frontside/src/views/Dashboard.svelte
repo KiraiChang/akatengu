@@ -43,9 +43,9 @@
       <thead>
         <tr>
           <th>日期</th>
-          <th>傳票號</th>
+          <th class="hidden md:table-cell">傳票號</th>
           <th>摘要</th>
-          <th>科目</th>
+          <th class="hidden md:table-cell">科目</th>
           <th class="num">借方</th>
           <th class="num">貸方</th>
           <th>狀態</th>
@@ -54,45 +54,45 @@
       <tbody>
         <tr>
           <td>2026-04-22</td>
-          <td class="mono">JV-202604-0041</td>
+          <td class="mono hidden md:table-cell">JV-202604-0041</td>
           <td>辦公室租金</td>
-          <td>租金費用</td>
+          <td class="hidden md:table-cell">租金費用</td>
           <td class="num">85,000</td>
           <td class="num">—</td>
           <td><span class="badge approved">已核准</span></td>
         </tr>
         <tr>
           <td>2026-04-22</td>
-          <td class="mono">JV-202604-0040</td>
+          <td class="mono hidden md:table-cell">JV-202604-0040</td>
           <td>銷貨收入</td>
-          <td>應收帳款</td>
+          <td class="hidden md:table-cell">應收帳款</td>
           <td class="num">320,000</td>
           <td class="num">—</td>
           <td><span class="badge approved">已核准</span></td>
         </tr>
         <tr>
           <td>2026-04-21</td>
-          <td class="mono">JV-202604-0039</td>
+          <td class="mono hidden md:table-cell">JV-202604-0039</td>
           <td>員工薪資</td>
-          <td>薪資費用</td>
+          <td class="hidden md:table-cell">薪資費用</td>
           <td class="num">—</td>
           <td class="num">480,000</td>
           <td><span class="badge pending">待審核</span></td>
         </tr>
         <tr>
           <td>2026-04-20</td>
-          <td class="mono">JV-202604-0038</td>
+          <td class="mono hidden md:table-cell">JV-202604-0038</td>
           <td>設備採購</td>
-          <td>固定資產</td>
+          <td class="hidden md:table-cell">固定資產</td>
           <td class="num">156,000</td>
           <td class="num">—</td>
           <td><span class="badge pending">待審核</span></td>
         </tr>
         <tr>
           <td>2026-04-19</td>
-          <td class="mono">JV-202604-0037</td>
+          <td class="mono hidden md:table-cell">JV-202604-0037</td>
           <td>水電費</td>
-          <td>水電費用</td>
+          <td class="hidden md:table-cell">水電費用</td>
           <td class="num">12,840</td>
           <td class="num">—</td>
           <td><span class="badge approved">已核准</span></td>
