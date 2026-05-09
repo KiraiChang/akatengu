@@ -31,5 +31,33 @@ LEFT JOIN (
         (SELECT period_end   FROM period_closings WHERE closing_id = :closing_id)
     GROUP BY je.account_id
 ) d ON d.account_id = a.account_id
-WHERE a.is_active = 1
-GROUP BY a.account_id
+WHERE a.is_active = 1 AND a.is_summary = 0
+GROUP BY a.account_id;
+
+
+-- name: GetParentBalanceAggregations :many
+WITH RECURSIVE subtree(ancestor_id, leaf_id) AS (
+    SELECT a.parent_id, a.account_id
+    FROM accounts a
+    WHERE a.is_summary = 0 AND a.is_active = 1 AND a.parent_id IS NOT NULL
+    UNION ALL
+    SELECT a.parent_id, s.leaf_id
+    FROM accounts a
+    JOIN subtree s ON a.account_id = s.ancestor_id
+    WHERE a.parent_id IS NOT NULL
+)
+SELECT
+    a.account_id,
+    CAST(COALESCE(SUM(snap.debit_total),  0) AS REAL) AS debit_total,
+    CAST(COALESCE(SUM(snap.credit_total), 0) AS REAL) AS credit_total
+FROM accounts a
+JOIN subtree st ON a.account_id = st.ancestor_id
+JOIN account_balance_snapshots snap
+    ON snap.account_id = st.leaf_id AND snap.closing_id = ?
+WHERE a.is_summary = 1
+GROUP BY a.account_id;
+
+
+-- name: UpsertAccountBalanceSnapshot :exec
+INSERT OR REPLACE INTO account_balance_snapshots (closing_id, account_id, debit_total, credit_total)
+VALUES (?, ?, ?, ?);

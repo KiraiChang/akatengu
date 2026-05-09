@@ -3,6 +3,8 @@ package projection_repo
 import (
 	"akatengu/internal/database/sqlcdb"
 	"context"
+
+	"github.com/shopspring/decimal"
 )
 
 type sqlcdbAccountBalanceSnapshotRepo struct {
@@ -14,8 +16,24 @@ func NewAccountBalanceSnapshotRepo(q *sqlcdb.Queries) AccountBalanceSnapshotRepo
 }
 
 func (r *sqlcdbAccountBalanceSnapshotRepo) BulkInsert(ctx context.Context, closingId int64) error {
-	err := r.q.BulkInsertBalanceSnapshot(ctx, closingId)
-	return err
+	if err := r.q.BulkInsertBalanceSnapshot(ctx, closingId); err != nil {
+		return err
+	}
+	parents, err := r.q.GetParentBalanceAggregations(ctx, closingId)
+	if err != nil {
+		return err
+	}
+	for _, p := range parents {
+		if err := r.q.UpsertAccountBalanceSnapshot(ctx, sqlcdb.UpsertAccountBalanceSnapshotParams{
+			ClosingID:   closingId,
+			AccountID:   p.AccountID,
+			DebitTotal:  decimal.NewFromFloat(p.DebitTotal),
+			CreditTotal: decimal.NewFromFloat(p.CreditTotal),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *sqlcdbAccountBalanceSnapshotRepo) DeleteByClosingId(ctx context.Context, closingId int64) error {
