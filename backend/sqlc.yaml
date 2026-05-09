@@ -99,6 +99,14 @@ sql:
             go_type:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
+          - column: "v_parent_balance_agg.debit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "v_parent_balance_agg.credit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
           - column: "users.status"
             go_type:
               import: "akatengu/internal/enums"
