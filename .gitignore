@@ -2,3 +2,5 @@
 .DS_Store
 
 /backend/internal/database/sqlcdb
+
+.agents

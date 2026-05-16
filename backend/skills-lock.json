@@ -4,7 +4,8 @@
     "golang-pro": {
       "source": "jeffallan/claude-skills",
       "sourceType": "github",
-      "computedHash": "517209072b5cbeb7dfdb41f634ecff658e34e7c9e081e425d618378e9818a941"
+      "skillPath": "skills/golang-pro/SKILL.md",
+      "computedHash": "12b4cac8f65228f82cbc26f0da9232aba87ffa45ccd01afa3998fb8ec61dc288"
     }
   }
 }
