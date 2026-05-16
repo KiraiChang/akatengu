@@ -46,6 +46,10 @@ func (e eventInvestmentBoughtProjector) Project(ctx context.Context, ct *pipelin
 
 	p := ct.Payload
 
+	if err := validPeriodMonthlyStatus(ctx, p.Date, e.query, enums.PeriodTypeStatusOpen.Enum()); err != nil {
+		return err
+	}
+
 	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
 	if err != nil {
 		return err
@@ -156,6 +160,10 @@ func (e eventInvestmentSoldProjector) Project(ctx context.Context, ct *pipelines
 
 	p := ct.Payload
 
+	if err := validPeriodMonthlyStatus(ctx, p.Date, e.query, enums.PeriodTypeStatusOpen.Enum()); err != nil {
+		return err
+	}
+
 	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
 	if err != nil {
 		return err
@@ -250,10 +258,10 @@ func (e eventInvestmentSoldProjector) Project(ctx context.Context, ct *pipelines
 }
 
 type fifoCalcResult struct {
-	OriginalCost         decimal.Decimal
-	FVCost               decimal.Decimal // 若批次曾評價則為 FV，否則同 OriginalCost
+	OriginalCost          decimal.Decimal
+	FVCost                decimal.Decimal // 若批次曾評價則為 FV，否則同 OriginalCost
 	AccumulatedUnrealized decimal.Decimal
-	Disposals            []projection.InvestmentLotDisposals
+	Disposals             []projection.InvestmentLotDisposals
 }
 
 func (e *eventInvestmentSoldProjector) calcFIFOCostBasis(
@@ -305,10 +313,10 @@ func (e *eventInvestmentSoldProjector) calcFIFOCostBasis(
 		return fifoCalcResult{}, fmt.Errorf("insufficient inventory: need %s more", remaining.StringFixed(4))
 	}
 	return fifoCalcResult{
-		OriginalCost:         originalCost,
-		FVCost:               fvCost,
+		OriginalCost:          originalCost,
+		FVCost:                fvCost,
 		AccumulatedUnrealized: accUnrealized,
-		Disposals:            updates,
+		Disposals:             updates,
 	}, nil
 }
 
@@ -490,6 +498,10 @@ func (e eventDividendReceivedProjector) Project(ctx context.Context, ct *pipelin
 	amountTWD := decimal.Zero
 	netAmountTWD := decimal.Zero
 	if p.Amount.GreaterThan(decimal.Zero) {
+
+		if err := validPeriodMonthlyStatus(ctx, p.Date, e.query, enums.PeriodTypeStatusOpen.Enum()); err != nil {
+			return err
+		}
 
 		amountTWD = p.Amount.Mul(p.ExchangeRate)
 		netAmountTWD = amountTWD.Sub(p.WithholdingTax)

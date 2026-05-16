@@ -17,15 +17,16 @@ import (
 //	  "is_summary": 0
 //	}
 type AccountCreatePayload struct {
-	AccountId     string              `json:"account_id"`
-	ParentId      *string             `json:"parent_id"`
-	Name          string              `json:"name"`
-	Type          enums.AccountType   `json:"type"`
-	NormalBalance enums.NormalBalance `json:"normal_balance"`
-	Currency      string              `json:"currency"`
-	IsSummary     bool                `json:"is_summary"`
-	IsActive      bool                `json:"is_active"`
-	Note          *string             `json:"note"`
+	AccountId        string                  `json:"account_id"`
+	ParentId         *string                 `json:"parent_id"`
+	Name             string                  `json:"name"`
+	Type             enums.AccountType       `json:"type"`
+	NormalBalance    enums.NormalBalance     `json:"normal_balance"`
+	Currency         string                  `json:"currency"`
+	IsSummary        bool                    `json:"is_summary"`
+	IsActive         bool                    `json:"is_active"`
+	Note             *string                 `json:"note"`
+	CashFlowCategory *enums.CashFlowCategory `json:"cash_flow_category,omitempty"`
 }
 
 func (p AccountCreatePayload) Validate() error {
@@ -53,16 +54,17 @@ func (p AccountCreatePayload) Validate() error {
 //	  "is_summary": 0
 //	}
 type AccountUpdatedPayload struct {
-	AccountId     string              `json:"account_id"`
-	ParentId      *string             `json:"parent_id"`
-	Name          string              `json:"name"`
-	Type          enums.AccountType   `json:"type"`
-	NormalBalance enums.NormalBalance `json:"normal_balance"`
-	Currency      string              `json:"currency"`
-	IsSummary     bool                `json:"is_summary"`
-	IsActive      bool                `json:"is_active"`
-	Note          *string             `json:"note"`
-	Version       int64               `json:"version"`
+	AccountId        string                  `json:"account_id"`
+	ParentId         *string                 `json:"parent_id"`
+	Name             string                  `json:"name"`
+	Type             enums.AccountType       `json:"type"`
+	NormalBalance    enums.NormalBalance     `json:"normal_balance"`
+	Currency         string                  `json:"currency"`
+	IsSummary        bool                    `json:"is_summary"`
+	IsActive         bool                    `json:"is_active"`
+	Note             *string                 `json:"note"`
+	Version          int64                   `json:"version"`
+	CashFlowCategory *enums.CashFlowCategory `json:"cash_flow_category,omitempty"`
 }
 
 func (p AccountUpdatedPayload) Validate() error {

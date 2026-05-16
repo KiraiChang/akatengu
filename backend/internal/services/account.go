@@ -14,36 +14,42 @@ type AccountService interface {
 	GetAllAccount(ctx context.Context) ([]projection.Account, error)
 	GetAllLedgers(ctx context.Context) ([]projection.LedgerAccount, error)
 	GetAllLedgerBalances(ctx context.Context) ([]projection.LedgerAccountBalance, error)
+	GetAllAccountBalances(ctx context.Context) ([]projection.AccountBalance, error)
 }
 
 type accountServiceImpl struct {
-	repo query.AccountRepo
+	r query.AccountRepo
+	b query.RunningBalanceRepo
+}
+
+func (a accountServiceImpl) GetAllAccountBalances(ctx context.Context) ([]projection.AccountBalance, error) {
+	return a.b.GetAllAccount(ctx)
 }
 
 func (a accountServiceImpl) GetAllLedgerBalances(ctx context.Context) ([]projection.LedgerAccountBalance, error) {
-	return a.repo.GetAllLedgerBalances(ctx)
+	return a.b.GetAllLedger(ctx)
 }
 
 func (a accountServiceImpl) GetAllLedgers(ctx context.Context) ([]projection.LedgerAccount, error) {
-	return a.repo.GetAllLedgers(ctx)
+	return a.r.GetAllLedgers(ctx)
 }
 
 func (a accountServiceImpl) GetAllAccount(ctx context.Context) ([]projection.Account, error) {
-	return a.repo.GetAllAccounts(ctx)
+	return a.r.GetAllAccounts(ctx)
 }
 
 func (a accountServiceImpl) GetLedgerPaged(ctx context.Context, req model.PaginationParams) ([]projection.LedgerAccount, int64, error) {
-	return a.repo.GetLedgerPaged(ctx, req)
+	return a.r.GetLedgerPaged(ctx, req)
 }
 
 func (a accountServiceImpl) GetChildrenAccount(ctx context.Context, parentId string) ([]projection.Account, error) {
-	return a.repo.GetChildrenAccount(ctx, parentId)
+	return a.r.GetChildrenAccount(ctx, parentId)
 }
 
 func (a accountServiceImpl) GetAccountPaged(ctx context.Context, params model.PaginationParams) ([]projection.Account, int64, error) {
-	return a.repo.GetAccountPaged(ctx, params)
+	return a.r.GetAccountPaged(ctx, params)
 }
 
-func NewAccountService(repo query.AccountRepo) AccountService {
-	return &accountServiceImpl{repo}
+func NewAccountService(r query.AccountRepo, b query.RunningBalanceRepo) AccountService {
+	return &accountServiceImpl{r, b}
 }

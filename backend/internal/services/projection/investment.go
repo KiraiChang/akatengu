@@ -57,6 +57,7 @@ func (s *InvestmentProjectionService) applyInvestmentCreated(ctx context.Context
 		ifrsCategory = enums.IFRSCategoryFVTPL.Enum()
 	}
 	if err := tx.Projection.InvestmentRepo.CreateInvestment(ctx, projection.Investment{
+		MerchantID:   ct.MerchantID,
 		AccountId:    p.AccountId,
 		AssetType:    p.AssetType,
 		Currency:     coalesce(p.Currency, "TWD"),
@@ -80,6 +81,7 @@ func (s *InvestmentProjectionService) applyInvestmentUpdate(ctx context.Context,
 
 	// 業務邏輯：組裝 proj model
 	if err := tx.Projection.InvestmentRepo.UpdateInvestment(ctx, projection.Investment{
+		MerchantID:   ct.MerchantID,
 		InvestmentId: p.InvestmentId,
 		AccountId:    p.AccountId,
 		AssetType:    p.AssetType,
@@ -130,14 +132,17 @@ func (s *InvestmentProjectionService) applyInvestmentBought(ctx context.Context,
 	}
 
 	// 業務邏輯：組裝 proj model
+	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
 		return err
 	}
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
+		st.Position.MerchantID = ct.MerchantID
 		err = tx.Projection.InvestmentRepo.UpsertPosition(ctx, st.Position)
 	} else {
+		st.Lot.MerchantID = ct.MerchantID
 		st.Lot.MovementId = st.Movement.MovementId
 		st.Lot.LotId, err = tx.Projection.InvestmentRepo.InsertLot(ctx, st.Lot)
 		if err != nil {
@@ -159,6 +164,7 @@ func (s *InvestmentProjectionService) applyInvestmentSold(ctx context.Context, t
 	}
 
 	// 業務邏輯：組裝 proj model
+	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
@@ -172,6 +178,7 @@ func (s *InvestmentProjectionService) applyInvestmentSold(ctx context.Context, t
 		}
 	} else {
 		for _, lots := range st.LotDisposals {
+			lots.MerchantID = ct.MerchantID
 			lots.MovementId = st.Movement.MovementId
 			lots.LotId, err = tx.Projection.InvestmentRepo.InsertLotDisposals(ctx, lots)
 			if err != nil {
@@ -194,6 +201,7 @@ func (s *InvestmentProjectionService) applyStockSplit(ctx context.Context, tx ev
 	}
 
 	// 業務邏輯：組裝 proj model
+	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
@@ -225,6 +233,7 @@ func (s *InvestmentProjectionService) applyDividendReceived(ctx context.Context,
 	}
 
 	// 業務邏輯：組裝 proj model
+	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
@@ -256,6 +265,7 @@ func (s *InvestmentProjectionService) applyUnrealizedMarked(ctx context.Context,
 	}
 
 	// 1. 插入 movement（MARK）
+	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {

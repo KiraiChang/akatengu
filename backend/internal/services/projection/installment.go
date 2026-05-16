@@ -39,11 +39,13 @@ func (s *InstallmentProjectionService) applyCreated(ctx context.Context, tx even
 		return err
 	}
 
+	st.Installment.MerchantID = ct.MerchantID
 	st.Installment.InstallmentId, err = tx.Projection.InstallmentRepo.InsertInstallment(ctx, st.Installment)
 	if err != nil {
 		return err
 	}
 	for _, r := range st.InstallmentPayments {
+		r.MerchantID = ct.MerchantID
 		r.InstallmentId = st.Installment.InstallmentId
 		if _, err := tx.Projection.InstallmentRepo.InsertInstallmentPayment(ctx, r); err != nil {
 			return err

@@ -38,7 +38,10 @@ func InitDB(cfg DBConfig, logger *zap.Logger) (*sqlx.DB, error) {
 	}
 
 	seeders := []database.Seeder{
+		database.NewSQLFileSeeder("merchants", "merchants.sql"),
+		database.NewSQLFileSeeder("users", "users.sql"),
 		database.NewSQLFileSeeder("accounts", "accounts.sql"),
+		database.NewSQLFileSeeder("sys_accounts", "sys_accounts.sql"),
 	}
 
 	runner := database.NewSeedRunner(sqlxdb.DB, logger, seeders...)

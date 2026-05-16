@@ -56,7 +56,7 @@ func (s *TransactionProjectionService) applyCreated(ctx context.Context, tx even
 		return err
 	}
 
-	if _, err := s.applyTransaction(ctx, tx, *p, enums.TransactionStatusActive.Enum()); err != nil {
+	if _, err := s.applyTransaction(ctx, tx, *p, enums.TransactionStatusActive.Enum(), ct.MerchantID); err != nil {
 		return err
 	}
 
@@ -107,12 +107,12 @@ func (s *TransactionProjectionService) applyPeriodAnnualClosed(ctx context.Conte
 		return err
 	}
 
-	closingTxnId, err := s.applyTransaction(ctx, tx, state.ClosedTxn, enums.TransactionStatusActive.Enum())
+	closingTxnId, err := s.applyTransaction(ctx, tx, state.ClosedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID)
 	if err != nil {
 		return err
 	}
 
-	openingTxnId, err := s.applyTransaction(ctx, tx, state.OpenedTxn, enums.TransactionStatusActive.Enum())
+	openingTxnId, err := s.applyTransaction(ctx, tx, state.OpenedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID)
 	if err != nil {
 		return err
 	}
@@ -136,12 +136,12 @@ func (s *TransactionProjectionService) applyPeriodAnnualReopened(ctx context.Con
 		return err
 	}
 
-	reverseClosedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseClosedTxn, enums.TransactionStatusVoidRef.Enum())
+	reverseClosedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseClosedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID)
 	if err != nil {
 		return err
 	}
 
-	reverseOpenedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseOpenedTxn, enums.TransactionStatusVoidRef.Enum())
+	reverseOpenedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseOpenedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func (s *TransactionProjectionService) applyInvestmentBought(ctx context.Context
 		return err
 	}
 
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum())
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID)
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 		return err
 	}
 
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum())
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID)
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 	return nil
 }
 
-func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx event_store.EventStoreRepositories, p payload.TransactionCreatedPayload, status enums.TransactionStatus) (int64, error) {
+func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx event_store.EventStoreRepositories, p payload.TransactionCreatedPayload, status enums.TransactionStatus, merchantID int64) (int64, error) {
 	totalDebit, totalCredit := decimal.Zero, decimal.Zero
 	for _, e := range p.Entries {
 		totalDebit = totalDebit.Add(e.Debit)
@@ -236,6 +236,7 @@ func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx 
 	}
 	// 業務邏輯：組裝 proj model
 	txnId, err := tx.Projection.TransactionRepo.InsertTxn(ctx, projection.Transaction{
+		MerchantID:      merchantID,
 		TransactionDate: p.TransactionDate,
 		Description:     p.Description,
 		TotalAmount:     totalDebit,
@@ -252,6 +253,7 @@ func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx 
 	entries := make([]projection.Entry, len(p.Entries))
 	for i, e := range p.Entries {
 		entries[i] = projection.Entry{
+			MerchantID:    merchantID,
 			TransactionId: txnId,
 			LedgerId:      e.LedgerId,
 			AccountId:     e.AccountId,
@@ -277,7 +279,7 @@ func (s *TransactionProjectionService) applyDevidendReceived(ctx context.Context
 	}
 
 	if st.Transaction != nil {
-		txnId, err := s.applyTransaction(ctx, tx, *st.Transaction, enums.TransactionStatusActive.Enum())
+		txnId, err := s.applyTransaction(ctx, tx, *st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID)
 		if err != nil {
 			return err
 		}
@@ -331,7 +333,7 @@ func (s *TransactionProjectionService) applyInstallmentCreated(ctx context.Conte
 		Currency:        "TWD",
 		Entries:         entries,
 	}
-	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum())
+	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum(), ct.MerchantID)
 	if err != nil {
 		return err
 	}
@@ -379,7 +381,7 @@ func (s *TransactionProjectionService) applyInstallmentPeriodPaid(ctx context.Co
 		Currency:        "TWD",
 		Entries:         entries,
 	}
-	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum())
+	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum(), ct.MerchantID)
 	if err != nil {
 		return err
 	}

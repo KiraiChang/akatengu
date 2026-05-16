@@ -9,7 +9,9 @@ import (
 //dbmap:sqlcdb=JournalEntry
 //dbmap:sqlcdb=InsertJournalEntryWithIDParams
 //dbmap:sqlcdb=InsertJournalEntryParams
+//dbmap:sqlcdb=GetJournalEntriesRow
 type Entry struct {
+	MerchantID    int64           `db:"merchant_id" json:"merchant_id"`
 	EntryId       int64           `db:"entry_id" json:"entry_id"`
 	TransactionId int64           `db:"txn_id" json:"txn_id"`
 	LedgerId      *int64          `db:"ledger_id" json:"ledger_id"`
@@ -22,7 +24,9 @@ type Entry struct {
 //dbmap:sqlcdb=Transaction
 //dbmap:sqlcdb=InsertTransactionParams
 //dbmap:sqlcdb=GetTransactionPagedRow
+//dbmap:sqlcdb=GetTransactionRow
 type Transaction struct {
+	MerchantID      int64                   `db:"merchant_id" json:"merchant_id"`
 	TransactionId   int64                   `db:"txn_id" json:"txn_id"`
 	TransactionDate string                  `db:"txn_date" json:"txn_date"`
 	Description     string                  `db:"description" json:"description"`

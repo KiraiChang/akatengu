@@ -7,30 +7,34 @@ import (
 )
 
 type Repo struct {
-	Account     AccountRepo
-	Event       EventRepo
-	Investment  InvestmentRepo
-	Report      ReportRepo
-	Period      PeriodRepo
-	Entry       EntryRepo
-	Transaction TransactionRepo
-	Installment InstallmentRepo
-	Sys         SysRepo
-	User        UserRepo
+	Account        AccountRepo
+	RunningBalance RunningBalanceRepo
+	Event          EventRepo
+	Investment     InvestmentRepo
+	Report         ReportRepo
+	Period         PeriodRepo
+	Entry          EntryRepo
+	Transaction    TransactionRepo
+	Installment    InstallmentRepo
+	Sys            SysRepo
+	User           UserRepo
+	Merchant       MerchantRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
 	q := sqlcdb.New(db)
 	return &Repo{
-		Account:     newAccountRepo(q, db),
-		Event:       newEventRepo(q),
-		Investment:  newInvestmentRepo(q, db),
-		Report:      newReportRepo(q),
-		Period:      newPeriodRepo(q),
-		Entry:       newEntryRepo(q),
-		Transaction: newTransactionRepo(q),
-		Installment: newInstallmentRepo(q),
-		Sys:         newSysRepo(q),
-		User:        newUserRepo(q),
+		Account:        newAccountRepo(q, db),
+		RunningBalance: newRunningBalanceRepo(q),
+		Event:          newEventRepo(q),
+		Investment:     newInvestmentRepo(q, db),
+		Report:         newReportRepo(q, db),
+		Period:         newPeriodRepo(q),
+		Entry:          newEntryRepo(q),
+		Transaction:    newTransactionRepo(q),
+		Installment:    newInstallmentRepo(q),
+		Sys:            newSysRepo(q),
+		User:           newUserRepo(q),
+		Merchant:       newMerchantRepo(q),
 	}
 }

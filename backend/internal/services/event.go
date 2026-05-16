@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/enums"
 	"akatengu/internal/model/db"
 	"akatengu/internal/model/request/cmd"
+	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
@@ -46,6 +47,11 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 	if err != nil {
 		return nil, err
 	}
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ct.MerchantID = merchantID
 
 	err = es.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
 

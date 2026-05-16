@@ -27,26 +27,32 @@ CREATE TABLE snapshots (
 );
 
 CREATE TABLE projection_checkpoints (
-    projection_name TEXT    PRIMARY KEY,
+    projection_name TEXT    NOT NULL,
+    merchant_id     INTEGER NOT NULL DEFAULT 0,
     last_event_id   INTEGER NOT NULL DEFAULT 0,
-    updated_at      TEXT
+    updated_at      TEXT,
+    PRIMARY KEY (projection_name, merchant_id)
 );
 
 CREATE TABLE accounts (
-    account_id     TEXT    PRIMARY KEY,
-    parent_id      TEXT,
-    name           TEXT    NOT NULL,
-    type           TEXT    NOT NULL,
-    normal_balance TEXT    NOT NULL,
-    currency       TEXT    NOT NULL,
-    is_summary     INTEGER NOT NULL DEFAULT 0,
-    is_active      INTEGER NOT NULL DEFAULT 1,
-    note           TEXT,
-    version        INTEGER NOT NULL
+    account_id         TEXT    NOT NULL,
+    merchant_id        INTEGER NOT NULL DEFAULT 0,
+    parent_id          TEXT,
+    name               TEXT    NOT NULL,
+    type               TEXT    NOT NULL,
+    normal_balance     TEXT    NOT NULL,
+    currency           TEXT    NOT NULL,
+    is_summary         INTEGER NOT NULL DEFAULT 0,
+    is_active          INTEGER NOT NULL DEFAULT 1,
+    note               TEXT,
+    version            INTEGER NOT NULL,
+    cash_flow_category TEXT    CHECK (cash_flow_category IN ('CASH', 'OPERATING', 'INVESTING', 'FINANCING')),
+    PRIMARY KEY (account_id, merchant_id)
 );
 
 CREATE TABLE ledger_accounts (
     ledger_id    INTEGER PRIMARY KEY,
+    merchant_id  INTEGER NOT NULL DEFAULT 0,
     account_id   TEXT    NOT NULL,
     institution  TEXT    NOT NULL,
     name         TEXT    NOT NULL,
@@ -62,13 +68,16 @@ CREATE TABLE ledger_accounts (
 );
 
 CREATE TABLE sys_accounts (
-    sys_code    TEXT PRIMARY KEY,
-    description TEXT NOT NULL,
-    account_id  TEXT NOT NULL
+    sys_code    TEXT    NOT NULL,
+    merchant_id INTEGER NOT NULL DEFAULT 0,
+    description TEXT    NOT NULL,
+    account_id  TEXT    NOT NULL,
+    PRIMARY KEY (sys_code, merchant_id)
 );
 
 CREATE TABLE transactions (
     txn_id         INTEGER PRIMARY KEY,
+    merchant_id    INTEGER NOT NULL DEFAULT 0,
     txn_date       TEXT    NOT NULL,
     description    TEXT    NOT NULL,
     total_amount   REAL    NOT NULL,
@@ -82,17 +91,19 @@ CREATE TABLE transactions (
 );
 
 CREATE TABLE journal_entries (
-    entry_id   INTEGER PRIMARY KEY,
-    txn_id     INTEGER NOT NULL,
-    ledger_id  INTEGER,
-    account_id TEXT    NOT NULL,
-    debit      REAL    NOT NULL DEFAULT 0,
-    credit     REAL    NOT NULL DEFAULT 0,
-    note       TEXT
+    entry_id    INTEGER PRIMARY KEY,
+    merchant_id INTEGER NOT NULL DEFAULT 0,
+    txn_id      INTEGER NOT NULL,
+    ledger_id   INTEGER,
+    account_id  TEXT    NOT NULL,
+    debit       REAL    NOT NULL DEFAULT 0,
+    credit      REAL    NOT NULL DEFAULT 0,
+    note        TEXT
 );
 
 CREATE TABLE installments (
     installment_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id       INTEGER NOT NULL DEFAULT 0,
     ledger_id         INTEGER NOT NULL,
     txn_id            INTEGER,
     description       TEXT    NOT NULL,
@@ -109,6 +120,7 @@ CREATE TABLE installments (
 
 CREATE TABLE installment_payments (
     payment_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id    INTEGER NOT NULL DEFAULT 0,
     installment_id INTEGER NOT NULL,
     txn_id         INTEGER,
     period_no      INTEGER NOT NULL,
@@ -121,6 +133,7 @@ CREATE TABLE installment_payments (
 
 CREATE TABLE reconciliations (
     recon_id          INTEGER PRIMARY KEY,
+    merchant_id       INTEGER NOT NULL DEFAULT 0,
     ledger_id         INTEGER NOT NULL,
     recon_date        TEXT    NOT NULL,
     statement_balance REAL    NOT NULL,
@@ -133,6 +146,7 @@ CREATE TABLE reconciliations (
 
 CREATE TABLE reconciliation_adjustments (
     adjustment_id   INTEGER PRIMARY KEY,
+    merchant_id     INTEGER NOT NULL DEFAULT 0,
     recon_id        INTEGER NOT NULL,
     txn_id          INTEGER NOT NULL,
     adjustment_type TEXT    NOT NULL,
@@ -142,6 +156,7 @@ CREATE TABLE reconciliation_adjustments (
 
 CREATE TABLE period_closings (
     closing_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id    INTEGER NOT NULL DEFAULT 0,
     period_type    TEXT    NOT NULL,
     period_start   TEXT    NOT NULL,
     period_end     TEXT    NOT NULL,
@@ -157,15 +172,17 @@ CREATE TABLE period_closings (
 
 CREATE TABLE account_balance_snapshots (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    closing_id   INTEGER NOT NULL REFERENCES period_closings(closing_id),
-    account_id   TEXT    NOT NULL REFERENCES accounts(account_id),
+    merchant_id  INTEGER NOT NULL DEFAULT 0,
+    closing_id   INTEGER NOT NULL,
+    account_id   TEXT    NOT NULL,
     debit_total  REAL    NOT NULL DEFAULT 0,
     credit_total REAL    NOT NULL DEFAULT 0,
-    UNIQUE(closing_id, account_id)
+    UNIQUE(closing_id, account_id, merchant_id)
 );
 
 CREATE TABLE investments (
     investment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id   INTEGER NOT NULL DEFAULT 0,
     account_id    TEXT    NOT NULL,
     asset_type    TEXT    NOT NULL,
     currency      TEXT    NOT NULL,
@@ -179,6 +196,7 @@ CREATE TABLE investments (
 
 CREATE TABLE investment_lots (
     lot_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id   INTEGER NOT NULL DEFAULT 0,
     investment_id INTEGER NOT NULL,
     movement_id   INTEGER NOT NULL,
     acquired_date TEXT    NOT NULL,
@@ -193,6 +211,7 @@ CREATE TABLE investment_lots (
 
 CREATE TABLE investment_movements (
     movement_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id     INTEGER NOT NULL DEFAULT 0,
     investment_id   INTEGER NOT NULL,
     event_id        INTEGER NOT NULL,
     txn_id          INTEGER,
@@ -214,6 +233,7 @@ CREATE TABLE investment_movements (
 
 CREATE TABLE investment_positions (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id     INTEGER NOT NULL DEFAULT 0,
     investment_id   INTEGER NOT NULL UNIQUE,
     total_quantity  REAL    NOT NULL,
     total_cost      REAL    NOT NULL,
@@ -223,6 +243,7 @@ CREATE TABLE investment_positions (
 
 CREATE TABLE investment_lot_disposals (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id         INTEGER NOT NULL DEFAULT 0,
     lot_id              INTEGER,
     txn_id              INTEGER,
     movement_id         INTEGER,
@@ -249,38 +270,124 @@ CREATE TABLE users (
     status   TEXT    NOT NULL DEFAULT 'INACTIVE'
 );
 
-CREATE VIEW v_parent_balance_agg AS
-WITH RECURSIVE subtree(ancestor_id, leaf_id) AS (
-    SELECT a.parent_id, a.account_id
-    FROM accounts a
-    WHERE a.is_summary = 0 AND a.is_active = 1 AND a.parent_id IS NOT NULL
-    UNION ALL
-    SELECT a.parent_id, s.leaf_id
-    FROM accounts a
-    JOIN subtree s ON a.account_id = s.ancestor_id
-    WHERE a.parent_id IS NOT NULL
-)
-SELECT
-    snap.closing_id,
-    a.account_id,
-    COALESCE(SUM(snap.debit_total),  0) AS debit_total,
-    COALESCE(SUM(snap.credit_total), 0) AS credit_total
-FROM accounts a
-JOIN subtree st ON a.account_id = st.ancestor_id
-JOIN account_balance_snapshots snap ON snap.account_id = st.leaf_id
-WHERE a.is_summary = 1
-GROUP BY snap.closing_id, a.account_id;
+CREATE TABLE merchants (
+    merchant_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT    NOT NULL,
+    display_name TEXT    NOT NULL,
+    currency     TEXT    NOT NULL DEFAULT 'TWD',
+    status       TEXT    NOT NULL DEFAULT 'ACTIVE',
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 
-CREATE VIEW v_account_balances AS
+CREATE TABLE user_merchants (
+    user_id     INTEGER NOT NULL REFERENCES users(user_id),
+    merchant_id INTEGER NOT NULL REFERENCES merchants(merchant_id),
+    role        TEXT    NOT NULL DEFAULT 'MEMBER',
+    joined_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, merchant_id)
+);
+
+CREATE TABLE account_closure (
+    ancestor_id   TEXT    NOT NULL,
+    descendant_id TEXT    NOT NULL,
+    merchant_id   INTEGER NOT NULL DEFAULT 0,
+    depth         INTEGER NOT NULL,
+    PRIMARY KEY (ancestor_id, descendant_id, merchant_id)
+);
+
+CREATE INDEX idx_account_closure_descendant ON account_closure(descendant_id, merchant_id);
+
+CREATE TRIGGER trg_account_insert_closure
+AFTER INSERT ON accounts
+BEGIN
+    INSERT OR IGNORE INTO account_closure (ancestor_id, descendant_id, merchant_id, depth)
+    VALUES (NEW.account_id, NEW.account_id, NEW.merchant_id, 0);
+    INSERT OR IGNORE INTO account_closure (ancestor_id, descendant_id, merchant_id, depth)
+    SELECT ancestor_id, NEW.account_id, NEW.merchant_id, depth + 1
+    FROM account_closure
+    WHERE descendant_id = NEW.parent_id AND merchant_id = NEW.merchant_id;
+END;
+
+CREATE VIEW v_parent_balance_agg AS
+SELECT snap.closing_id, snap.merchant_id, a.account_id,
+       COALESCE(SUM(snap.debit_total),  0) AS debit_total,
+       COALESCE(SUM(snap.credit_total), 0) AS credit_total
+FROM accounts a
+JOIN account_closure ac ON ac.ancestor_id = a.account_id AND ac.merchant_id = a.merchant_id AND ac.depth > 0
+JOIN accounts leaf      ON leaf.account_id = ac.descendant_id AND leaf.merchant_id = a.merchant_id
+                       AND leaf.is_summary = 0 AND leaf.is_active = 1
+JOIN account_balance_snapshots snap ON snap.account_id = ac.descendant_id AND snap.merchant_id = a.merchant_id
+WHERE a.is_summary = 1
+GROUP BY snap.closing_id, snap.merchant_id, a.account_id;
+
+CREATE TABLE ledger_account_balance_snapshots (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id  INTEGER NOT NULL DEFAULT 0,
+    closing_id   INTEGER NOT NULL,
+    ledger_id    INTEGER NOT NULL,
+    debit_total  REAL    NOT NULL DEFAULT 0,
+    credit_total REAL    NOT NULL DEFAULT 0,
+    UNIQUE(closing_id, ledger_id, merchant_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_labs_closing ON ledger_account_balance_snapshots(closing_id);
+
+CREATE VIEW v_ledger_account_balances AS
 SELECT
     la.ledger_id,
+    la.merchant_id,
     a.normal_balance,
-    COALESCE(SUM(je.debit), 0)     AS debit_total,
-    COALESCE(SUM(je.credit), 0)     AS credit_total
+    COALESCE(SUM(je.debit), 0)  AS debit_total,
+    COALESCE(SUM(je.credit), 0) AS credit_total
 FROM ledger_accounts la
-         JOIN accounts a          ON la.account_id = a.account_id
-         LEFT JOIN journal_entries je ON la.ledger_id = je.ledger_id
-    AND la.account_id = je.account_id
-         LEFT JOIN transactions t     ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
+JOIN accounts a             ON la.account_id = a.account_id AND la.merchant_id = a.merchant_id
+LEFT JOIN journal_entries je ON la.ledger_id = je.ledger_id AND la.account_id = je.account_id
+                             AND la.merchant_id = je.merchant_id
+LEFT JOIN transactions t     ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
 WHERE la.is_active = 1
-GROUP BY la.ledger_id;
+GROUP BY la.ledger_id, la.merchant_id;
+
+CREATE VIEW v_account_balances AS
+WITH
+leaf_balances AS (
+    SELECT a.account_id, a.merchant_id, a.name, a.type, a.normal_balance,
+           COALESCE(SUM(je.debit), 0)  AS debit_total,
+           COALESCE(SUM(je.credit), 0) AS credit_total
+    FROM accounts a
+    LEFT JOIN journal_entries je ON a.account_id = je.account_id AND a.merchant_id = je.merchant_id
+    LEFT JOIN transactions t     ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
+    WHERE a.is_active = 1 AND a.is_summary = 0
+    GROUP BY a.account_id, a.merchant_id
+),
+parent_balances AS (
+    SELECT a.account_id, a.merchant_id, a.name, a.type, a.normal_balance,
+           COALESCE(SUM(je.debit), 0)  AS debit_total,
+           COALESCE(SUM(je.credit), 0) AS credit_total
+    FROM accounts a
+    JOIN account_closure ac ON ac.ancestor_id = a.account_id AND ac.merchant_id = a.merchant_id AND ac.depth > 0
+    LEFT JOIN journal_entries je ON je.account_id = ac.descendant_id AND je.merchant_id = a.merchant_id
+    LEFT JOIN transactions t     ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
+    WHERE a.is_active = 1 AND a.is_summary = 1
+    GROUP BY a.account_id, a.merchant_id
+)
+SELECT account_id, merchant_id, name, type, normal_balance, debit_total, credit_total FROM leaf_balances
+UNION ALL
+SELECT account_id, merchant_id, name, type, normal_balance, debit_total, credit_total FROM parent_balances;
+
+CREATE TABLE account_running_balances (
+    account_id   TEXT    NOT NULL,
+    merchant_id  INTEGER NOT NULL DEFAULT 0,
+    debit_total  REAL    NOT NULL DEFAULT 0,
+    credit_total REAL    NOT NULL DEFAULT 0,
+    PRIMARY KEY (account_id, merchant_id),
+    FOREIGN KEY (account_id) REFERENCES accounts(account_id)
+);
+
+CREATE TABLE ledger_running_balances (
+    ledger_id    INTEGER NOT NULL,
+    merchant_id  INTEGER NOT NULL DEFAULT 0,
+    debit_total  REAL    NOT NULL DEFAULT 0,
+    credit_total REAL    NOT NULL DEFAULT 0,
+    PRIMARY KEY (ledger_id, merchant_id),
+    FOREIGN KEY (ledger_id) REFERENCES ledger_accounts(ledger_id)
+);

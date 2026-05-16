@@ -48,6 +48,7 @@ func (s *PeriodProjectionService) applyMonthStarted(ctx context.Context, tx even
 
 	// 建立 period_closings 紀錄，status = open
 	_, err = tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, projection.PeriodClosing{
+		MerchantID:  ct.MerchantID,
 		PeriodType:  enums.PeriodMonthly.Enum(),
 		PeriodStart: first,
 		PeriodEnd:   last,
@@ -81,6 +82,7 @@ func (s *PeriodProjectionService) applyMonthClosed(ctx context.Context, tx event
 
 	// 建立 下一期 period_closings 紀錄，status = open
 	if state.Next != nil {
+		state.Next.MerchantID = ct.MerchantID
 		_, err := tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, *state.Next)
 		if err != nil {
 			return err
@@ -120,6 +122,7 @@ func (s *PeriodProjectionService) applyAnnualStarted(ctx context.Context, tx eve
 
 	// 建立 period_closings 紀錄，status = open
 	_, err = tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, projection.PeriodClosing{
+		MerchantID:  ct.MerchantID,
 		PeriodType:  enums.PeriodAnnual.Enum(),
 		PeriodStart: first,
 		PeriodEnd:   last,
@@ -153,6 +156,7 @@ func (s *PeriodProjectionService) applyAnnualClosed(ctx context.Context, tx even
 
 	// 建立 下一期 period_closings 紀錄，status = open
 	if state.Next != nil {
+		state.Next.MerchantID = ct.MerchantID
 		_, err := tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, *state.Next)
 		if err != nil {
 			return err

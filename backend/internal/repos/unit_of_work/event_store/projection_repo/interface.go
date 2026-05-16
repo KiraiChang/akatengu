@@ -13,6 +13,7 @@ type TransactionRepo interface {
 	UpdateTxnStatus(ctx context.Context, txn_id int64, status enums.TransactionStatus, version int64) error
 	SysUpdateTxnStatus(ctx context.Context, txn_id int64, refTxnId *int64, status enums.TransactionStatus) error
 	UpsertJournalEntries(ctx context.Context, entries []projection.Entry) error
+	GetEntriesByTxnId(ctx context.Context, txnId int64, merchantID int64) ([]projection.Entry, error)
 }
 
 type InstallmentRepo interface {
@@ -68,6 +69,20 @@ type PeriodCloseRepo interface {
 }
 
 type AccountBalanceSnapshotRepo interface {
-	BulkInsert(ctx context.Context, closingId int64) error
-	DeleteByClosingId(ctx context.Context, closingId int64) error
+	BulkInsert(ctx context.Context, merchantID int64, closingId int64) error
+	DeleteByClosingId(ctx context.Context, merchantID int64, closingId int64) error
+}
+
+type LedgerAccountBalanceSnapshotRepo interface {
+	BulkInsert(ctx context.Context, merchantID int64, closingId int64) error
+	DeleteByClosingId(ctx context.Context, merchantID int64, closingId int64) error
+}
+
+type AccountRunningBalanceRepo interface {
+	Upsert(ctx context.Context, accountId string, merchantID int64, debit, credit decimal.Decimal) error
+	GetAncestorIds(ctx context.Context, accountId string, merchantID int64) ([]string, error)
+}
+
+type LedgerRunningBalanceRepo interface {
+	Upsert(ctx context.Context, ledgerId int64, merchantID int64, debit, credit decimal.Decimal) error
 }

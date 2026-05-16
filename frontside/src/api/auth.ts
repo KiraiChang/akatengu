@@ -1,4 +1,5 @@
 import { authStore } from '../stores/auth.svelte';
+import { list, select } from "./merchant"
 
 interface LoginResponse {
   token: string;
@@ -39,5 +40,7 @@ export const login = async (username: string, password: string): Promise<void> =
   }
 
   const data: LoginResponse = await response.json();
-  authStore.setToken(data.token);
+  const listResponse = await list(data.token);
+  const selectResponse = await select(listResponse[0].merchant_id, data.token);
+  authStore.setToken(selectResponse.token);
 };

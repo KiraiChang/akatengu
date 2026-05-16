@@ -176,6 +176,55 @@
   background: rgba(196, 64, 64, 0.06);
 }
 
+.sidebar-parent-btn {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.sidebar-expand-icon {
+  font-size: 9px;
+  color: #3d4258;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.sidebar-parent-btn:hover .sidebar-expand-icon,
+.sidebar-parent-btn.active .sidebar-expand-icon {
+  color: inherit;
+}
+
+.sidebar-sub-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-sub-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 22px 8px 34px;
+  border-left: 2px solid transparent;
+  color: #44485c;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+
+.sidebar-sub-item:hover {
+  color: #9a9690;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.sidebar-sub-item.active {
+  border-left-color: #c44040;
+  color: #e07070;
+  background: rgba(196, 64, 64, 0.05);
+}
+
 .sidebar-sep {
   margin: 8px 22px;
   border: none;

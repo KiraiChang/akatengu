@@ -6,7 +6,6 @@ import (
 	"akatengu/internal/repos/query"
 	"akatengu/internal/services/pipelines"
 	"context"
-	"fmt"
 )
 
 // ------------------------------
@@ -23,25 +22,7 @@ func (e *eventTransactionCreatedProjector) Project(ctx context.Context, ct *pipe
 
 	p := ct.Payload
 
-	// 1. 轉換開張日期
-	periodStart, err := periodStartDate(p.TransactionDate)
-	if err != nil {
-		return fmt.Errorf("parse date %s, fail: %w", p.TransactionDate, err)
-	}
-
-	// 2. 檢查是否已結帳
-	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly.Enum(), periodStart)
-	if err != nil {
-		fmt.Errorf("get period: %w", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("period %s is not exists", periodStart)
-	}
-
-	if !existing.Status.Is(enums.PeriodTypeStatusOpen) {
-		return fmt.Errorf("period %s~%s is already closed", existing.PeriodStart, existing.PeriodEnd)
-	}
-	return nil
+	return validPeriodMonthlyStatus(ctx, p.TransactionDate, e.query, enums.PeriodTypeStatusOpen.Enum())
 }
 
 func NewEventTransactionCreatedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.TransactionCreatedPayload] {
@@ -67,25 +48,7 @@ func (e *eventTransactionCorrectedProjector) Project(ctx context.Context, ct *pi
 		return err
 	}
 
-	// 1. 轉換開張日期
-	periodStart, err := periodStartDate(origin.TransactionDate)
-	if err != nil {
-		return fmt.Errorf("parse date %s, fail: %w", origin.TransactionDate, err)
-	}
-
-	// 2. 檢查是否已結帳
-	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly.Enum(), periodStart)
-	if err != nil {
-		fmt.Errorf("get period: %w", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("period %s is not exists", periodStart)
-	}
-
-	if !existing.Status.Is(enums.PeriodTypeStatusOpen) {
-		return fmt.Errorf("period %s~%s is already closed", existing.PeriodStart, existing.PeriodEnd)
-	}
-	return nil
+	return validPeriodMonthlyStatus(ctx, origin.TransactionDate, e.query, enums.PeriodTypeStatusOpen.Enum())
 }
 
 func NewEventTransactionCorrectedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.TransactionCorrectedPayload] {
@@ -111,25 +74,7 @@ func (e eventTransactionVoidedProjector) Project(ctx context.Context, ct *pipeli
 		return err
 	}
 
-	// 1. 轉換開張日期
-	periodStart, err := periodStartDate(origin.TransactionDate)
-	if err != nil {
-		return fmt.Errorf("parse date %s, fail: %w", origin.TransactionDate, err)
-	}
-
-	// 2. 檢查是否已結帳
-	existing, err := e.query.Period.GetByPeriod(ctx, enums.PeriodMonthly.Enum(), periodStart)
-	if err != nil {
-		fmt.Errorf("get period: %w", err)
-	}
-	if existing == nil {
-		return fmt.Errorf("period %s is not exists", periodStart)
-	}
-
-	if !existing.Status.Is(enums.PeriodTypeStatusOpen) {
-		return fmt.Errorf("period %s~%s is already closed", existing.PeriodStart, existing.PeriodEnd)
-	}
-	return nil
+	return validPeriodMonthlyStatus(ctx, origin.TransactionDate, e.query, enums.PeriodTypeStatusOpen.Enum())
 }
 
 func NewEventTransactionVoidedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.TransactionVoidedPayload] {

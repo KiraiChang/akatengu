@@ -36,13 +36,16 @@ CREATE TABLE IF NOT EXISTS snapshots (
 );
 
 CREATE TABLE IF NOT EXISTS projection_checkpoints (
-    projection_name TEXT    PRIMARY KEY,
+    projection_name TEXT    NOT NULL,
+    merchant_id     INTEGER NOT NULL DEFAULT 0,
     last_event_id   INTEGER NOT NULL DEFAULT 0,
-    updated_at      TEXT    DEFAULT (datetime('now'))
+    updated_at      TEXT    DEFAULT (datetime('now')),
+    PRIMARY KEY (projection_name, merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
-    account_id     TEXT    PRIMARY KEY,
+    account_id     TEXT    NOT NULL,
+    merchant_id    INTEGER NOT NULL DEFAULT 0,
     parent_id      TEXT    REFERENCES accounts(account_id),
     name           TEXT    NOT NULL,
     type           TEXT    NOT NULL,
@@ -53,8 +56,11 @@ CREATE TABLE IF NOT EXISTS accounts (
     note           TEXT,
     version        INTEGER NOT NULL,
     CONSTRAINT chk_normal_balance CHECK (normal_balance IN ('DEBIT', 'CREDIT')),
-    CONSTRAINT chk_type CHECK (type IN ('ASSET', 'LIABILITY', 'INCOME', 'EXPENSE', 'EQUITY'))
+    CONSTRAINT chk_type CHECK (type IN ('ASSET', 'LIABILITY', 'INCOME', 'EXPENSE', 'EQUITY')),
+    PRIMARY KEY (account_id, merchant_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_accounts_active ON accounts(is_active, account_id);
 
 CREATE TABLE IF NOT EXISTS ledger_accounts (
     ledger_id    INTEGER PRIMARY KEY,
@@ -74,9 +80,11 @@ CREATE TABLE IF NOT EXISTS ledger_accounts (
 );
 
 CREATE TABLE IF NOT EXISTS sys_accounts (
-    sys_code    TEXT PRIMARY KEY,
+    sys_code    TEXT    NOT NULL,
+    merchant_id INTEGER NOT NULL DEFAULT 0,
     description TEXT NOT NULL,
-    account_id  TEXT NOT NULL REFERENCES accounts(account_id)
+    account_id  TEXT NOT NULL REFERENCES accounts(account_id),
+    PRIMARY KEY (sys_code, merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -96,6 +104,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 CREATE INDEX IF NOT EXISTS idx_txn_date   ON transactions(txn_date);
 CREATE INDEX IF NOT EXISTS idx_txn_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_txn_status_date_id ON transactions(status, txn_date, txn_id);
 
 CREATE TABLE IF NOT EXISTS journal_entries (
     entry_id   INTEGER PRIMARY KEY,
@@ -110,6 +119,14 @@ CREATE TABLE IF NOT EXISTS journal_entries (
 CREATE INDEX IF NOT EXISTS idx_je_txn     ON journal_entries(txn_id);
 CREATE INDEX IF NOT EXISTS idx_je_account ON journal_entries(account_id);
 CREATE INDEX IF NOT EXISTS idx_je_ledger  ON journal_entries(ledger_id);
+CREATE INDEX IF NOT EXISTS idx_je_account_txn ON journal_entries(account_id, txn_id);
+CREATE INDEX IF NOT EXISTS idx_je_account_txn_amount
+    ON journal_entries(
+                       account_id,
+                       txn_id,
+                       debit,
+                       credit
+        );
 
 CREATE TABLE IF NOT EXISTS installments (
     installment_id    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -340,7 +357,7 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
 
 CREATE INDEX IF NOT EXISTS idx_rates_currency_date ON exchange_rates(currency, rate_date DESC);
 
-CREATE VIEW IF NOT EXISTS v_account_balances AS
+CREATE VIEW IF NOT EXISTS v_ledger_account_balances AS
 SELECT
     la.ledger_id,
     a.normal_balance,
@@ -354,15 +371,13 @@ FROM ledger_accounts la
 WHERE la.is_active = 1
 GROUP BY la.ledger_id;
 
-CREATE VIEW IF NOT EXISTS v_account_summary AS
-SELECT
-    a.account_id,
-    a.name,
-    a.type,
-    COALESCE(SUM(je.debit) - SUM(je.credit), 0)     AS balance
+CREATE VIEW IF NOT EXISTS v_account_balances AS
+SELECT a.account_id, a.name, a.type, a.normal_balance,
+       COALESCE(SUM(je.debit), 0)  AS debit_total,
+       COALESCE(SUM(je.credit), 0) AS credit_total
 FROM accounts a
-    LEFT JOIN journal_entries je ON a.account_id = je.account_id
-    LEFT JOIN transactions t     ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
+         LEFT JOIN journal_entries je ON a.account_id = je.account_id
+         LEFT JOIN transactions t     ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
 WHERE a.is_active = 1
 GROUP BY a.account_id;
 
@@ -560,14 +575,18 @@ DROP TABLE IF EXISTS installments;
 DROP INDEX IF EXISTS idx_je_txn;
 DROP INDEX IF EXISTS idx_je_account;
 DROP INDEX IF EXISTS idx_je_ledger;
+DROP INDEX IF EXISTS idx_je_account_txn;
+DROP INDEX IF EXISTS idx_je_account_txn_amount;
 DROP TABLE IF EXISTS journal_entries;
 
 DROP INDEX IF EXISTS idx_txn_date;
 DROP INDEX IF EXISTS idx_txn_status;
+DROP INDEX IF EXISTS idx_txn_status_date_id;
 DROP TABLE IF EXISTS transactions;
 
 DROP TABLE IF EXISTS sys_accounts;
 DROP TABLE IF EXISTS ledger_accounts;
+DROP INDEX IF EXISTS idx_accounts_active;
 DROP TABLE IF EXISTS accounts;
 DROP TABLE IF EXISTS projection_checkpoints;
 DROP TABLE IF EXISTS snapshots;

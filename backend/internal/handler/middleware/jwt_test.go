@@ -17,6 +17,9 @@ type stubJwtService struct {
 }
 
 func (s *stubJwtService) GenerateToken(_ *db.User) (string, error) { return "", nil }
+func (s *stubJwtService) GenerateTokenWithMerchant(user *db.User, merchantID int64, role string) (string, error) {
+	return "", nil
+}
 func (s *stubJwtService) VerifyToken(_ string) (*jwt.Claims, error) {
 	return s.claims, s.err
 }

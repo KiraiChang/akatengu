@@ -64,3 +64,20 @@ const (
 	LedgerAccountTypeLoan        ledgerAccountTypeVal = "LOAN"
 	LedgerAccountTypeCreditCard  ledgerAccountTypeVal = "CREDIT_CARD"
 )
+
+// ─────────────────────────────────────────
+// CashFlowCategory 現金流量表活動分類
+// ─────────────────────────────────────────
+
+// CashFlowCategory 現金流量表活動分類
+type CashFlowCategory = enumx.Enum[cashFlowCategoryVal]
+
+//enumx:enum
+type cashFlowCategoryVal string
+
+const (
+	CashFlowCategoryCash      cashFlowCategoryVal = "CASH"
+	CashFlowCategoryOperating cashFlowCategoryVal = "OPERATING"
+	CashFlowCategoryInvesting cashFlowCategoryVal = "INVESTING"
+	CashFlowCategoryFinancing cashFlowCategoryVal = "FINANCING"
+)

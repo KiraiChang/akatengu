@@ -22,25 +22,25 @@ func (s *AccountBalanceSnapshotProjection) Apply(ctx context.Context, tx event_s
 		if err != nil {
 			return err
 		}
-		return tx.Projection.AccountBalanceSnapshotRepo.BulkInsert(ctx, p.ClosingId)
+		return tx.Projection.AccountBalanceSnapshotRepo.BulkInsert(ctx, ct.MerchantID, p.ClosingId)
 	case event_types.EventPeriodAnnualClosed:
 		p, err := checkAndGetPayload[payload.PeriodAnnualClosedPayload](ct)
 		if err != nil {
 			return err
 		}
-		return tx.Projection.AccountBalanceSnapshotRepo.BulkInsert(ctx, p.ClosingId)
+		return tx.Projection.AccountBalanceSnapshotRepo.BulkInsert(ctx, ct.MerchantID, p.ClosingId)
 	case event_types.EventPeriodMonthReopened:
 		p, err := checkAndGetPayload[payload.PeriodMonthReopenedPayload](ct)
 		if err != nil {
 			return err
 		}
-		return tx.Projection.AccountBalanceSnapshotRepo.DeleteByClosingId(ctx, p.ClosingId)
+		return tx.Projection.AccountBalanceSnapshotRepo.DeleteByClosingId(ctx, ct.MerchantID, p.ClosingId)
 	case event_types.EventPeriodAnnualReopened:
 		p, err := checkAndGetPayload[payload.PeriodAnnualReopenedPayload](ct)
 		if err != nil {
 			return err
 		}
-		return tx.Projection.AccountBalanceSnapshotRepo.DeleteByClosingId(ctx, p.ClosingId)
+		return tx.Projection.AccountBalanceSnapshotRepo.DeleteByClosingId(ctx, ct.MerchantID, p.ClosingId)
 	}
 	return nil
 }

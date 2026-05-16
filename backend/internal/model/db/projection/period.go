@@ -9,7 +9,11 @@ import (
 //dbmap:sqlcdb=PeriodClosing
 //dbmap:sqlcdb=InsertPeriodCloseParams
 //dbmap:sqlcdb=GetPeriodPagedByTypeRow
+//dbmap:sqlcdb=GetPeriodByPeriodRow
+//dbmap:sqlcdb=GetPeriodByIDRow
+//dbmap:sqlcdb=GetLatestClosedPeriodRow
 type PeriodClosing struct {
+	MerchantID   int64                  `db:"merchant_id" json:"merchant_id"`
 	ClosingId    int64                  `db:"closing_id" json:"closing_id"`
 	PeriodType   enums.PeriodType       `db:"period_type" json:"period_type"`
 	PeriodStart  string                 `db:"period_start" json:"period_start"`

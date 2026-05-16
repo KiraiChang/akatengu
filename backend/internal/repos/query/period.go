@@ -5,6 +5,7 @@ import (
 	"akatengu/internal/enums"
 	"akatengu/internal/handler/response/model"
 	"akatengu/internal/model/db/projection"
+	"akatengu/internal/pkg/ctxkey"
 	"context"
 	"database/sql"
 	"fmt"
@@ -26,7 +27,12 @@ type sqlcdbPeriodRepo struct {
 }
 
 func (r *sqlcdbPeriodRepo) GetPeriodPagedByType(ctx context.Context, periodType enums.PeriodType, req model.PaginationParams) ([]projection.PeriodClosing, int64, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
 	rows, err := r.q.GetPeriodPagedByType(ctx, sqlcdb.GetPeriodPagedByTypeParams{
+		MerchantID: merchantID,
 		PeriodType: periodType,
 		Limit:      req.Limit,
 		Offset:     req.Offset,
@@ -54,7 +60,12 @@ func NewPeriodRepo(db *sqlx.DB) PeriodRepo {
 }
 
 func (r *sqlcdbPeriodRepo) GetByPeriod(ctx context.Context, periodType enums.PeriodType, periodStart string) (*projection.PeriodClosing, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	row, err := r.q.GetPeriodByPeriod(ctx, sqlcdb.GetPeriodByPeriodParams{
+		MerchantID:  merchantID,
 		PeriodType:  periodType,
 		PeriodStart: periodStart,
 	})
@@ -64,43 +75,66 @@ func (r *sqlcdbPeriodRepo) GetByPeriod(ctx context.Context, periodType enums.Per
 	if err != nil {
 		return nil, err
 	}
-	return projection.PeriodClosingPtrFromPeriodClosing(row), nil
+	return projection.PeriodClosingPtrFromGetPeriodByPeriodRow(row), nil
 }
 
 func (r *sqlcdbPeriodRepo) GetByID(ctx context.Context, id int64) (*projection.PeriodClosing, error) {
-	row, err := r.q.GetPeriodByID(ctx, id)
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetPeriodByID(ctx, sqlcdb.GetPeriodByIDParams{
+		ClosingID:  id,
+		MerchantID: merchantID,
+	})
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return projection.PeriodClosingPtrFromPeriodClosing(row), nil
+	return projection.PeriodClosingPtrFromGetPeriodByIDRow(row), nil
 }
 
 func (r *sqlcdbPeriodRepo) GetLatestClosed(ctx context.Context, periodType enums.PeriodType) (*projection.PeriodClosing, error) {
-	row, err := r.q.GetLatestClosedPeriod(ctx, periodType)
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetLatestClosedPeriod(ctx, sqlcdb.GetLatestClosedPeriodParams{
+		PeriodType: periodType,
+		MerchantID: merchantID,
+	})
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return projection.PeriodClosingPtrFromPeriodClosing(row), nil
+	return projection.PeriodClosingPtrFromGetLatestClosedPeriodRow(row), nil
 }
 
 func (r *sqlcdbPeriodRepo) IsDateInClosedPeriod(ctx context.Context, date string) (bool, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return false, err
+	}
 	count, err := r.q.IsDateInClosedPeriod(ctx, sqlcdb.IsDateInClosedPeriodParams{
-		PeriodStart: date,
-		PeriodEnd:   date,
+		Date:       date,
+		MerchantID: merchantID,
 	})
 	return count > 0, err
 }
 
 func (r *sqlcdbPeriodRepo) AssertNoUnresolvedAdjustments(ctx context.Context, start string, end string) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
 	count, err := r.q.CountUnresolvedAdjustments(ctx, sqlcdb.CountUnresolvedAdjustmentsParams{
-		StartDate: start,
-		EndDate:   end,
+		MerchantID: merchantID,
+		StartDate:  start,
+		EndDate:    end,
 	})
 	if err != nil {
 		return fmt.Errorf("check unresolved: %w", err)

@@ -23,6 +23,14 @@ func (r *ReportService) GetIncomeStatement(ctx context.Context, startDate, endDa
 	return r.repo.GetIncomeStatement(ctx, startDate, endDate)
 }
 
+func (r *ReportService) GetCashFlowStatement(ctx context.Context, startDate, endDate string) (*report.CashFlowStatement, error) {
+	return r.repo.GetCashFlowStatement(ctx, startDate, endDate)
+}
+
+func (r *ReportService) GetEquityStatement(ctx context.Context, startDate, endDate string) (*report.EquityStatement, error) {
+	return r.repo.GetEquityStatement(ctx, startDate, endDate)
+}
+
 func (r *ReportService) Verify(ctx context.Context, date string) error {
 	bs, err := r.GetBalanceSheet(ctx, date)
 	if err != nil {

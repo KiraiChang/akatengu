@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { getAccountAll, createAccount, updateAccount } from '../api/account';
+  import { getAccountAll, getAccountBalances, createAccount, updateAccount } from '../api/account';
   import AccountSelect from '../components/AccountSelect.svelte';
-  import type { Account, UpdateAccountRequest } from '../types/account';
+  import type { Account, AccountBalance, CashFlowCategory, UpdateAccountRequest } from '../types/account';
 
   const ACCOUNT_TYPES = ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'] as const;
   const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -17,12 +17,27 @@
     CREDIT: '貸',
   };
 
+  const CASH_FLOW_CATEGORIES: CashFlowCategory[] = ['CASH', 'OPERATING', 'INVESTING', 'FINANCING'];
+  const CASH_FLOW_CATEGORY_LABELS: Record<CashFlowCategory, string> = {
+    CASH:       '現金及約當現金',
+    OPERATING:  '營業活動',
+    INVESTING:  '投資活動',
+    FINANCING:  '籌資活動',
+  };
+
   let accounts    = $state<Account[]>([]);
+  let balances    = $state<AccountBalance[]>([]);
   let isLoading   = $state(false);
   let error       = $state('');
   let expandedIds = $state(new Set<string>());
 
   const rootAccounts = $derived(accounts.filter(a => a.parent_id === null));
+
+  const balanceMap = $derived((() => {
+    const m = new Map<string, AccountBalance>();
+    for (const b of balances) m.set(b.account_id, b);
+    return m;
+  })());
 
   const childrenMap = $derived((() => {
     const map = new Map<string, Account[]>();
@@ -43,16 +58,17 @@
   let saveError     = $state('');
   let accountSuffix = $state('');
   let form          = $state<UpdateAccountRequest>({
-    account_id:     '',
-    parent_id:      null,
-    name:           '',
-    type:           'ASSET',
-    normal_balance: 'DEBIT',
-    currency:       'TWD',
-    is_summary:     false,
-    is_active:      true,
-    note:           null,
-    version:        0,
+    account_id:          '',
+    parent_id:           null,
+    name:                '',
+    type:                'ASSET',
+    normal_balance:      'DEBIT',
+    currency:            'TWD',
+    is_summary:          false,
+    is_active:           true,
+    note:                null,
+    version:             0,
+    cash_flow_category:  null,
   });
 
   const parentAccount = $derived(
@@ -70,11 +86,17 @@
     void load();
   });
 
+  function netBalance(b: AccountBalance): number {
+    const d = parseFloat(b.debit_total);
+    const c = parseFloat(b.credit_total);
+    return b.normal_balance === 'DEBIT' ? d - c : c - d;
+  }
+
   async function load(): Promise<void> {
     isLoading = true;
     error     = '';
     try {
-      accounts = await getAccountAll();
+      [accounts, balances] = await Promise.all([getAccountAll(), getAccountBalances()]);
     } catch (err) {
       error = err instanceof Error ? err.message : '查詢失敗，請稍後再試。';
     } finally {
@@ -97,16 +119,17 @@
     saveError     = '';
     accountSuffix = '';
     form = {
-      account_id:     '',
-      parent_id:      null,
-      name:           '',
-      type:           'ASSET',
-      normal_balance: 'DEBIT',
-      currency:       'TWD',
-      is_summary:     false,
-      is_active:      true,
-      note:           null,
-      version:        0,
+      account_id:         '',
+      parent_id:          null,
+      name:               '',
+      type:               'ASSET',
+      normal_balance:     'DEBIT',
+      currency:           'TWD',
+      is_summary:         false,
+      is_active:          true,
+      note:               null,
+      version:            0,
+      cash_flow_category: null,
     };
     showModal = true;
   }
@@ -116,16 +139,17 @@
     saveError     = '';
     accountSuffix = '';
     form = {
-      account_id:     account.account_id,
-      parent_id:      account.parent_id,
-      name:           account.name,
-      type:           account.type,
-      normal_balance: account.normal_balance,
-      currency:       account.currency,
-      is_summary:     account.is_summary,
-      is_active:      account.is_active,
-      note:           account.note,
-      version:        account.version,
+      account_id:         account.account_id,
+      parent_id:          account.parent_id,
+      name:               account.name,
+      type:               account.type,
+      normal_balance:     account.normal_balance,
+      currency:           account.currency,
+      is_summary:         account.is_summary,
+      is_active:          account.is_active,
+      note:               account.note,
+      version:            account.version,
+      cash_flow_category: account.cash_flow_category ?? null,
     };
     showModal = true;
   }
@@ -188,6 +212,9 @@
     </td>
     <td>{account.name}</td>
     <td>{labelOf(ACCOUNT_TYPE_LABELS, account.type)}</td>
+    <td class="hidden md:table-cell">
+      {account.cash_flow_category ? CASH_FLOW_CATEGORY_LABELS[account.cash_flow_category] : '—'}
+    </td>
     <td class="hidden md:table-cell">{labelOf(NORMAL_BALANCE_LABELS, account.normal_balance)}</td>
     <td class="hidden md:table-cell">{account.currency}</td>
     <td class="hidden md:table-cell">
@@ -205,6 +232,13 @@
       {/if}
     </td>
     <td class="note-cell hidden md:table-cell">{account.note ?? '—'}</td>
+    <td class="hidden md:table-cell mono" style="text-align:right">
+      {#if balanceMap.has(account.account_id)}
+        {netBalance(balanceMap.get(account.account_id)!).toLocaleString()}
+      {:else}
+        —
+      {/if}
+    </td>
     <td onclick={(e) => e.stopPropagation()}>
       <button class="btn-ghost" style="padding:2px 10px;font-size:11px;" onclick={() => openEditModal(account)}>編輯</button>
     </td>
@@ -246,19 +280,21 @@
           <th>科目編號</th>
           <th>科目名稱</th>
           <th>類型</th>
+          <th class="hidden md:table-cell">現金流量</th>
           <th class="hidden md:table-cell">正常餘額</th>
           <th class="hidden md:table-cell">幣別</th>
           <th class="hidden md:table-cell">摘要科目</th>
           <th>狀態</th>
           <th class="hidden md:table-cell">備註</th>
+          <th class="hidden md:table-cell" style="text-align:right">餘額</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {#if isLoading && accounts.length === 0}
-          <tr><td colspan="9" class="table-empty">載入中...</td></tr>
+          <tr><td colspan="11" class="table-empty">載入中...</td></tr>
         {:else if accounts.length === 0}
-          <tr><td colspan="9" class="table-empty">無資料</td></tr>
+          <tr><td colspan="11" class="table-empty">無資料</td></tr>
         {:else}
           {#each rootAccounts as account (account.account_id)}
             {@render accountRow(account, 0)}
@@ -377,6 +413,20 @@
               啟用
             </label>
           </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="f-cash-flow-category">現金流量分類</label>
+          <select
+            id="f-cash-flow-category"
+            class="form-select"
+            bind:value={form.cash_flow_category}
+          >
+            <option value={null}>— 不設定 —</option>
+            {#each CASH_FLOW_CATEGORIES as c}
+              <option value={c}>{CASH_FLOW_CATEGORY_LABELS[c]}</option>
+            {/each}
+          </select>
         </div>
 
         <div class="form-group">

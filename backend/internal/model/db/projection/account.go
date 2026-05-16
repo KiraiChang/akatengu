@@ -10,27 +10,33 @@ import (
 //dbmap:sqlcdb=CreateAccountParams
 //dbmap:sqlcdb=UpdateAccountParams
 //dbmap:sqlcdb=GetAccountPagedRow
+//dbmap:sqlcdb=GetAccountRow
 //dbmap:sqlcdb=GetChildrenAccountRow
 //dbmap:sqlcdb=GetAllAccountsRow
 type Account struct {
-	AccountId     string              `db:"account_id" json:"account_id"`
-	ParentId      *string             `db:"parent_id" json:"parent_id"`
-	Name          string              `db:"name" json:"name"`
-	Type          enums.AccountType   `db:"type" json:"type"`
-	NormalBalance enums.NormalBalance `db:"normal_balance" json:"normal_balance"`
-	Currency      string              `db:"currency" json:"currency"`
-	IsSummary     bool                `db:"is_summary" json:"is_summary"`
-	IsActive      bool                `db:"is_active" json:"is_active"`
-	Note          *string             `db:"note" json:"note"`
-	Version       int64               `db:"version" json:"version"`
-	HasChild      bool                `db:"has_child" json:"has_child"`
+	MerchantID       int64               `db:"merchant_id" json:"merchant_id"`
+	AccountId        string              `db:"account_id" json:"account_id"`
+	ParentId         *string             `db:"parent_id" json:"parent_id"`
+	Name             string              `db:"name" json:"name"`
+	Type             enums.AccountType   `db:"type" json:"type"`
+	NormalBalance    enums.NormalBalance `db:"normal_balance" json:"normal_balance"`
+	Currency         string              `db:"currency" json:"currency"`
+	IsSummary        bool                `db:"is_summary" json:"is_summary"`
+	IsActive         bool                `db:"is_active" json:"is_active"`
+	Note             *string             `db:"note" json:"note"`
+	Version          int64               `db:"version" json:"version"`
+	HasChild         bool                `db:"has_child" json:"has_child"`
+	CashFlowCategory *enums.CashFlowCategory `db:"cash_flow_category" json:"cash_flow_category"`
 }
 
 //dbmap:sqlcdb=LedgerAccount
 //dbmap:sqlcdb=CreateLedgerAccountParams
 //dbmap:sqlcdb=UpdateLedgerAccountParams
 //dbmap:sqlcdb=GetLedgerPagedRow
+//dbmap:sqlcdb=GetLedgerRow
+//dbmap:sqlcdb=GetAllLedgersRow
 type LedgerAccount struct {
+	MerchantID  int64                   `db:"merchant_id" json:"merchant_id"`
 	LedgerId    int64                   `db:"ledger_id" json:"ledger_id"`
 	AccountId   string                  `db:"account_id" json:"account_id"`
 	Institution string                  `db:"institution" json:"institution"`
@@ -47,6 +53,7 @@ type LedgerAccount struct {
 }
 
 //dbmap:sqlcdb=GetAllLedgerBalancesRow
+//dbmap:sqlcdb=GetAllLedgerRunningBalanceRow
 type LedgerAccountBalance struct {
 	LedgerId      int64               `db:"ledger_id" json:"ledger_id"`
 	DebitTotal    decimal.Decimal     `db:"debit_total" json:"debit_total"`

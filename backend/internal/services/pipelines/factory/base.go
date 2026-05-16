@@ -162,3 +162,25 @@ func getAssetTypeLossSysCode(assetType enums.AssetType) (string, error) {
 		return "", fmt.Errorf("invalid investment asset type")
 	}
 }
+
+func validPeriodMonthlyStatus(ctx context.Context, date string, query *query.Repo, status enums.PeriodTypeStatus) error {
+	// 1. 轉換開張日期
+	periodStart, err := periodStartDate(date)
+	if err != nil {
+		return fmt.Errorf("parse date %s, fail: %w", date, err)
+	}
+
+	// 2. 檢查是否已結帳
+	existing, err := query.Period.GetByPeriod(ctx, enums.PeriodMonthly.Enum(), periodStart)
+	if err != nil {
+		fmt.Errorf("get period: %w", err)
+	}
+	if existing == nil {
+		return fmt.Errorf("period %s is not exists", periodStart)
+	}
+
+	if !existing.Status.Is(status.Val()) {
+		return fmt.Errorf("period %s~%s is already closed", existing.PeriodStart, existing.PeriodEnd)
+	}
+	return nil
+}

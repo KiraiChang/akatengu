@@ -18,5 +18,7 @@ const (
 	ProjectionTypeInvestment  projectionTypeValue = "INVESTMENT"
 	ProjectionTypePeriod      projectionTypeValue = "PERIOD"
 	ProjectionTypeTransaction              projectionTypeValue = "TRANSACTION"
-	ProjectionTypeAccountBalanceSnapshot   projectionTypeValue = "ACCOUNT_BALANCE_SNAPSHOT"
+	ProjectionTypeAccountBalanceSnapshot        projectionTypeValue = "ACCOUNT_BALANCE_SNAPSHOT"
+	ProjectionTypeLedgerAccountBalanceSnapshot  projectionTypeValue = "LEDGER_ACCOUNT_BALANCE_SNAPSHOT"
+	ProjectionTypeAccountBalanceRealtime        projectionTypeValue = "ACCOUNT_BALANCE_REALTIME"
 )

@@ -11,6 +11,7 @@ import (
 //dbmap:sqlcdb=GetInstallmentRow
 //dbmap:sqlcdb=GetInstallmentPagedRow
 type Installment struct {
+	MerchantID      int64                   `db:"merchant_id" json:"merchant_id"`
 	InstallmentId   int64                   `db:"installment_id" json:"installment_id"`
 	TransactionId   *int64                  `db:"txn_id" json:"transaction_id"`
 	LedgerId        int64                   `db:"ledger_id" json:"ledger_id"`
@@ -30,7 +31,9 @@ type Installment struct {
 //dbmap:sqlcdb=InstallmentPayment
 //dbmap:sqlcdb=InsertInstallmentPaymentParams
 //dbmap:sqlcdb=GetPaymentPagedRow
+//dbmap:sqlcdb=GetInstallmentPaymentRow
 type InstallmentPayment struct {
+	MerchantID    int64                          `db:"merchant_id" json:"merchant_id"`
 	PaymentId     int64                          `db:"payment_id" json:"payment_id"`
 	InstallmentId int64                          `db:"installment_id" json:"installment_id"`
 	TransactionId *int64                         `db:"txn_id" json:"transaction_id"`

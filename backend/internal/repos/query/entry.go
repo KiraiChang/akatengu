@@ -3,6 +3,7 @@ package query
 import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/model/db/projection"
+	"akatengu/internal/pkg/ctxkey"
 	"context"
 
 	"github.com/jmoiron/sqlx"
@@ -25,13 +26,20 @@ func NewEntryRepo(db *sqlx.DB) EntryRepo {
 }
 
 func (r *sqlcdbEntryRepo) GetEntries(ctx context.Context, txnID int64) ([]projection.Entry, error) {
-	rows, err := r.q.GetJournalEntries(ctx, txnID)
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.q.GetJournalEntries(ctx, sqlcdb.GetJournalEntriesParams{
+		MerchantID: merchantID,
+		TxnID:      txnID,
+	})
 	if err != nil {
 		return nil, err
 	}
 	result := make([]projection.Entry, len(rows))
 	for i, row := range rows {
-		result[i] = projection.EntryFromJournalEntry(row)
+		result[i] = projection.EntryFromGetJournalEntriesRow(row)
 	}
 	return result, nil
 }

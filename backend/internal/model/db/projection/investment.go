@@ -12,7 +12,10 @@ import (
 //dbmap:sqlcdb=CreateInvestmentParams
 //dbmap:sqlcdb=UpdateInvestmentParams
 //dbmap:sqlcdb=GetInvestmentPagedRow
+//dbmap:sqlcdb=GetInvestmentRow
+//dbmap:sqlcdb=GetInvestmentBySymbolRow
 type Investment struct {
+	MerchantID   int64              `db:"merchant_id" json:"merchant_id"`
 	InvestmentId int64              `db:"investment_id" json:"investment_id"`
 	AccountId    string             `db:"account_id" json:"account_id"`
 	AssetType    enums.AssetType    `db:"asset_type" json:"asset_type"`
@@ -30,7 +33,9 @@ type Investment struct {
 //dbmap:sqlcdb=InvestmentLot
 //dbmap:sqlcdb=InsertInvestmentLotParams
 //dbmap:sqlcdb=GetOpenLotsPagedRow
+//dbmap:sqlcdb=GetOpenLotsRow
 type InvestmentLot struct {
+	MerchantID        int64           `db:"merchant_id" json:"merchant_id"`
 	LotId             int64           `db:"lot_id" json:"lot_id"`
 	InvestmentId      int64           `db:"investment_id" json:"investment_id"`
 	MovementId        int64           `db:"movement_id" json:"movement_id"`
@@ -48,6 +53,7 @@ type InvestmentLot struct {
 //dbmap:sqlcdb=InsertInvestmentLotDisposalParams
 //dbmap:sqlcdb=GetOpenLotDisposalsPagedRow
 type InvestmentLotDisposals struct {
+	MerchantID        int64           `db:"merchant_id" json:"merchant_id"`
 	Id                int64           `db:"id" json:"id"`
 	LotId             int64           `db:"lot_id" json:"lot_id"`
 	TransactionId     *int64          `db:"txn_id" json:"txn_id"`
@@ -64,13 +70,15 @@ type InvestmentLotDisposals struct {
 //dbmap:sqlcdb=UpsertInvestmentPositionParams
 //dbmap:sqlcdb=UpdateInvestmentPositionSoldParams
 //dbmap:sqlcdb=UpdateInvestmentPositionFairValueParams
+//dbmap:sqlcdb=GetPositionRow
 type InvestmentPosition struct {
-	Id              int64           `db:"id" json:"id"`
-	InvestmentId    int64           `db:"investment_id" json:"investment_id"`
-	TotalQuantity   decimal.Decimal `db:"total_quantity" json:"total_quantity"`
-	TotalCost       decimal.Decimal `db:"total_cost" json:"total_cost"`
-	AvgCost         decimal.Decimal `db:"avg_cost" json:"avg_cost"`
-	MarketPriceTWD  decimal.Decimal `db:"market_price_twd" json:"market_price_twd"`
+	MerchantID     int64           `db:"merchant_id" json:"merchant_id"`
+	Id             int64           `db:"id" json:"id"`
+	InvestmentId   int64           `db:"investment_id" json:"investment_id"`
+	TotalQuantity  decimal.Decimal `db:"total_quantity" json:"total_quantity"`
+	TotalCost      decimal.Decimal `db:"total_cost" json:"total_cost"`
+	AvgCost        decimal.Decimal `db:"avg_cost" json:"avg_cost"`
+	MarketPriceTWD decimal.Decimal `db:"market_price_twd" json:"market_price_twd"`
 }
 
 // InvestmentMovement 投資異動表
@@ -80,6 +88,7 @@ type InvestmentPosition struct {
 //dbmap:sqlcdb=GetInvestmentMovementsRow
 //dbmap:sqlcdb=GetInvestmentMovementsPagedRow
 type InvestmentMovement struct {
+	MerchantID    int64               `db:"merchant_id" json:"merchant_id"`
 	MovementId    int64               `db:"movement_id" json:"movement_id"`
 	InvestmentId  int64               `db:"investment_id" json:"investment_id"`
 	EventId       int64               `db:"event_id" json:"event_id"`

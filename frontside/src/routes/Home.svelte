@@ -10,48 +10,63 @@
 <script lang="ts">
   import Router from 'svelte-spa-router';
   import { authStore } from '../stores/auth.svelte';
-  import Dashboard    from '../views/Dashboard.svelte';
-  import Accounts     from '../views/Accounts.svelte';
-  import Ledger       from '../views/Ledger.svelte';
-  import JournalEntry from '../views/JournalEntry.svelte';
-  import Period       from '../views/Period.svelte';
-  import Investment   from '../views/Investment.svelte';
-  import Installment  from '../views/Installment.svelte';
-  import Reports      from '../views/Reports.svelte';
-  import Settings     from '../views/Settings.svelte';
+  import Dashboard        from '../views/Dashboard.svelte';
+  import Accounts         from '../views/Accounts.svelte';
+  import Ledger           from '../views/Ledger.svelte';
+  import JournalEntry     from '../views/JournalEntry.svelte';
+  import Period           from '../views/Period.svelte';
+  import Investment       from '../views/Investment.svelte';
+  import Installment      from '../views/Installment.svelte';
+  import BalanceSheet     from '../views/BalanceSheet.svelte';
+  import IncomeStatement  from '../views/IncomeStatement.svelte';
+  import CashFlowStatement  from '../views/CashFlowStatement.svelte';
+  import EquityStatement    from '../views/EquityStatement.svelte';
+  import Settings           from '../views/Settings.svelte';
 
-  interface MenuItem {
-    label: string;
-    path:  string;
-  }
+  interface SubMenuItem { label: string; path: string; }
+  interface MenuItem    { label: string; path: string; children?: SubMenuItem[]; }
 
   const menuItems: MenuItem[] = [
-    { label: '儀表板', path: '/home/dashboard' },
+    { label: '儀表板',   path: '/home/dashboard' },
     { label: '傳票管理', path: '/home/journal-entry' },
     { label: '會計科目', path: '/home/accounts' },
     { label: '帳戶管理', path: '/home/ledger' },
     { label: '會計期間', path: '/home/period' },
-    { label: '財務報表', path: '/home/reports' },
+    { label: '財務報表', path: '/home/reports', children: [
+      { label: '資產負債表', path: '/home/reports/balance-sheet' },
+      { label: '損益表',     path: '/home/reports/income-statement' },
+      { label: '現金流量表', path: '/home/reports/cash-flow' },
+      { label: '權益變動表', path: '/home/reports/equity-statement' },
+    ]},
     { label: '投資管理', path: '/home/investment' },
     { label: '分期管理', path: '/home/installment' },
     { label: '系統設定', path: '/home/settings' },
   ];
 
   const routes = {
-    '/home':                Dashboard,
-    '/home/dashboard':      Dashboard,
-    '/home/journal-entry':  JournalEntry,
-    '/home/accounts':       Accounts,
-    '/home/ledger':         Ledger,
-    '/home/period':         Period,
-    '/home/reports':        Reports,
-    '/home/investment':     Investment,
-    '/home/installment':    Installment,
-    '/home/settings':       Settings,
+    '/home':                        Dashboard,
+    '/home/dashboard':              Dashboard,
+    '/home/journal-entry':          JournalEntry,
+    '/home/accounts':               Accounts,
+    '/home/ledger':                 Ledger,
+    '/home/period':                 Period,
+    '/home/reports':                BalanceSheet,
+    '/home/reports/balance-sheet':  BalanceSheet,
+    '/home/reports/income-statement': IncomeStatement,
+    '/home/reports/cash-flow':        CashFlowStatement,
+    '/home/reports/equity-statement': EquityStatement,
+    '/home/investment':               Investment,
+    '/home/installment':            Installment,
+    '/home/settings':               Settings,
   };
 
   let currentPath  = $state(window.location.hash.replace(/^#/, '') || '/home');
   let sidebarOpen  = $state(false);
+  let expandedParents = $state(new Set<string>());
+
+  const isReportsExpanded = $derived(
+    expandedParents.has('reports') || currentPath.startsWith('/home/reports')
+  );
 
   $effect(() => {
     const onHashChange = (): void => {
@@ -65,6 +80,12 @@
   function isActive(path: string): boolean {
     if (currentPath === '/home') return path === '/home/dashboard';
     return currentPath.startsWith(path);
+  }
+
+  function toggleParent(key: string): void {
+    const next = new Set(expandedParents);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    expandedParents = next;
   }
 
   function logout(): void {
@@ -119,14 +140,42 @@
             <hr class="sidebar-sep" />
           {/if}
           <li>
-            <a
-              href="#{item.path}"
-              class="sidebar-item"
-              class:active={isActive(item.path)}
-              aria-current={isActive(item.path) ? 'page' : undefined}
-            >
-              {item.label}
-            </a>
+            {#if item.children}
+              <button
+                class="sidebar-item sidebar-parent-btn"
+                class:active={isActive(item.path)}
+                aria-expanded={isReportsExpanded}
+                onclick={() => toggleParent('reports')}
+              >
+                <span>{item.label}</span>
+                <span class="sidebar-expand-icon" aria-hidden="true">
+                  {isReportsExpanded ? '▾' : '▸'}
+                </span>
+              </button>
+              {#if isReportsExpanded}
+                <ul class="sidebar-sub-nav">
+                  {#each item.children as child}
+                    <li>
+                      <a
+                        href="#{child.path}"
+                        class="sidebar-sub-item"
+                        class:active={currentPath === child.path}
+                        aria-current={currentPath === child.path ? 'page' : undefined}
+                      >{child.label}</a>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            {:else}
+              <a
+                href="#{item.path}"
+                class="sidebar-item"
+                class:active={isActive(item.path)}
+                aria-current={isActive(item.path) ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            {/if}
           </li>
         {/each}
       </ul>

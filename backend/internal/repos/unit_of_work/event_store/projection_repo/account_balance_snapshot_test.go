@@ -12,17 +12,19 @@ import (
 	"akatengu/internal/testutil"
 )
 
-// 使用 seeds 中真實的科目
+// 使用 seeds 中真實的科目（seeds 以 merchant_id=1 插入）
 const (
+	testMerchantID int64 = 1
+
 	// 葉科目（is_summary=0）
 	acctCash    = "1101-01" // 手頭現金（ASSET, DEBIT normal）
 	acctCash2   = "1101-02" // 銀行活期存款（ASSET, DEBIT normal）
 	acctExpense = "5101-01" // 房租費用（EXPENSE, DEBIT normal）
 	// 匯總科目（is_summary=1）
-	acctCash1101Parent  = "1101" // 現金及約當現金（1101-01 / 1101-02 的父科目）
-	acctCash110Parent   = "110"  // 流動資產（1101 的父科目）
-	acctExp5101Parent   = "5101" // 居住費用（5101-01 的父科目）
-	acctExp510Parent    = "510"  // 生活費用（5101 的父科目）
+	acctCash1101Parent = "1101" // 現金及約當現金（1101-01 / 1101-02 的父科目）
+	acctCash110Parent  = "110"  // 流動資產（1101 的父科目）
+	acctExp5101Parent  = "5101" // 居住費用（5101-01 的父科目）
+	acctExp510Parent   = "510"  // 生活費用（5101 的父科目）
 )
 
 func insertPeriod(t *testing.T, db *sqlx.DB, id int64, periodType string, start, end string, closed bool) {
@@ -34,33 +36,33 @@ func insertPeriod(t *testing.T, db *sqlx.DB, id int64, periodType string, start,
 		closedAt = &end
 	}
 	_, err := db.ExecContext(context.Background(),
-		`INSERT INTO period_closings (closing_id, period_type, period_start, period_end, status, closed_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		id, periodType, start, end, status, closedAt)
+		`INSERT INTO period_closings (closing_id, merchant_id, period_type, period_start, period_end, status, closed_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, testMerchantID, periodType, start, end, status, closedAt)
 	if err != nil {
 		t.Fatalf("insertPeriod id=%d type=%s: %v", id, periodType, err)
 	}
 }
 
-// insertTxn 插入一筆借貸平衡的交易。
+// insertTxn 插入一筆借貸平衡的交易（使用 testMerchantID）。
 func insertTxn(t *testing.T, db *sqlx.DB, txnID int64, date, debitAcct, creditAcct string, amount float64) {
 	t.Helper()
 	_, err := db.ExecContext(context.Background(),
-		`INSERT INTO transactions (txn_id, txn_date, description, total_amount, version)
-		 VALUES (?, ?, '測試交易', ?, 1)`,
-		txnID, date, amount)
+		`INSERT INTO transactions (txn_id, merchant_id, txn_date, description, total_amount, version)
+		 VALUES (?, ?, ?, '測試交易', ?, 1)`,
+		txnID, testMerchantID, date, amount)
 	if err != nil {
 		t.Fatalf("insertTxn id=%d: %v", txnID, err)
 	}
 	_, err = db.ExecContext(context.Background(),
-		`INSERT INTO journal_entries (txn_id, account_id, debit, credit) VALUES (?, ?, ?, 0)`,
-		txnID, debitAcct, amount)
+		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit) VALUES (?, ?, ?, ?, 0)`,
+		txnID, testMerchantID, debitAcct, amount)
 	if err != nil {
 		t.Fatalf("insertTxn debit: %v", err)
 	}
 	_, err = db.ExecContext(context.Background(),
-		`INSERT INTO journal_entries (txn_id, account_id, debit, credit) VALUES (?, ?, 0, ?)`,
-		txnID, creditAcct, amount)
+		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit) VALUES (?, ?, ?, 0, ?)`,
+		txnID, testMerchantID, creditAcct, amount)
 	if err != nil {
 		t.Fatalf("insertTxn credit: %v", err)
 	}
@@ -76,9 +78,9 @@ func insertExpenseTxn(t *testing.T, db *sqlx.DB, txnID int64, date string, amoun
 func insertSnapshotRow(t *testing.T, db *sqlx.DB, closingID int64, accountID string, debit, credit float64) {
 	t.Helper()
 	_, err := db.ExecContext(context.Background(),
-		`INSERT INTO account_balance_snapshots (closing_id, account_id, debit_total, credit_total)
-		 VALUES (?, ?, ?, ?)`,
-		closingID, accountID, debit, credit)
+		`INSERT INTO account_balance_snapshots (merchant_id, closing_id, account_id, debit_total, credit_total)
+		 VALUES (?, ?, ?, ?, ?)`,
+		testMerchantID, closingID, accountID, debit, credit)
 	if err != nil {
 		t.Fatalf("insertSnapshotRow closing=%d account=%s: %v", closingID, accountID, err)
 	}
@@ -132,7 +134,7 @@ func TestBulkInsert_FirstPeriod_NoHistory(t *testing.T) {
 	insertPeriod(t, db, 1, string(enums.PeriodMonthly), "2025-01-01", "2025-01-31", true)
 	insertExpenseTxn(t, db, 1, "2025-01-15", 100)
 
-	if err := repo.BulkInsert(ctx, 1); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("BulkInsert: %v", err)
 	}
 
@@ -149,13 +151,13 @@ func TestBulkInsert_SecondPeriod_Incremental(t *testing.T) {
 
 	insertPeriod(t, db, 1, string(enums.PeriodMonthly), "2025-01-01", "2025-01-31", true)
 	insertExpenseTxn(t, db, 1, "2025-01-15", 100)
-	if err := repo.BulkInsert(ctx, 1); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("BulkInsert Jan: %v", err)
 	}
 
 	insertPeriod(t, db, 2, string(enums.PeriodMonthly), "2025-02-01", "2025-02-28", true)
 	insertExpenseTxn(t, db, 2, "2025-02-10", 50)
-	if err := repo.BulkInsert(ctx, 2); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 2); err != nil {
 		t.Fatalf("BulkInsert Feb: %v", err)
 	}
 
@@ -172,12 +174,12 @@ func TestBulkInsert_EmptyPeriod_CopiesPrevSnapshot(t *testing.T) {
 
 	insertPeriod(t, db, 1, string(enums.PeriodMonthly), "2025-01-01", "2025-01-31", true)
 	insertExpenseTxn(t, db, 1, "2025-01-15", 100)
-	if err := repo.BulkInsert(ctx, 1); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("BulkInsert Jan: %v", err)
 	}
 
 	insertPeriod(t, db, 2, string(enums.PeriodMonthly), "2025-02-01", "2025-02-28", true)
-	if err := repo.BulkInsert(ctx, 2); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 2); err != nil {
 		t.Fatalf("BulkInsert Feb (empty): %v", err)
 	}
 
@@ -208,7 +210,7 @@ func TestBulkInsert_Annual_UsesPrevAnnualSnapshot(t *testing.T) {
 	insertPeriod(t, db, 12, string(enums.PeriodAnnual), "2025-01-01", "2025-12-31", true)
 	insertExpenseTxn(t, db, 1, "2025-06-15", 200) // 2025 全年唯一交易
 
-	if err := repo.BulkInsert(ctx, 12); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 12); err != nil {
 		t.Fatalf("BulkInsert Annual 2025: %v", err)
 	}
 
@@ -229,14 +231,14 @@ func TestDeleteByClosingId_RemovesOnlyTargetPeriod(t *testing.T) {
 	insertPeriod(t, db, 2, string(enums.PeriodMonthly), "2025-02-01", "2025-02-28", true)
 	insertExpenseTxn(t, db, 1, "2025-01-15", 100)
 
-	if err := repo.BulkInsert(ctx, 1); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("BulkInsert 1: %v", err)
 	}
-	if err := repo.BulkInsert(ctx, 2); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 2); err != nil {
 		t.Fatalf("BulkInsert 2: %v", err)
 	}
 
-	if err := repo.DeleteByClosingId(ctx, 1); err != nil {
+	if err := repo.DeleteByClosingId(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("DeleteByClosingId: %v", err)
 	}
 
@@ -258,7 +260,7 @@ func TestBulkInsert_ParentAggregatesLeaf(t *testing.T) {
 	// DR 5101-01 100, CR 1101-01 100
 	insertExpenseTxn(t, db, 1, "2025-01-15", 100)
 
-	if err := repo.BulkInsert(ctx, 1); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("BulkInsert: %v", err)
 	}
 
@@ -286,7 +288,7 @@ func TestBulkInsert_ParentAggregatesTwoLeaves(t *testing.T) {
 	// DR 5101-01 50, CR 1101-02 50（同一父科目 1101 下的另一葉科目）
 	insertTxn(t, db, 2, "2025-01-20", acctExpense, acctCash2, 50)
 
-	if err := repo.BulkInsert(ctx, 1); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("BulkInsert: %v", err)
 	}
 
@@ -310,7 +312,7 @@ func TestBulkInsert_ParentIncrementalAggregation(t *testing.T) {
 	// 一月：100
 	insertPeriod(t, db, 1, string(enums.PeriodMonthly), "2025-01-01", "2025-01-31", true)
 	insertExpenseTxn(t, db, 1, "2025-01-15", 100)
-	if err := repo.BulkInsert(ctx, 1); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("BulkInsert Jan: %v", err)
 	}
 
@@ -321,7 +323,7 @@ func TestBulkInsert_ParentIncrementalAggregation(t *testing.T) {
 	// 二月：再加 50，累積應為 150
 	insertPeriod(t, db, 2, string(enums.PeriodMonthly), "2025-02-01", "2025-02-28", true)
 	insertExpenseTxn(t, db, 2, "2025-02-10", 50)
-	if err := repo.BulkInsert(ctx, 2); err != nil {
+	if err := repo.BulkInsert(ctx, testMerchantID, 2); err != nil {
 		t.Fatalf("BulkInsert Feb: %v", err)
 	}
 

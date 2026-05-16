@@ -1,12 +1,21 @@
 import { apiFetch } from './http';
 import { getAggregateVersion, appendEvent } from './aggregate';
-import type { Account, CreateAccountRequest, UpdateAccountRequest } from '../types/account';
+import type { Account, AccountBalance, CreateAccountRequest, UpdateAccountRequest } from '../types/account';
 
 export const getAccountAll = async (): Promise<Account[]> => {
   const response = await apiFetch('/api/account/all');
   if (!response.ok) {
     const problem = await response.json();
     throw new Error(problem.detail ?? problem.title ?? '查詢失敗');
+  }
+  return response.json();
+};
+
+export const getAccountBalances = async (): Promise<AccountBalance[]> => {
+  const response = await apiFetch('/api/account/all_balance');
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '查詢餘額失敗');
   }
   return response.json();
 };

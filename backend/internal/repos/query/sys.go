@@ -3,6 +3,7 @@ package query
 import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/model/db"
+	"akatengu/internal/pkg/ctxkey"
 	"context"
 
 	"github.com/jmoiron/sqlx"
@@ -18,7 +19,16 @@ type sqlcdbSysRepo struct {
 }
 
 func (s *sqlcdbSysRepo) UpdateSysAccount(ctx context.Context, sys db.SysAccount) error {
-	return s.q.UpdateSysAccount(ctx, sys.ToUpdateSysAccountParams())
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	return s.q.UpdateSysAccount(ctx, sqlcdb.UpdateSysAccountParams{
+		AccountID:   sys.AccountId,
+		Description: sys.Description,
+		SysCode:     sys.SysCode,
+		MerchantID:  merchantID,
+	})
 }
 
 func newSysRepo(q *sqlcdb.Queries) SysRepo {
@@ -30,13 +40,17 @@ func NewSysRepo(db *sqlx.DB) SysRepo {
 }
 
 func (s *sqlcdbSysRepo) GetSysAccount(ctx context.Context) ([]db.SysAccount, error) {
-	rows, err := s.q.GetSysAccounts(ctx)
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.q.GetSysAccounts(ctx, merchantID)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]db.SysAccount, len(rows))
 	for i, row := range rows {
-		result[i] = db.SysAccountFromSysAccount(row)
+		result[i] = db.SysAccountFromGetSysAccountsRow(row)
 	}
 	return result, nil
 }

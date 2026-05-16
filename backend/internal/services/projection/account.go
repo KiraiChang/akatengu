@@ -41,17 +41,18 @@ func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx ev
 		return err
 	}
 
-	// 業務邏輯：組裝 proj model
 	if err := tx.Projection.AccountRepo.CreateAccount(ctx, projection.Account{
-		AccountId:     p.AccountId,
-		ParentId:      p.ParentId,
-		Name:          p.Name,
-		Type:          p.Type,
-		NormalBalance: p.NormalBalance,
-		Currency:      coalesce(p.Currency, "TWD"),
-		IsSummary:     p.IsSummary,
-		IsActive:      p.IsActive,
-		Note:          p.Note,
+		MerchantID:       ct.MerchantID,
+		AccountId:        p.AccountId,
+		ParentId:         p.ParentId,
+		Name:             p.Name,
+		Type:             p.Type,
+		NormalBalance:    p.NormalBalance,
+		Currency:         coalesce(p.Currency, "TWD"),
+		IsSummary:        p.IsSummary,
+		IsActive:         p.IsActive,
+		Note:             p.Note,
+		CashFlowCategory: p.CashFlowCategory,
 	}); err != nil {
 		return err
 	}
@@ -66,6 +67,7 @@ func (s *AccountProjectionService) applyLedgerCreate(ctx context.Context, tx eve
 	}
 
 	if err := tx.Projection.AccountRepo.CreateLedgerAccount(ctx, projection.LedgerAccount{
+		MerchantID:  ct.MerchantID,
 		AccountId:   p.AccountId,
 		Institution: p.Institution,
 		Name:        p.Name,
@@ -90,18 +92,19 @@ func (s *AccountProjectionService) applyAccountUpdated(ctx context.Context, tx e
 		return err
 	}
 
-	// 業務邏輯：組裝 proj model
 	if err := tx.Projection.AccountRepo.UpdateAccount(ctx, projection.Account{
-		AccountId:     p.AccountId,
-		ParentId:      p.ParentId,
-		Name:          p.Name,
-		Type:          p.Type,
-		NormalBalance: p.NormalBalance,
-		Currency:      coalesce(p.Currency, "TWD"),
-		IsSummary:     p.IsSummary,
-		IsActive:      p.IsActive,
-		Note:          p.Note,
-		Version:       p.Version,
+		MerchantID:       ct.MerchantID,
+		AccountId:        p.AccountId,
+		ParentId:         p.ParentId,
+		Name:             p.Name,
+		Type:             p.Type,
+		NormalBalance:    p.NormalBalance,
+		Currency:         coalesce(p.Currency, "TWD"),
+		IsSummary:        p.IsSummary,
+		IsActive:         p.IsActive,
+		Note:             p.Note,
+		Version:          p.Version,
+		CashFlowCategory: p.CashFlowCategory,
 	}); err != nil {
 		return err
 	}
@@ -116,6 +119,7 @@ func (s *AccountProjectionService) applyLedgerUpdated(ctx context.Context, tx ev
 	}
 
 	if err := tx.Projection.AccountRepo.UpdateLedgerAccount(ctx, projection.LedgerAccount{
+		MerchantID:  ct.MerchantID,
 		LedgerId:    p.LedgerId,
 		AccountId:   p.AccountId,
 		Institution: p.Institution,

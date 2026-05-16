@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/handler/response/model"
 	"akatengu/internal/model/db/projection"
+	"akatengu/internal/pkg/ctxkey"
 	"context"
 	"database/sql"
 
@@ -21,21 +22,33 @@ type sqlcdbTransactionRepository struct {
 }
 
 func (r *sqlcdbTransactionRepository) GetEntries(ctx context.Context, id int64) ([]projection.Entry, error) {
-	rows, err := r.q.GetJournalEntries(ctx, id)
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.q.GetJournalEntries(ctx, sqlcdb.GetJournalEntriesParams{
+		TxnID:      id,
+		MerchantID: merchantID,
+	})
 	if err != nil {
 		return nil, err
 	}
 	result := make([]projection.Entry, len(rows))
 	for i, row := range rows {
-		result[i] = projection.EntryFromJournalEntry(row)
+		result[i] = projection.EntryFromGetJournalEntriesRow(row)
 	}
 	return result, nil
 }
 
 func (r *sqlcdbTransactionRepository) GetTransactionPaged(ctx context.Context, req model.PaginationParams) ([]projection.Transaction, int64, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
 	rows, err := r.q.GetTransactionPaged(ctx, sqlcdb.GetTransactionPagedParams{
-		Limit:  req.Limit,
-		Offset: req.Offset,
+		MerchantID: merchantID,
+		Limit:      req.Limit,
+		Offset:     req.Offset,
 	})
 	total := int64(0)
 	if err != nil {
@@ -60,12 +73,19 @@ func NewTransactionRepo(db *sqlx.DB) TransactionRepo {
 }
 
 func (r *sqlcdbTransactionRepository) GetByID(ctx context.Context, id int64) (*projection.Transaction, error) {
-	row, err := r.q.GetTransaction(ctx, id)
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetTransaction(ctx, sqlcdb.GetTransactionParams{
+		TxnID:      id,
+		MerchantID: merchantID,
+	})
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return projection.TransactionPtrFromTransaction(row), nil
+	return projection.TransactionPtrFromGetTransactionRow(row), nil
 }

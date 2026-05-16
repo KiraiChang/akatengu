@@ -10,6 +10,7 @@ import (
 
 type JwtService interface {
 	GenerateToken(user *db.User) (string, error)
+	GenerateTokenWithMerchant(user *db.User, merchantID int64, role string) (string, error)
 	VerifyToken(tokenStr string) (*Claims, error)
 }
 
@@ -18,8 +19,10 @@ type jwtService struct {
 }
 
 type Claims struct {
-	UserID   int64  `json:"uid"`
-	UserName string `json:"user_name"`
+	UserID     int64  `json:"uid"`
+	UserName   string `json:"user_name"`
+	MerchantID int64  `json:"mid"`
+	Role       string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -37,7 +40,20 @@ func (j *jwtService) GenerateToken(user *db.User) (string, error) {
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * time.Minute)),
 		},
 	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(j.jwtKey)
+}
 
+func (j *jwtService) GenerateTokenWithMerchant(user *db.User, merchantID int64, role string) (string, error) {
+	claims := Claims{
+		UserID:     user.UserId,
+		UserName:   user.Username,
+		MerchantID: merchantID,
+		Role:       role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * time.Minute)),
+		},
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(j.jwtKey)
 }

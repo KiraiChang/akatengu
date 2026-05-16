@@ -2,19 +2,24 @@ package testutil
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 
 	"akatengu/internal/database"
+	"akatengu/internal/enums"
 	_ "modernc.org/sqlite"
 )
+
+var initEnumsOnce sync.Once
 
 // NewTestDB opens an in-memory SQLite DB, runs all migrations, and seeds accounts.
 // The DB is closed automatically when the test ends.
 func NewTestDB(t *testing.T) *sqlx.DB {
 	t.Helper()
+	initEnumsOnce.Do(enums.InitEnums)
 	db, err := sqlx.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)

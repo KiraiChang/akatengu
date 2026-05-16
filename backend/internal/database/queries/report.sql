@@ -6,7 +6,8 @@ WITH filtered_entries AS (
     FROM journal_entries je
     JOIN transactions t ON je.txn_id = t.txn_id
     WHERE t.status   = 'ACTIVE'
-      AND t.txn_date <= ?
+      AND t.txn_date <= sqlc.arg(as_of_date)
+      AND je.merchant_id = sqlc.arg(merchant_id)
 ),
 balances AS (
     SELECT
@@ -18,7 +19,7 @@ balances AS (
         COALESCE(SUM(fe.debit) - SUM(fe.credit), 0) AS raw_balance
     FROM accounts a
     LEFT JOIN filtered_entries fe ON a.account_id = fe.account_id
-    WHERE a.is_summary = 0 AND a.is_active = 1
+    WHERE a.is_summary = 0 AND a.is_active = 1 AND a.merchant_id = sqlc.arg(merchant_id)
     GROUP BY a.account_id
 ),
 normalized AS (
@@ -56,8 +57,9 @@ WITH filtered_entries AS (
     FROM journal_entries je
     JOIN transactions t ON je.txn_id = t.txn_id
     WHERE t.status   = 'ACTIVE'
-      AND t.txn_date >= ?
-      AND t.txn_date <= ?
+      AND t.txn_date >= sqlc.arg(start_date)
+      AND t.txn_date <= sqlc.arg(end_date)
+      AND je.merchant_id = sqlc.arg(merchant_id)
 ),
 period_balances AS (
     SELECT
@@ -72,6 +74,7 @@ period_balances AS (
     WHERE a.is_summary = 0
       AND a.is_active  = 1
       AND a.type IN ('INCOME', 'EXPENSE')
+      AND a.merchant_id = sqlc.arg(merchant_id)
     GROUP BY a.account_id
 ),
 normalized AS (

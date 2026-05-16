@@ -19,7 +19,7 @@ type accountHandler struct {
 
 func newAccountHandler(db *sqlx.DB, logger *zap.Logger) *accountHandler {
 	return &accountHandler{
-		account: services.NewAccountService(query.NewAccountRepo(db)),
+		account: services.NewAccountService(query.NewAccountRepo(db), query.NewRunningBalanceRepo(db)),
 		logger:  logger,
 	}
 }
@@ -121,6 +121,20 @@ func (h *accountHandler) GetAllLedgerBalances(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 
 	result, err := h.account.GetAllLedgerBalances(ctx)
+	if err != nil {
+		h.logger.Error(method+" fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+
+	response.OK(w, result)
+}
+
+func (h *accountHandler) GetAllAccountBalances(w http.ResponseWriter, r *http.Request) {
+	method := "get all account balance"
+	ctx := r.Context()
+
+	result, err := h.account.GetAllAccountBalances(ctx)
 	if err != nil {
 		h.logger.Error(method+" fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())

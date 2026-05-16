@@ -27,6 +27,10 @@ func (e *eventInstallmentCreatedProjector) Project(ctx context.Context, ct *pipe
 	p := ct.Payload
 	c := ct.State
 
+	if err := validPeriodMonthlyStatus(ctx, p.StartDate, e.query, enums.PeriodTypeStatusOpen.Enum()); err != nil {
+		return err
+	}
+
 	ledger, err := e.query.Account.GetLedger(ctx, p.LedgerId)
 	if err != nil {
 		return err
@@ -76,6 +80,10 @@ func (e *eventInstallmentPeriodPaidProjector) Project(ctx context.Context, ct *p
 
 	p := ct.Payload
 	c := ct.State
+
+	if err := validPeriodMonthlyStatus(ctx, p.PaidDate, e.query, enums.PeriodTypeStatusOpen.Enum()); err != nil {
+		return err
+	}
 
 	ledger, err := e.query.Account.GetLedger(ctx, p.PaidLedgerId)
 	if err != nil {

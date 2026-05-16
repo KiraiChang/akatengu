@@ -13,7 +13,8 @@ type Context[S any, P payload.Payload] struct {
 }
 
 type Result struct {
-	Payload payload.Payload
-	State   any
-	Event   db.EventStore
+	MerchantID int64
+	Payload    payload.Payload
+	State      any
+	Event      db.EventStore
 }

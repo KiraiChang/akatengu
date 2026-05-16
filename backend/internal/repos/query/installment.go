@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/handler/response/model"
 	"akatengu/internal/model/db/projection"
+	"akatengu/internal/pkg/ctxkey"
 	"context"
 	"database/sql"
 
@@ -22,9 +23,14 @@ type sqlcdbInstallmentRepo struct {
 }
 
 func (r *sqlcdbInstallmentRepo) GetInstallmentPaged(ctx context.Context, req model.PaginationParams) ([]projection.Installment, int64, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
 	rows, err := r.q.GetInstallmentPaged(ctx, sqlcdb.GetInstallmentPagedParams{
-		Limit:  req.Limit,
-		Offset: req.Offset,
+		MerchantID: merchantID,
+		Limit:      req.Limit,
+		Offset:     req.Offset,
 	})
 	total := int64(0)
 	if err != nil {
@@ -41,10 +47,15 @@ func (r *sqlcdbInstallmentRepo) GetInstallmentPaged(ctx context.Context, req mod
 }
 
 func (r *sqlcdbInstallmentRepo) GetPaymentPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InstallmentPayment, int64, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
 	rows, err := r.q.GetPaymentPaged(ctx, sqlcdb.GetPaymentPagedParams{
+		MerchantID:    merchantID,
+		InstallmentID: id,
 		Limit:         req.Limit,
 		Offset:        req.Offset,
-		InstallmentID: id,
 	})
 	total := int64(0)
 	if err != nil {
@@ -69,7 +80,14 @@ func NewInstallmentRepo(db *sqlx.DB) InstallmentRepo {
 }
 
 func (r *sqlcdbInstallmentRepo) GetInstallment(ctx context.Context, id int64) (*projection.Installment, error) {
-	row, err := r.q.GetInstallment(ctx, id)
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetInstallment(ctx, sqlcdb.GetInstallmentParams{
+		InstallmentID: id,
+		MerchantID:    merchantID,
+	})
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -86,9 +104,14 @@ func (r *sqlcdbInstallmentRepo) GetInstallment(ctx context.Context, id int64) (*
 }
 
 func (r *sqlcdbInstallmentRepo) GetPayment(ctx context.Context, id int64, period int) (*projection.InstallmentPayment, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	row, err := r.q.GetInstallmentPayment(ctx, sqlcdb.GetInstallmentPaymentParams{
 		InstallmentID: id,
 		PeriodNo:      int64(period),
+		MerchantID:    merchantID,
 	})
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -96,5 +119,5 @@ func (r *sqlcdbInstallmentRepo) GetPayment(ctx context.Context, id int64, period
 	if err != nil {
 		return nil, err
 	}
-	return projection.InstallmentPaymentPtrFromInstallmentPayment(row), nil
+	return projection.InstallmentPaymentPtrFromGetInstallmentPaymentRow(row), nil
 }

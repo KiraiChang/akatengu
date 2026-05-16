@@ -36,6 +36,10 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "NormalBalance"
+          - column: "accounts.cash_flow_category"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "CashFlowCategory"
           - column: "ledger_accounts.type"
             go_type:
               import: "akatengu/internal/enums"
@@ -91,11 +95,35 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "PeriodTypeStatus"
+          - column: "ledger_account_balance_snapshots.debit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "ledger_account_balance_snapshots.credit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
           - column: "account_balance_snapshots.debit_total"
             go_type:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
           - column: "account_balance_snapshots.credit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "account_running_balances.debit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "account_running_balances.credit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "ledger_running_balances.debit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "ledger_running_balances.credit_total"
             go_type:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
@@ -111,7 +139,19 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "UserStatusType"
+          - column: "merchants.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "MerchantStatusType"
+          - column: "user_merchants.role"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "MerchantRoleType"
           - column: "v_account_balances.normal_balance"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "NormalBalance"
+          - column: "v_ledger_account_balances.normal_balance"
             go_type:
               import: "akatengu/internal/enums"
               type: "NormalBalance"
@@ -262,6 +302,14 @@ sql:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
           - column: "v_account_balances.credit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "v_ledger_account_balances.debit_total"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "v_ledger_account_balances.credit_total"
             go_type:
               import: "github.com/shopspring/decimal"
               type: "Decimal"

@@ -5,6 +5,7 @@ import (
 	"akatengu/internal/enums"
 	"akatengu/internal/model/db/projection"
 	"context"
+	"fmt"
 )
 
 type sqlxTransactionRepo struct {
@@ -50,4 +51,21 @@ func (r *sqlxTransactionRepo) UpsertJournalEntries(ctx context.Context, entries 
 		}
 	}
 	return nil
+}
+
+func (r *sqlxTransactionRepo) GetEntriesByTxnId(ctx context.Context, txnId int64, merchantID int64) ([]projection.Entry, error) {
+	rows, err := r.q.GetJournalEntries(ctx, sqlcdb.GetJournalEntriesParams{
+		TxnID:      txnId,
+		MerchantID: merchantID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("GetEntriesByTxnId: %w", err)
+	}
+	entries := make([]projection.Entry, 0, len(rows))
+	for _, row := range rows {
+		e := projection.EntryFromGetJournalEntriesRow(row)
+		e.MerchantID = merchantID
+		entries = append(entries, e)
+	}
+	return entries, nil
 }
