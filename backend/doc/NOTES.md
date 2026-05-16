@@ -39,3 +39,39 @@ entry-based 設計下，`queryCashFlowChanges` 同時回傳葉節點與父科目
 | `OPERATING / INVESTING / FINANCING` | 前端填入 `journal_entries` 時的預設建議值，**不再參與計算** |
 
 這個分工讓「哪個科目是現金」保持靜態（帳戶性質），而「每筆分錄屬於哪個活動」保持彈性（使用者可覆寫）。
+
+---
+
+## 直接法現金流量表（Direct Method）
+
+### queryDirectOperatingCash 的 operating_txns 識別邏輯
+
+直接法只需知道「哪些交易屬於營業活動」，然後對其中的 CASH 科目分錄加總借貸。
+
+判斷「營業活動交易」的規則（取聯集）：
+1. 交易中包含 `a.type IN ('INCOME', 'EXPENSE')` 的分錄 → 本期損益交易，直接屬於 OPERATING
+2. 交易中包含 `je.cash_flow_category = 'OPERATING'` 的分錄 → 明確標記為 OPERATING
+
+這兩個條件對應間接法的兩個計算項目：
+- 條件 1 對應「本期淨利（Net Income）」
+- 條件 2 對應「調整項（Adjustments）」
+
+### 直接法 vs 間接法的數學恆等性
+
+`Cash Received - Cash Paid = Net Income + OPERATING Adjustments`
+
+這是雙式簿記的必然結果。只要每筆交易都借貸平衡，兩法 Operating Total 恆等，因此可用 `TestGetDirectCashFlowStatement_MatchesIndirectOperatingTotal` 互相驗證。
+
+### 投資 / 籌資活動重用 queryCashFlowChanges
+
+直接法的 InvestingActivities / FinancingActivities 與間接法完全相同：
+- 都是依 `journal_entries.cash_flow_category IN ('INVESTING','FINANCING')` 篩選分錄
+- 金額公式相同（`credit - debit`）
+- `GetDirectCashFlowStatement` 直接重用 `queryCashFlowChanges`，只過濾掉 OPERATING rows
+
+### 已知邊界情況
+
+一筆交易同時含不同 CF 分類（例：CR INCOME 600 + CR INVESTING 400 = DR CASH 1000），
+`queryDirectOperatingCash` 因偵測到 INCOME 分錄而將整筆歸入 OPERATING，
+現金流入 1000 全部算入 Operating，未按比例拆分。
+個人財務場景中此情況極少，視為可接受的邊界行為（見 ARCHITECTURE.md ADR-002）。

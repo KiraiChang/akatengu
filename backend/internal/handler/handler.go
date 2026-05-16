@@ -70,6 +70,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("GET /report/balance_sheet", report.GetBalanceSheet)
 	bizApi.HandleFunc("GET /report/income_statement", report.GetIncomeStatement)
 	bizApi.HandleFunc("GET /report/cash_flow_statement", report.GetCashFlowStatement)
+	bizApi.HandleFunc("GET /report/cash_flow_statement_direct", report.GetDirectCashFlowStatement)
 	bizApi.HandleFunc("GET /report/equity_statement", report.GetEquityStatement)
 
 	bizApi.HandleFunc("GET /account/paged", account.GetAccountPaged)

@@ -28,6 +28,30 @@
 
 ---
 
+## ISSUE-003：直接法 queryDirectOperatingCash 無法用 sqlc 管理
+
+**狀態：** 已確認，設計決策
+**發生時機：** 實作 `GetDirectCashFlowStatement` 時
+
+### 問題描述
+
+`queryDirectOperatingCash` 的 `operating_txns` CTE 中，`a.type IN ('INCOME', 'EXPENSE')` 包含動態 IN 清單，
+即使此 IN 值固定，sqlc 在解析 CTE 子查詢時也無法靜態追蹤 aggregate 函數的欄位來源（`COALESCE(SUM(...))`），
+無法自動對應覆寫型別（`decimal.Decimal`）。
+
+此外，同一查詢中混用了以科目型別判斷的 CTE（`operating_txns`）與以帳戶屬性判斷的 CASH 過濾，
+sqlc 無法對這種跨 CTE 的多條件 JOIN 產生型別安全的 Go 方法。
+
+### 處理方式
+
+按照 CLAUDE.md 例外條款：「動態性質確實無法以 sqlc 靜態產生」，改用 `sqlx.Named` 搭配 `db.GetContext` 直接執行。
+在程式碼行內以注釋說明原因（`// sqlx.Named is required because...`）。
+
+結果欄位 `debit_total` / `credit_total` 透過掃描至既有的 `cashSumRow` struct（`decimal.Decimal` 型別），
+符合金額欄位使用 `decimal.Decimal` 的規定，無需建立 View。
+
+---
+
 ## ISSUE-002：sqlc nullable TEXT + custom type override 不產生 pointer 型別
 
 **狀態：** 已確認，設計決策

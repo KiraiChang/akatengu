@@ -30,3 +30,20 @@ type CashFlowStatement struct {
 	BeginningCash       decimal.Decimal     `json:"beginning_cash"`
 	EndingCash          decimal.Decimal     `json:"ending_cash"`
 }
+
+type DirectOperatingActivities struct {
+	CashReceived decimal.Decimal `json:"cash_received"`
+	CashPaid     decimal.Decimal `json:"cash_paid"`
+	Total        decimal.Decimal `json:"total"`
+}
+
+type DirectCashFlowStatement struct {
+	StartDate           string                    `json:"start_date"`
+	EndDate             string                    `json:"end_date"`
+	OperatingActivities DirectOperatingActivities `json:"operating_activities"`
+	InvestingActivities CashFlowSection           `json:"investing_activities"`
+	FinancingActivities CashFlowSection           `json:"financing_activities"`
+	NetChange           decimal.Decimal           `json:"net_change"`
+	BeginningCash       decimal.Decimal           `json:"beginning_cash"`
+	EndingCash          decimal.Decimal           `json:"ending_cash"`
+}

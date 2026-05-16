@@ -17,6 +17,7 @@ type ReportRepo interface {
 	GetBalanceSheet(ctx context.Context, reportDate string) (*report.BalanceSheet, error)
 	GetIncomeStatement(ctx context.Context, startDate, endDate string) (*report.IncomeStatement, error)
 	GetCashFlowStatement(ctx context.Context, startDate, endDate string) (*report.CashFlowStatement, error)
+	GetDirectCashFlowStatement(ctx context.Context, startDate, endDate string) (*report.DirectCashFlowStatement, error)
 	GetEquityStatement(ctx context.Context, startDate, endDate string) (*report.EquityStatement, error)
 }
 
@@ -399,6 +400,36 @@ JOIN accounts a ON je.account_id = a.account_id
     AND a.cash_flow_category = 'CASH' AND a.merchant_id = :merchant_id
 WHERE je.merchant_id = :merchant_id`
 
+// queryDirectOperatingCash fetches period debit/credit of CASH accounts for operating transactions.
+// Operating transactions = those containing INCOME/EXPENSE entries OR OPERATING-tagged entries.
+// args: merchant_id, start_date, end_date
+// sqlx.Named is required because the IN clause for account types cannot be expressed statically.
+const queryDirectOperatingCash = `
+WITH period_txns AS (
+    SELECT DISTINCT je.txn_id
+    FROM journal_entries je
+    JOIN transactions t ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
+        AND t.txn_date >= :start_date AND t.txn_date <= :end_date
+        AND t.merchant_id = :merchant_id
+    WHERE je.merchant_id = :merchant_id
+),
+operating_txns AS (
+    SELECT DISTINCT je.txn_id
+    FROM journal_entries je
+    JOIN accounts a ON je.account_id = a.account_id AND a.merchant_id = je.merchant_id
+    WHERE je.txn_id IN (SELECT txn_id FROM period_txns)
+      AND je.merchant_id = :merchant_id
+      AND (a.type IN ('INCOME', 'EXPENSE') OR je.cash_flow_category = 'OPERATING')
+)
+SELECT
+    COALESCE(SUM(je.debit),  0) AS debit_total,
+    COALESCE(SUM(je.credit), 0) AS credit_total
+FROM journal_entries je
+JOIN accounts a ON je.account_id = a.account_id AND a.merchant_id = je.merchant_id
+    AND a.cash_flow_category = 'CASH'
+WHERE je.txn_id IN (SELECT txn_id FROM operating_txns)
+  AND je.merchant_id = :merchant_id`
+
 func bsRowFromRaw(row bsRawRow) (report.BalanceSheetRow, decimal.Decimal) {
 	balance := row.TotalDebit.Sub(row.TotalCredit)
 	if row.NormalBalance.Is(enums.BalanceCredit) {
@@ -659,6 +690,91 @@ func (r *sqlcReportRepo) GetCashFlowStatement(ctx context.Context, startDate, en
 		}
 	}
 	cf.OperatingActivities.Total = cf.OperatingActivities.Total.Add(is.NetIncome)
+	cf.NetChange = cf.OperatingActivities.Total.Add(cf.InvestingActivities.Total).Add(cf.FinancingActivities.Total)
+
+	return cf, nil
+}
+
+func (r *sqlcReportRepo) GetDirectCashFlowStatement(ctx context.Context, startDate, endDate string) (*report.DirectCashFlowStatement, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	qOp, argsOp, err := sqlx.Named(queryDirectOperatingCash, map[string]any{
+		"merchant_id": merchantID,
+		"start_date":  startDate,
+		"end_date":    endDate,
+	})
+	if err != nil {
+		return nil, err
+	}
+	qOp = r.db.Rebind(qOp)
+	var opRow cashSumRow
+	if err := r.db.GetContext(ctx, &opRow, qOp, argsOp...); err != nil {
+		return nil, err
+	}
+
+	qCF, argsCF, err := sqlx.Named(queryCashFlowChanges, map[string]any{
+		"merchant_id": merchantID,
+		"start_date":  startDate,
+		"end_date":    endDate,
+	})
+	if err != nil {
+		return nil, err
+	}
+	qCF = r.db.Rebind(qCF)
+	var cfRows []cfRawRow
+	if err := r.db.SelectContext(ctx, &cfRows, qCF, argsCF...); err != nil {
+		return nil, err
+	}
+
+	qBefore, argsBefore, err := sqlx.Named(queryCashBefore, map[string]any{"merchant_id": merchantID, "date": startDate})
+	if err != nil {
+		return nil, err
+	}
+	qBefore = r.db.Rebind(qBefore)
+	var beginRow cashSumRow
+	if err := r.db.GetContext(ctx, &beginRow, qBefore, argsBefore...); err != nil {
+		return nil, err
+	}
+
+	qUpTo, argsUpTo, err := sqlx.Named(queryCashUpTo, map[string]any{"merchant_id": merchantID, "date": endDate})
+	if err != nil {
+		return nil, err
+	}
+	qUpTo = r.db.Rebind(qUpTo)
+	var endRow cashSumRow
+	if err := r.db.GetContext(ctx, &endRow, qUpTo, argsUpTo...); err != nil {
+		return nil, err
+	}
+
+	cf := &report.DirectCashFlowStatement{
+		StartDate:     startDate,
+		EndDate:       endDate,
+		BeginningCash: beginRow.DebitTotal.Sub(beginRow.CreditTotal),
+		EndingCash:    endRow.DebitTotal.Sub(endRow.CreditTotal),
+	}
+	cf.OperatingActivities.CashReceived = opRow.DebitTotal
+	cf.OperatingActivities.CashPaid = opRow.CreditTotal
+	cf.OperatingActivities.Total = opRow.DebitTotal.Sub(opRow.CreditTotal)
+
+	for _, row := range cfRows {
+		amount := row.PeriodCredit.Sub(row.PeriodDebit)
+		item := report.CashFlowItem{AccountId: row.AccountId, Name: row.Name, IsSummary: row.IsSummary, Amount: amount}
+		switch row.CashFlowCategory {
+		case "INVESTING":
+			cf.InvestingActivities.Items = append(cf.InvestingActivities.Items, item)
+			if !row.IsSummary {
+				cf.InvestingActivities.Total = cf.InvestingActivities.Total.Add(amount)
+			}
+		case "FINANCING":
+			cf.FinancingActivities.Items = append(cf.FinancingActivities.Items, item)
+			if !row.IsSummary {
+				cf.FinancingActivities.Total = cf.FinancingActivities.Total.Add(amount)
+			}
+		}
+	}
 	cf.NetChange = cf.OperatingActivities.Total.Add(cf.InvestingActivities.Total).Add(cf.FinancingActivities.Total)
 
 	return cf, nil

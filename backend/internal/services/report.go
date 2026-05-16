@@ -27,6 +27,10 @@ func (r *ReportService) GetCashFlowStatement(ctx context.Context, startDate, end
 	return r.repo.GetCashFlowStatement(ctx, startDate, endDate)
 }
 
+func (r *ReportService) GetDirectCashFlowStatement(ctx context.Context, startDate, endDate string) (*report.DirectCashFlowStatement, error) {
+	return r.repo.GetDirectCashFlowStatement(ctx, startDate, endDate)
+}
+
 func (r *ReportService) GetEquityStatement(ctx context.Context, startDate, endDate string) (*report.EquityStatement, error) {
 	return r.repo.GetEquityStatement(ctx, startDate, endDate)
 }

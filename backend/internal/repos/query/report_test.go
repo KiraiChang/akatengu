@@ -959,3 +959,194 @@ func TestGetCashFlowStatement_HierarchyAggregation_LeafIsSummaryFalse(t *testing
 		t.Errorf("account %s: IsSummary got true, want false for leaf", rptAcctCFLeafA)
 	}
 }
+
+// ── GetDirectCashFlowStatement 測試 ──────────────────────────────────────────
+
+// TestGetDirectCashFlowStatement_OperatingReceiptsAndPayments
+// 有收入與費用的現金交易時，CashReceived / CashPaid / Total 計算正確。
+func TestGetDirectCashFlowStatement_OperatingReceiptsAndPayments(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// 收入：DR 1101-01 (CASH) 3000, CR 4101-01 (INCOME) → operating（有 INCOME 科目）
+	sumInsertTxn(t, db, 1, "2025-01-15", rptAcctCash, rptAcctSalary, 3000)
+	// 費用：DR 5101-01 (EXPENSE), CR 1101-01 (CASH) 1500 → operating（有 EXPENSE 科目）
+	sumInsertTxn(t, db, 2, "2025-01-20", rptAcctRent, rptAcctCash, 1500)
+
+	dcf, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	received, _ := dcf.OperatingActivities.CashReceived.Float64()
+	paid, _ := dcf.OperatingActivities.CashPaid.Float64()
+	total, _ := dcf.OperatingActivities.Total.Float64()
+
+	if received != 3000 {
+		t.Errorf("CashReceived: got %.2f, want 3000", received)
+	}
+	if paid != 1500 {
+		t.Errorf("CashPaid: got %.2f, want 1500", paid)
+	}
+	if total != 1500 {
+		t.Errorf("Operating Total: got %.2f, want 1500 (3000-1500)", total)
+	}
+}
+
+// TestGetDirectCashFlowStatement_MatchesIndirectOperatingTotal
+// 直接法的 OperatingActivities.Total 必須等於間接法的 OperatingActivities.Total。
+func TestGetDirectCashFlowStatement_MatchesIndirectOperatingTotal(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// 現金收入：DR CASH 3000, CR INCOME（direct CashReceived += 3000；indirect NetIncome += 3000）
+	sumInsertTxn(t, db, 1, "2025-01-15", rptAcctCash, rptAcctSalary, 3000)
+	// 現金費用：DR EXPENSE, CR CASH 1000（direct CashPaid += 1000；indirect NetIncome -= 1000）
+	sumInsertTxn(t, db, 2, "2025-01-20", rptAcctRent, rptAcctCash, 1000)
+	// OPERATING 調整：DR CASH 200, CR 1103-01 entry OPERATING
+	// （direct CashReceived += 200；indirect OPERATING Adjustments += 200）
+	sumInsertTxnWithCF(t, db, 3, "2025-01-25", rptAcctCash, rptAcctOperating, 200, nil, cfPtr("OPERATING"))
+
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+
+	if !direct.OperatingActivities.Total.Equal(indirect.OperatingActivities.Total) {
+		t.Errorf("Operating Total mismatch: direct=%.2f, indirect=%.2f",
+			direct.OperatingActivities.Total.InexactFloat64(),
+			indirect.OperatingActivities.Total.InexactFloat64())
+	}
+}
+
+// TestGetDirectCashFlowStatement_InvestingMatchesIndirect
+// 投資活動的 Items 與 Total 與間接法相同。
+func TestGetDirectCashFlowStatement_InvestingMatchesIndirect(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// 買入投資：DR 1102-01 (entry INVESTING), CR 1101-01 (CASH) 1500
+	sumInsertTxnWithCF(t, db, 1, "2025-01-15", rptAcctInvesting, rptAcctCash, 1500, cfPtr("INVESTING"), nil)
+
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+
+	if !direct.InvestingActivities.Total.Equal(indirect.InvestingActivities.Total) {
+		t.Errorf("Investing Total mismatch: direct=%.2f, indirect=%.2f",
+			direct.InvestingActivities.Total.InexactFloat64(),
+			indirect.InvestingActivities.Total.InexactFloat64())
+	}
+	if len(direct.InvestingActivities.Items) != len(indirect.InvestingActivities.Items) {
+		t.Errorf("Investing Items count: direct=%d, indirect=%d",
+			len(direct.InvestingActivities.Items), len(indirect.InvestingActivities.Items))
+	}
+	// 1102-01 debit 1500 → amount = 0 - 1500 = -1500
+	assertCFItem(t, direct.InvestingActivities.Items, rptAcctInvesting, -1500)
+}
+
+// TestGetDirectCashFlowStatement_FinancingMatchesIndirect
+// 籌資活動的 Items 與 Total 與間接法相同。
+func TestGetDirectCashFlowStatement_FinancingMatchesIndirect(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// 增資：DR 1101-01 (CASH), CR 3103-02 (entry FINANCING) 2000
+	sumInsertTxnWithCF(t, db, 1, "2025-01-15", rptAcctCash, rptAcctEqLeaf2, 2000, nil, cfPtr("FINANCING"))
+
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+
+	if !direct.FinancingActivities.Total.Equal(indirect.FinancingActivities.Total) {
+		t.Errorf("Financing Total mismatch: direct=%.2f, indirect=%.2f",
+			direct.FinancingActivities.Total.InexactFloat64(),
+			indirect.FinancingActivities.Total.InexactFloat64())
+	}
+	// 3103-02 credit 2000 → amount = 2000 - 0 = 2000
+	assertCFItem(t, direct.FinancingActivities.Items, rptAcctEqLeaf2, 2000)
+}
+
+// TestGetDirectCashFlowStatement_NetChange
+// NetChange = 三大活動之和；EndingCash - BeginningCash = NetChange。
+func TestGetDirectCashFlowStatement_NetChange(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// 期初前：DR CASH 1000, CR 3101-01（令 BeginningCash = 1000）
+	sumInsertTxn(t, db, 1, "2024-12-31", rptAcctCash, rptAcctEqLeaf1, 1000)
+	// 收入 3000 → operating CashReceived = 3000；OperatingTotal = 3000
+	sumInsertTxn(t, db, 2, "2025-01-05", rptAcctCash, rptAcctSalary, 3000)
+	// 買入投資 1000 → InvestingTotal = -1000
+	sumInsertTxnWithCF(t, db, 3, "2025-01-10", rptAcctInvesting, rptAcctCash, 1000, cfPtr("INVESTING"), nil)
+	// 增資 500 → FinancingTotal = +500
+	sumInsertTxnWithCF(t, db, 4, "2025-01-15", rptAcctCash, rptAcctEqLeaf2, 500, nil, cfPtr("FINANCING"))
+
+	dcf, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	// NetChange = 3000 (op) + (-1000) (inv) + 500 (fin) = 2500
+	netChange, _ := dcf.NetChange.Float64()
+	if netChange != 2500 {
+		t.Errorf("NetChange: got %.2f, want 2500 (op 3000 + inv -1000 + fin 500)", netChange)
+	}
+
+	// EndingCash(3500) - BeginningCash(1000) = NetChange(2500)
+	cashDiff := dcf.EndingCash.Sub(dcf.BeginningCash)
+	if !cashDiff.Equal(dcf.NetChange) {
+		t.Errorf("EndingCash - BeginningCash = %.2f, NetChange = %.2f; should be equal",
+			cashDiff.InexactFloat64(), dcf.NetChange.InexactFloat64())
+	}
+}
+
+// TestGetDirectCashFlowStatement_WithOperatingTaggedEntry
+// 僅含 OPERATING-tagged 分錄（無 INCOME/EXPENSE 科目）時，
+// 現金科目的借貸正確納入 CashReceived / CashPaid。
+func TestGetDirectCashFlowStatement_WithOperatingTaggedEntry(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// DR 1101-01 (CASH) 400, CR 1103-01（entry 標記 OPERATING）；無 INCOME/EXPENSE 科目
+	sumInsertTxnWithCF(t, db, 1, "2025-01-10", rptAcctCash, rptAcctOperating, 400, nil, cfPtr("OPERATING"))
+
+	dcf, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	received, _ := dcf.OperatingActivities.CashReceived.Float64()
+	paid, _ := dcf.OperatingActivities.CashPaid.Float64()
+	total, _ := dcf.OperatingActivities.Total.Float64()
+
+	if received != 400 {
+		t.Errorf("CashReceived: got %.2f, want 400", received)
+	}
+	if paid != 0 {
+		t.Errorf("CashPaid: got %.2f, want 0", paid)
+	}
+	if total != 400 {
+		t.Errorf("Operating Total: got %.2f, want 400", total)
+	}
+}

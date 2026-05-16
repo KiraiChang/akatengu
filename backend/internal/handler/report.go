@@ -90,6 +90,29 @@ func (rh *ReportHandler) GetCashFlowStatement(w http.ResponseWriter, r *http.Req
 	response.OK(w, result)
 }
 
+func (rh *ReportHandler) GetDirectCashFlowStatement(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	begin := r.URL.Query().Get("begin_date")
+	if _, err := time.Parse("2006-01-02", begin); err != nil {
+		rh.logger.Error("get direct cash flow statement invalid begin_date", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "begin_date must be YYYY-MM-DD")
+		return
+	}
+	end := r.URL.Query().Get("end_date")
+	if _, err := time.Parse("2006-01-02", end); err != nil {
+		rh.logger.Error("get direct cash flow statement invalid end_date", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "end_date must be YYYY-MM-DD")
+		return
+	}
+	result, err := rh.service.GetDirectCashFlowStatement(ctx, begin, end)
+	if err != nil {
+		rh.logger.Error("get direct cash flow statement fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
+		return
+	}
+	response.OK(w, result)
+}
+
 func (rh *ReportHandler) GetEquityStatement(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	begin := r.URL.Query().Get("begin_date")

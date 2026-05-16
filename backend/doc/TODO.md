@@ -20,6 +20,27 @@
 - [ ] **年度結帳（Period Annual Close / Reopen）**
   - `applyPeriodAnnualClosed` / `applyPeriodAnnualReopened`：結帳分錄為科目間內部軋轉，不屬於現金流量表，應保持 `cash_flow_category = NULL`。
 
+---
+
+## 直接法現金流量表（Direct Method）
+
+### 混合分類交易的精準拆分
+
+目前 `queryDirectOperatingCash` 對含 INCOME/EXPENSE 分錄的交易，
+會將整筆 CASH 移動歸入 Operating，不按比例拆分。
+
+- [ ] **評估實際需求**：個人財務場景中是否真的會出現混合分類交易（如：同一筆 DR CASH 同時對應 INCOME + INVESTING）。
+- [ ] **若需精準拆分**：可在 `journal_entries` 加入「Operating 現金比例」欄位，或要求使用者在 create entry 時拆成兩筆交易。
+
+### 直接法明細行（Line Items）
+
+目前直接法只提供 CashReceived / CashPaid 兩個加總數字。
+前端若需要「收到薪資 3000 / 支付房租 1500」的明細清單，需另行設計。
+
+- [ ] 新增 `queryDirectOperatingCashItems`，依科目彙總 CASH 移動明細（帳戶名稱 + 金額），格式類似 `CashFlowSection.Items`。
+
+---
+
 ### 其他應評估的科目類型
 
 - [ ] **折舊費用（Depreciation）**
