@@ -333,14 +333,13 @@ type cashSumRow struct {
 	CreditTotal decimal.Decimal `db:"credit_total"`
 }
 
-// queryCashFlowChanges fetches period debit/credit for accounts with a cash_flow_category.
-// Both leaf accounts (direct join) and summary accounts (aggregated via account_closure) are returned.
-// If a summary account and its leaf descendants both have cash_flow_category set, both will appear;
-// users are responsible for not double-assigning the same subtree.
+// queryCashFlowChanges fetches period debit/credit grouped by journal_entries.cash_flow_category.
+// Leaf accounts join directly; summary accounts aggregate descendants via account_closure.
+// A parent account can appear in multiple sections if its descendants have entries with different categories.
 // args: merchant_id, start_date, end_date
 const queryCashFlowChanges = `
 WITH period_entries AS (
-    SELECT je.account_id,
+    SELECT je.account_id, je.cash_flow_category,
            COALESCE(SUM(je.debit), 0)  AS period_debit,
            COALESCE(SUM(je.credit), 0) AS period_credit
     FROM journal_entries je
@@ -348,33 +347,27 @@ WITH period_entries AS (
         AND t.txn_date >= :start_date AND t.txn_date <= :end_date
         AND t.merchant_id = :merchant_id
     WHERE je.merchant_id = :merchant_id
-    GROUP BY je.account_id
+      AND je.cash_flow_category IN ('OPERATING', 'INVESTING', 'FINANCING')
+    GROUP BY je.account_id, je.cash_flow_category
 ),
 leaf_cf AS (
-    SELECT a.account_id, a.name, a.cash_flow_category, 0 AS is_summary,
-           COALESCE(pe.period_debit, 0)  AS period_debit,
-           COALESCE(pe.period_credit, 0) AS period_credit
-    FROM accounts a
-    LEFT JOIN period_entries pe ON a.account_id = pe.account_id
-    WHERE a.is_active = 1
-        AND a.is_summary = 0
-        AND a.cash_flow_category IN ('OPERATING', 'INVESTING', 'FINANCING')
-        AND a.merchant_id = :merchant_id
+    SELECT a.account_id, a.name, pe.cash_flow_category, 0 AS is_summary,
+           pe.period_debit, pe.period_credit
+    FROM period_entries pe
+    JOIN accounts a ON a.account_id = pe.account_id
+        AND a.is_active = 1 AND a.is_summary = 0 AND a.merchant_id = :merchant_id
 ),
 summary_cf AS (
-    SELECT a.account_id, a.name, a.cash_flow_category, 1 AS is_summary,
+    SELECT a.account_id, a.name, pe.cash_flow_category, 1 AS is_summary,
            COALESCE(SUM(pe.period_debit), 0)  AS period_debit,
            COALESCE(SUM(pe.period_credit), 0) AS period_credit
     FROM accounts a
-    JOIN account_closure ac  ON ac.ancestor_id = a.account_id AND ac.depth > 0 AND ac.merchant_id = a.merchant_id
-    JOIN accounts leaf        ON leaf.account_id = ac.descendant_id AND leaf.is_summary = 0
-                              AND leaf.is_active = 1 AND leaf.merchant_id = a.merchant_id
-    LEFT JOIN period_entries pe ON pe.account_id = ac.descendant_id
-    WHERE a.is_active = 1
-        AND a.is_summary = 1
-        AND a.cash_flow_category IN ('OPERATING', 'INVESTING', 'FINANCING')
-        AND a.merchant_id = :merchant_id
-    GROUP BY a.account_id, a.name, a.cash_flow_category
+    JOIN account_closure ac ON ac.ancestor_id = a.account_id AND ac.depth > 0 AND ac.merchant_id = a.merchant_id
+    JOIN accounts leaf ON leaf.account_id = ac.descendant_id AND leaf.is_summary = 0
+                       AND leaf.is_active = 1 AND leaf.merchant_id = a.merchant_id
+    JOIN period_entries pe ON pe.account_id = ac.descendant_id
+    WHERE a.is_active = 1 AND a.is_summary = 1 AND a.merchant_id = :merchant_id
+    GROUP BY a.account_id, a.name, pe.cash_flow_category
 )
 SELECT account_id, name, cash_flow_category, is_summary, period_debit, period_credit FROM (
     SELECT account_id, name, cash_flow_category, is_summary, period_debit, period_credit FROM leaf_cf
@@ -650,13 +643,19 @@ func (r *sqlcReportRepo) GetCashFlowStatement(ctx context.Context, startDate, en
 		switch row.CashFlowCategory {
 		case "OPERATING":
 			cf.OperatingActivities.Adjustments = append(cf.OperatingActivities.Adjustments, item)
-			cf.OperatingActivities.Total = cf.OperatingActivities.Total.Add(amount)
+			if !row.IsSummary {
+				cf.OperatingActivities.Total = cf.OperatingActivities.Total.Add(amount)
+			}
 		case "INVESTING":
 			cf.InvestingActivities.Items = append(cf.InvestingActivities.Items, item)
-			cf.InvestingActivities.Total = cf.InvestingActivities.Total.Add(amount)
+			if !row.IsSummary {
+				cf.InvestingActivities.Total = cf.InvestingActivities.Total.Add(amount)
+			}
 		case "FINANCING":
 			cf.FinancingActivities.Items = append(cf.FinancingActivities.Items, item)
-			cf.FinancingActivities.Total = cf.FinancingActivities.Total.Add(amount)
+			if !row.IsSummary {
+				cf.FinancingActivities.Total = cf.FinancingActivities.Total.Add(amount)
+			}
 		}
 	}
 	cf.OperatingActivities.Total = cf.OperatingActivities.Total.Add(is.NetIncome)

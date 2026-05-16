@@ -1,6 +1,7 @@
 package payload
 
 import (
+	"akatengu/internal/enums"
 	"fmt"
 	"time"
 
@@ -8,12 +9,13 @@ import (
 )
 
 // TransactionEntryPayload 範例
-// { "account_id": "5220",    "ledger_id": null, "debit": 1250, "credit": 0 },
+// { "account_id": "5220", "ledger_id": null, "debit": 1250, "credit": 0, "cash_flow_category": "OPERATING" }
 type TransactionEntryPayload struct {
-	AccountId string          `json:"account_id"`
-	LedgerId  *int64          `json:"ledger_id"`
-	Debit     decimal.Decimal `json:"debit"`
-	Credit    decimal.Decimal `json:"credit"`
+	AccountId        string                  `json:"account_id"`
+	LedgerId         *int64                  `json:"ledger_id"`
+	Debit            decimal.Decimal         `json:"debit"`
+	Credit           decimal.Decimal         `json:"credit"`
+	CashFlowCategory *enums.CashFlowCategory `json:"cash_flow_category"`
 }
 
 // TransactionCreatedPayload 範例

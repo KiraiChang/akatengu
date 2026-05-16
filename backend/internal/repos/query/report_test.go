@@ -694,19 +694,23 @@ func TestGetCashFlowStatement_BeginningAndEndingCash(t *testing.T) {
 	}
 }
 
+// cfPtr 將字串字面值轉換為指標，用於 sumInsertTxnWithCF 的 cash_flow_category 參數。
+func cfPtr(s string) *string { return &s }
+
 // TestGetCashFlowStatement_ThreeSections
 // 三大活動分類各自出現在對應 section，金額符合 credit−debit 公式。
+// 分類由 journal_entries.cash_flow_category 決定，非 accounts.cash_flow_category。
 func TestGetCashFlowStatement_ThreeSections(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
-	// OPERATING: DR 1101-01, CR 1103-01 800（收回應收款 → 現金流入 +800）
-	sumInsertTxn(t, db, 1, "2025-01-10", rptAcctCash, rptAcctOperating, 800)
-	// INVESTING: DR 1102-01, CR 1101-01 2000（買入投資 → 現金流出 -2000）
-	sumInsertTxn(t, db, 2, "2025-01-15", rptAcctInvesting, rptAcctCash, 2000)
-	// FINANCING: DR 1101-01, CR 3103-02 3000（增資 → 現金流入 +3000）
-	sumInsertTxn(t, db, 3, "2025-01-20", rptAcctCash, rptAcctEqLeaf2, 3000)
+	// OPERATING: DR 1101-01 (CASH), CR 1103-01 800 → 1103-01 entry 標記 OPERATING
+	sumInsertTxnWithCF(t, db, 1, "2025-01-10", rptAcctCash, rptAcctOperating, 800, nil, cfPtr("OPERATING"))
+	// INVESTING: DR 1102-01 2000 → 1102-01 entry 標記 INVESTING，CR 1101-01 (CASH)
+	sumInsertTxnWithCF(t, db, 2, "2025-01-15", rptAcctInvesting, rptAcctCash, 2000, cfPtr("INVESTING"), nil)
+	// FINANCING: DR 1101-01 (CASH), CR 3103-02 3000 → 3103-02 entry 標記 FINANCING
+	sumInsertTxnWithCF(t, db, 3, "2025-01-20", rptAcctCash, rptAcctEqLeaf2, 3000, nil, cfPtr("FINANCING"))
 
 	cf, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
 	if err != nil {
@@ -760,16 +764,16 @@ func TestGetCashFlowStatement_WithSnapshot(t *testing.T) {
 
 	// M-1（一月）：收入薪資 3000，現金流入 3000
 	sumInsertPeriod(t, db, 1, "MONTHLY", "2025-01-01", "2025-01-31", true)
-	sumInsertTxn(t, db, 1, "2025-01-15", rptAcctCash, rptAcctSalary, 3000) // CR income, DR CASH
-	// 有 OPERATING 帳：應收薪資 800（M-1 期間）
-	sumInsertTxn(t, db, 2, "2025-01-20", rptAcctCash, rptAcctOperating, 800) // CR 1103-01
+	sumInsertTxn(t, db, 1, "2025-01-15", rptAcctCash, rptAcctSalary, 3000) // CR income, DR CASH（無 CF 分類）
+	// 有 OPERATING 帳：應收薪資 800（M-1 期間），1103-01 entry 標記 OPERATING
+	sumInsertTxnWithCF(t, db, 2, "2025-01-20", rptAcctCash, rptAcctOperating, 800, nil, cfPtr("OPERATING"))
 	if err := snapRepo.BulkInsert(ctx, testMerchantID, 1); err != nil {
 		t.Fatalf("BulkInsert: %v", err)
 	}
 
 	// M（二月，查詢期間）：OPERATING 應收帳 500，INVESTING 買入 1000
-	sumInsertTxn(t, db, 3, "2025-02-10", rptAcctCash, rptAcctOperating, 500)  // CR 1103-01（應收收回，流入）
-	sumInsertTxn(t, db, 4, "2025-02-20", rptAcctInvesting, rptAcctCash, 1000) // DR 1102-01（買入投資，流出）
+	sumInsertTxnWithCF(t, db, 3, "2025-02-10", rptAcctCash, rptAcctOperating, 500, nil, cfPtr("OPERATING"))   // CR 1103-01（應收收回，流入）
+	sumInsertTxnWithCF(t, db, 4, "2025-02-20", rptAcctInvesting, rptAcctCash, 1000, cfPtr("INVESTING"), nil) // DR 1102-01（買入投資，流出）
 
 	cf, err := repo.GetCashFlowStatement(ctx, "2025-02-01", "2025-02-28")
 	if err != nil {
@@ -802,12 +806,12 @@ func TestGetCashFlowStatement_NetChange(t *testing.T) {
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
-	// 收入 3000 → operating net_income = 3000（無其他調整）
+	// 收入 3000 → operating net_income = 3000（無 CF 分類，透過淨利計算）
 	sumInsertTxn(t, db, 1, "2025-01-05", rptAcctCash, rptAcctSalary, 3000)
-	// 買入投資 1000 → investing = -1000
-	sumInsertTxn(t, db, 2, "2025-01-10", rptAcctInvesting, rptAcctCash, 1000)
-	// 增資 500 → financing = +500
-	sumInsertTxn(t, db, 3, "2025-01-15", rptAcctCash, rptAcctEqLeaf2, 500)
+	// 買入投資 1000 → investing = -1000（1102-01 entry 標記 INVESTING）
+	sumInsertTxnWithCF(t, db, 2, "2025-01-10", rptAcctInvesting, rptAcctCash, 1000, cfPtr("INVESTING"), nil)
+	// 增資 500 → financing = +500（3103-02 entry 標記 FINANCING）
+	sumInsertTxnWithCF(t, db, 3, "2025-01-15", rptAcctCash, rptAcctEqLeaf2, 500, nil, cfPtr("FINANCING"))
 
 	cf, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
 	if err != nil {
@@ -872,30 +876,16 @@ const (
 )
 
 // TestGetCashFlowStatement_HierarchyAggregation
-// 將彙總科目設定 cash_flow_category，其後裔葉節點設為 NULL；
-// 現金流量表應出現彙總科目行（is_summary=true），金額為所有後裔期間變動的加總。
+// 葉節點 entry 標記 OPERATING，父科目應以彙總行（is_summary=true）出現，
+// 金額為所有後裔 OPERATING entry 的加總；葉節點行也同步出現。
 func TestGetCashFlowStatement_HierarchyAggregation(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
-	// 將彙總節點 1103 設為 OPERATING，葉節點清為 NULL（只顯示彙總行）
-	_, err := db.ExecContext(ctx,
-		`UPDATE accounts SET cash_flow_category = 'OPERATING' WHERE account_id = ? AND merchant_id = ?`,
-		rptAcctCFSummary, testMerchantID)
-	if err != nil {
-		t.Fatalf("update summary category: %v", err)
-	}
-	_, err = db.ExecContext(ctx,
-		`UPDATE accounts SET cash_flow_category = NULL WHERE account_id IN (?, ?) AND merchant_id = ?`,
-		rptAcctCFLeafA, rptAcctCFLeafB, testMerchantID)
-	if err != nil {
-		t.Fatalf("update leaf category: %v", err)
-	}
-
-	// 期間交易：1103-01 credit 800（現金收回應收薪資），1103-02 credit 500（收回應收租金）
-	sumInsertTxn(t, db, 1, "2025-01-10", rptAcctCash, rptAcctCFLeafA, 800)
-	sumInsertTxn(t, db, 2, "2025-01-20", rptAcctCash, rptAcctCFLeafB, 500)
+	// 期間交易：1103-01 credit 800、1103-02 credit 500，entry 均標記 OPERATING
+	sumInsertTxnWithCF(t, db, 1, "2025-01-10", rptAcctCash, rptAcctCFLeafA, 800, nil, cfPtr("OPERATING"))
+	sumInsertTxnWithCF(t, db, 2, "2025-01-20", rptAcctCash, rptAcctCFLeafB, 500, nil, cfPtr("OPERATING"))
 
 	cf, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
 	if err != nil {
@@ -903,41 +893,52 @@ func TestGetCashFlowStatement_HierarchyAggregation(t *testing.T) {
 	}
 
 	// 彙總行 1103 應出現在 OPERATING，金額 = (800+500) credit - 0 debit = 1300
-	var found *report.CashFlowItem
+	var summaryFound *report.CashFlowItem
 	for i, item := range cf.OperatingActivities.Adjustments {
 		if item.AccountId == rptAcctCFSummary {
-			found = &cf.OperatingActivities.Adjustments[i]
+			summaryFound = &cf.OperatingActivities.Adjustments[i]
 			break
 		}
 	}
-	if found == nil {
+	if summaryFound == nil {
 		t.Fatalf("summary account %s not found in OPERATING adjustments", rptAcctCFSummary)
 	}
-	if !found.IsSummary {
+	if !summaryFound.IsSummary {
 		t.Errorf("account %s: IsSummary got false, want true", rptAcctCFSummary)
 	}
-	got, _ := found.Amount.Float64()
+	got, _ := summaryFound.Amount.Float64()
 	if got != 1300 {
 		t.Errorf("account %s amount: got %.2f, want 1300", rptAcctCFSummary, got)
 	}
 
-	// 葉節點（category=NULL）不應出現在結果中
-	for _, item := range cf.OperatingActivities.Adjustments {
-		if item.AccountId == rptAcctCFLeafA || item.AccountId == rptAcctCFLeafB {
-			t.Errorf("leaf account %s should not appear in CF when category is NULL", item.AccountId)
+	// 葉節點也應出現（entry 帶有 OPERATING），is_summary=false
+	for _, leafID := range []string{rptAcctCFLeafA, rptAcctCFLeafB} {
+		var leafFound *report.CashFlowItem
+		for i, item := range cf.OperatingActivities.Adjustments {
+			if item.AccountId == leafID {
+				leafFound = &cf.OperatingActivities.Adjustments[i]
+				break
+			}
+		}
+		if leafFound == nil {
+			t.Errorf("leaf account %s not found in OPERATING adjustments", leafID)
+			continue
+		}
+		if leafFound.IsSummary {
+			t.Errorf("leaf account %s: IsSummary got true, want false", leafID)
 		}
 	}
 }
 
 // TestGetCashFlowStatement_HierarchyAggregation_LeafIsSummaryFalse
-// 一般葉節點（非彙總）的 is_summary 欄位應為 false。
+// 葉節點 entry 標記 OPERATING，該葉科目行的 is_summary 應為 false。
 func TestGetCashFlowStatement_HierarchyAggregation_LeafIsSummaryFalse(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
-	// 使用既有葉節點 1103-01（OPERATING），不修改 category
-	sumInsertTxn(t, db, 1, "2025-01-10", rptAcctCash, rptAcctOperating, 600)
+	// 1103-01 entry 標記 OPERATING
+	sumInsertTxnWithCF(t, db, 1, "2025-01-10", rptAcctCash, rptAcctCFLeafA, 600, nil, cfPtr("OPERATING"))
 
 	cf, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
 	if err != nil {
@@ -946,15 +947,15 @@ func TestGetCashFlowStatement_HierarchyAggregation_LeafIsSummaryFalse(t *testing
 
 	var found *report.CashFlowItem
 	for i, item := range cf.OperatingActivities.Adjustments {
-		if item.AccountId == rptAcctOperating {
+		if item.AccountId == rptAcctCFLeafA {
 			found = &cf.OperatingActivities.Adjustments[i]
 			break
 		}
 	}
 	if found == nil {
-		t.Fatalf("leaf account %s not found in OPERATING adjustments", rptAcctOperating)
+		t.Fatalf("leaf account %s not found in OPERATING adjustments", rptAcctCFLeafA)
 	}
 	if found.IsSummary {
-		t.Errorf("account %s: IsSummary got true, want false for leaf", rptAcctOperating)
+		t.Errorf("account %s: IsSummary got true, want false for leaf", rptAcctCFLeafA)
 	}
 }

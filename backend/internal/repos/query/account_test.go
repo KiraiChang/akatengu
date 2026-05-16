@@ -54,24 +54,31 @@ func sumInsertPeriod(t *testing.T, db *sqlx.DB, id int64, periodType, start, end
 // sumInsertTxn 插入借貸分錄（以 account_id 分錄，無 ledger_id）。
 func sumInsertTxn(t *testing.T, db *sqlx.DB, txnID int64, date, debitAcct, creditAcct string, amount float64) {
 	t.Helper()
+	sumInsertTxnWithCF(t, db, txnID, date, debitAcct, creditAcct, amount, nil, nil)
+}
+
+// sumInsertTxnWithCF inserts a transaction with two journal entries; debitCF / creditCF set
+// cash_flow_category on each side (nil = NULL, no cash-flow classification).
+func sumInsertTxnWithCF(t *testing.T, db *sqlx.DB, txnID int64, date, debitAcct, creditAcct string, amount float64, debitCF, creditCF *string) {
+	t.Helper()
 	ctx := context.Background()
 	_, err := db.ExecContext(ctx,
 		`INSERT INTO transactions (txn_id, merchant_id, txn_date, description, total_amount, version) VALUES (?, ?, ?, '測試', ?, 1)`,
 		txnID, testMerchantID, date, amount)
 	if err != nil {
-		t.Fatalf("sumInsertTxn id=%d: %v", txnID, err)
+		t.Fatalf("sumInsertTxnWithCF id=%d: %v", txnID, err)
 	}
 	_, err = db.ExecContext(ctx,
-		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit) VALUES (?, ?, ?, ?, 0)`,
-		txnID, testMerchantID, debitAcct, amount)
+		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit, cash_flow_category) VALUES (?, ?, ?, ?, 0, ?)`,
+		txnID, testMerchantID, debitAcct, amount, debitCF)
 	if err != nil {
-		t.Fatalf("sumInsertTxn debit: %v", err)
+		t.Fatalf("sumInsertTxnWithCF debit: %v", err)
 	}
 	_, err = db.ExecContext(ctx,
-		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit) VALUES (?, ?, ?, 0, ?)`,
-		txnID, testMerchantID, creditAcct, amount)
+		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit, cash_flow_category) VALUES (?, ?, ?, 0, ?, ?)`,
+		txnID, testMerchantID, creditAcct, amount, creditCF)
 	if err != nil {
-		t.Fatalf("sumInsertTxn credit: %v", err)
+		t.Fatalf("sumInsertTxnWithCF credit: %v", err)
 	}
 }
 

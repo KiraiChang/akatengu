@@ -40,6 +40,10 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "CashFlowCategory"
+          - column: "journal_entries.cash_flow_category"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "CashFlowCategory"
           - column: "ledger_accounts.type"
             go_type:
               import: "akatengu/internal/enums"

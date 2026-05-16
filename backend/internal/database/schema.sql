@@ -91,14 +91,15 @@ CREATE TABLE transactions (
 );
 
 CREATE TABLE journal_entries (
-    entry_id    INTEGER PRIMARY KEY,
-    merchant_id INTEGER NOT NULL DEFAULT 0,
-    txn_id      INTEGER NOT NULL,
-    ledger_id   INTEGER,
-    account_id  TEXT    NOT NULL,
-    debit       REAL    NOT NULL DEFAULT 0,
-    credit      REAL    NOT NULL DEFAULT 0,
-    note        TEXT
+    entry_id            INTEGER PRIMARY KEY,
+    merchant_id         INTEGER NOT NULL DEFAULT 0,
+    txn_id              INTEGER NOT NULL,
+    ledger_id           INTEGER,
+    account_id          TEXT    NOT NULL,
+    debit               REAL    NOT NULL DEFAULT 0,
+    credit              REAL    NOT NULL DEFAULT 0,
+    note                TEXT,
+    cash_flow_category  TEXT    CHECK (cash_flow_category IN ('OPERATING', 'INVESTING', 'FINANCING'))
 );
 
 CREATE TABLE installments (

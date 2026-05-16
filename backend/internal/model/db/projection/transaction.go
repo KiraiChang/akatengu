@@ -11,14 +11,15 @@ import (
 //dbmap:sqlcdb=InsertJournalEntryParams
 //dbmap:sqlcdb=GetJournalEntriesRow
 type Entry struct {
-	MerchantID    int64           `db:"merchant_id" json:"merchant_id"`
-	EntryId       int64           `db:"entry_id" json:"entry_id"`
-	TransactionId int64           `db:"txn_id" json:"txn_id"`
-	LedgerId      *int64          `db:"ledger_id" json:"ledger_id"`
-	AccountId     string          `db:"account_id" json:"account_id"`
-	Debit         decimal.Decimal `db:"debit" json:"debit"`
-	Credit        decimal.Decimal `db:"credit" json:"credit"`
-	Note          *string         `db:"note" json:"note"`
+	MerchantID       int64                  `db:"merchant_id" json:"merchant_id"`
+	EntryId          int64                  `db:"entry_id" json:"entry_id"`
+	TransactionId    int64                  `db:"txn_id" json:"txn_id"`
+	LedgerId         *int64                 `db:"ledger_id" json:"ledger_id"`
+	AccountId        string                 `db:"account_id" json:"account_id"`
+	Debit            decimal.Decimal        `db:"debit" json:"debit"`
+	Credit           decimal.Decimal        `db:"credit" json:"credit"`
+	Note             *string                `db:"note" json:"note"`
+	CashFlowCategory enums.CashFlowCategory `db:"cash_flow_category" json:"cash_flow_category"`
 }
 
 //dbmap:sqlcdb=Transaction
