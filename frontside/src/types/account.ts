@@ -1,5 +1,14 @@
 export type CashFlowCategory = 'CASH' | 'OPERATING' | 'INVESTING' | 'FINANCING';
 
+export const CASH_FLOW_CATEGORIES: CashFlowCategory[] = ['CASH', 'OPERATING', 'INVESTING', 'FINANCING'];
+
+export const CASH_FLOW_CATEGORY_LABELS: Record<CashFlowCategory, string> = {
+  CASH:      '現金及約當現金',
+  OPERATING: '營業活動',
+  INVESTING: '投資活動',
+  FINANCING: '籌資活動',
+};
+
 export interface UpdateAccountRequest {
   account_id:          string;
   parent_id:           string | null;

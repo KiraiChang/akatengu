@@ -1,7 +1,8 @@
 <script lang="ts">
   import { getAccountAll, getAccountBalances, createAccount, updateAccount } from '../api/account';
   import AccountSelect from '../components/AccountSelect.svelte';
-  import type { Account, AccountBalance, CashFlowCategory, UpdateAccountRequest } from '../types/account';
+  import { CASH_FLOW_CATEGORIES, CASH_FLOW_CATEGORY_LABELS } from '../types/account';
+  import type { Account, AccountBalance, UpdateAccountRequest } from '../types/account';
 
   const ACCOUNT_TYPES = ['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'] as const;
   const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -15,14 +16,6 @@
   const NORMAL_BALANCE_LABELS: Record<string, string> = {
     DEBIT:  '借',
     CREDIT: '貸',
-  };
-
-  const CASH_FLOW_CATEGORIES: CashFlowCategory[] = ['CASH', 'OPERATING', 'INVESTING', 'FINANCING'];
-  const CASH_FLOW_CATEGORY_LABELS: Record<CashFlowCategory, string> = {
-    CASH:       '現金及約當現金',
-    OPERATING:  '營業活動',
-    INVESTING:  '投資活動',
-    FINANCING:  '籌資活動',
   };
 
   let accounts    = $state<Account[]>([]);

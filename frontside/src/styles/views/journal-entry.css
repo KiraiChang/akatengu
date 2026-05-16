@@ -181,6 +181,32 @@
   grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) 110px 110px 32px;
 }
 
+/* ── 6-column lines ──────────────────────── */
+
+.je-lines-header--6col {
+  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(100px, 0.7fr) 110px 110px 32px;
+}
+
+.je-line--6col {
+  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(100px, 0.7fr) 110px 110px 32px;
+}
+
+.je-cf-select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  padding: 6px 0;
+  font-size: 12px;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.je-cf-select:focus {
+  border-bottom-color: var(--color-accent, #b8860b);
+}
+
 /* ── Ledger account select ───────────────── */
 
 .je-ledger-select {
