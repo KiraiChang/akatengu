@@ -1,55 +1,87 @@
 # TODO
 
-## 現金流量表（Cash Flow Statement）
-
-### 系統自動產生分錄補上 cash_flow_category
-
-目前系統內部自動組裝的 `TransactionCreatedPayload` 未設定 `cash_flow_category`，
-導致以下流程產生的分錄不會出現在現金流量表的調整項中。
-後續應逐一評估各事件類型的適當分類，並補上對應的 category。
-
-- [ ] **分期付款（Installment）**
-  - `applyInstallmentCreated`：分期購入資產時，資產那一側的分錄通常屬於 INVESTING；應付帳款那一側不分類。
-  - `applyInstallmentPeriodPaid`：每期還款時，應付帳款 debit 那一側通常屬於 FINANCING（本金還款）。
-
-- [ ] **投資買賣（Investment）**
-  - `applyInvestmentBought`：買入投資時，投資科目那一側屬於 INVESTING。
-  - `applyInvestmentSold`：賣出投資時，投資科目那一側屬於 INVESTING。
-  - `applyDevidendReceived`：股利收入依 IFRS 可歸入 OPERATING 或 INVESTING，需依商業邏輯決定預設值。
-
-- [ ] **年度結帳（Period Annual Close / Reopen）**
-  - `applyPeriodAnnualClosed` / `applyPeriodAnnualReopened`：結帳分錄為科目間內部軋轉，不屬於現金流量表，應保持 `cash_flow_category = NULL`。
+計畫中的待辦事項。這裡記錄「知道要做但現在不做」的工作，包含功能擴充、技術債、效能優化與文件補充。
+已確認本次要做的需求請直接進入需求處理流程，不需先記錄於此。
 
 ---
 
-## 直接法現金流量表（Direct Method）
+## 狀態說明
 
-### 混合分類交易的精準拆分
+| 狀態 | 說明 |
+|------|------|
+| ⬜ Backlog | 計畫中，尚未排程 |
+| 🔵 Planned | 已排入近期開發計畫 |
+| 🟡 In Progress | 進行中 |
+| ✅ Done | 已完成 |
+| ❌ Cancelled | 取消，附理由 |
 
-目前 `queryDirectOperatingCash` 對含 INCOME/EXPENSE 分錄的交易，
-會將整筆 CASH 移動歸入 Operating，不按比例拆分。
+## 分類說明
 
-- [ ] **評估實際需求**：個人財務場景中是否真的會出現混合分類交易（如：同一筆 DR CASH 同時對應 INCOME + INVESTING）。
-- [ ] **若需精準拆分**：可在 `journal_entries` 加入「Operating 現金比例」欄位，或要求使用者在 create entry 時拆成兩筆交易。
-
-### 直接法明細行（Line Items）
-
-目前直接法只提供 CashReceived / CashPaid 兩個加總數字。
-前端若需要「收到薪資 3000 / 支付房租 1500」的明細清單，需另行設計。
-
-- [ ] 新增 `queryDirectOperatingCashItems`，依科目彙總 CASH 移動明細（帳戶名稱 + 金額），格式類似 `CashFlowSection.Items`。
+| 分類 | 說明 |
+|------|------|
+| `[Feature]` | 新功能或功能擴充 |
+| `[Refactor]` | 程式碼重構、架構調整 |
+| `[Perf]` | 效能優化 |
+| `[Test]` | 測試補充或改善 |
+| `[Docs]` | 文件補充 |
+| `[DX]` | 開發體驗改善（工具、腳本、設定） |
+| `[Security]` | 安全性強化 |
 
 ---
 
-### 其他應評估的科目類型
+## 待辦清單
 
-- [ ] **折舊費用（Depreciation）**
-  - 折舊為非現金費用，不涉及實際現金流出。在間接法現金流量表中，折舊通常列為「加回」調整項（OPERATING 正調整）。
-  - 若日後新增折舊分錄流程，對應的「累計折舊」科目那一側應標記 `OPERATING`。
+<!-- 新增時插入對應優先順序區塊，格式如下 -->
 
-- [ ] **攤銷（Amortization）**
-  - 邏輯同折舊，無形資產攤銷亦屬 OPERATING 非現金調整項。
+<!--
+- [ ] [分類] 標題 — 簡短說明，關聯：ISSUE-XXX 或 ADR-XXX（可省略）
+-->
 
-- [ ] **應收 / 應付帳款變動**
-  - 應收帳款增加 → OPERATING 負調整；減少（收回） → OPERATING 正調整。
-  - 需確認前端預設值規則是否與科目 `accounts.cash_flow_category` 對應正確。
+### 高優先（P1）
+
+> 影響核心功能正確性或穩定性，應在近期處理。
+
+### 中優先（P2）
+
+> 提升系統品質或開發效率，可排入下一個迭代。
+
+### 低優先（P3）
+
+> Nice-to-have，不影響現有功能，有空再做。
+
+**現金流量表（Cash Flow Statement）**
+
+- [ ] [Feature] 系統自動分錄補上 `cash_flow_category` — 目前系統內部自動組裝的 `TransactionCreatedPayload` 未設定分類，以下事件需逐一評估：
+  - **分期付款（Installment）**：`applyInstallmentCreated` 資產側通常 INVESTING；`applyInstallmentPeriodPaid` 應付帳款側通常 FINANCING
+  - **投資買賣（Investment）**：`applyInvestmentBought` / `applyInvestmentSold` 投資科目側屬 INVESTING；`applyDevidendReceived` 股利依 IFRS 可歸 OPERATING 或 INVESTING
+  - **年度結帳（Period Annual Close / Reopen）**：結帳分錄為科目間內部軋轉，應保持 `cash_flow_category = NULL`
+
+**直接法現金流量表（Direct Method）**
+
+- [ ] [Feature] 直接法混合分類交易精準拆分 — 目前 `queryDirectOperatingCash` 對含 INCOME/EXPENSE 分錄的交易整筆歸入 Operating，不按比例拆分。評估個人財務場景是否真實需要；若需可在 `journal_entries` 加入比例欄位，或要求使用者拆成兩筆交易
+- [ ] [Feature] 直接法明細行（Line Items）— 目前直接法只提供 CashReceived / CashPaid 兩個加總數字，若需「收到薪資 3000 / 支付房租 1500」明細清單，需新增 `queryDirectOperatingCashItems`（依科目彙總 CASH 移動明細）
+
+**其他應評估科目類型**
+
+- [ ] [Feature] 折舊費用（Depreciation）— 折舊為非現金費用，對應「累計折舊」科目那一側應標記 `OPERATING`（加回調整項）
+- [ ] [Feature] 攤銷（Amortization）— 邏輯同折舊，無形資產攤銷亦屬 OPERATING 非現金調整項
+- [ ] [Feature] 應收 / 應付帳款變動 — 確認前端預設值規則是否與科目 `accounts.cash_flow_category` 對應正確
+
+**技術優化**
+
+- [ ] [DX] `sqlc.yaml` nullable enum override 自動化 — 每新增一個 nullable enum 欄位都需手動宣告 override，考慮以 go:generate 腳本輔助生成（關聯：ADR-005）
+- [ ] [Perf] 股東權益變動表快照優化 — 目前 `queryEquityAccounts` 全表掃描 journal_entries，未使用 period_closings 快照。可參考 `queryBalanceSheetWithSnap` 的模式，在有快照時以快照基底 + delta 取代全量掃描（關聯：ADR-006）
+
+---
+
+## 完成紀錄
+
+<!-- 項目完成後從上方清單移至此區，保留歷史 -->
+
+- [x] [Feature] 科目維護 UI 支援設定 `cash_flow_category` — 目前只有 seed 預設值，使用者新增科目後無法從 UI 設定分類，導致該科目不出現在現金流量表
+- [x] [Test] 現金流量表 API 端對端測試 — 完成日期：2026-05-15（`report_test.go`，涵蓋期初/期末現金、三大活動分類金額、淨利計入營業小計、NetChange 驗證）
+- [x] [Test] 股東權益變動表 API 端對端測試 — 完成日期：2026-05-15（`report_test.go`，涵蓋期初/期間區分、彙總聚合、本期淨利虛擬行、total_* 含淨利合計）
+- [x] [Docs] 補充 `cash_flow_category` 各分類的科目對應說明 — 完成日期：2026-05-15（`doc/account/CASH_FLOW_GUIDE.md`，涵蓋四大分類科目列表、分類原則、新增科目決策流程）
+- [x] [Test] 現金流量表快照路徑測試 — 完成日期：2026-05-15（`report_test.go`，驗證月結快照存在時期初現金/期間調整仍依日期邊界正確篩選）
+- [x] [Test] 股東權益變動表快照路徑測試 — 完成日期：2026-05-15（`report_test.go`，驗證月結快照存在時 begin_balance 與 period_change 正確分離）
+- [x] [Feature] 現金流量表支援科目階層彙總 — 完成日期：2026-05-15（`queryCashFlowChanges` 加入 summary_cf UNION ALL；`CashFlowItem` 新增 `is_summary`；補充兩個階層聚合測試）

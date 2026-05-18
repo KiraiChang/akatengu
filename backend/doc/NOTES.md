@@ -1,6 +1,23 @@
-# NOTES
+# Notes
 
-臨時想法、Debug 筆記、架構草稿等非正式內容。
+臨時想法、Debug 筆記、Prompt 設計、架構草稿等非正式內容。不需完整，能讓未來的自己看懂即可。
+正式化後的架構決策請移至 `ARCHITECTURE.md`，已解決的問題請移至 `ISSUES.md`。
+
+---
+
+## 分類
+
+- `[IDEA]` 功能想法或改善方向
+- `[DEBUG]` 除錯過程與發現
+- `[PROMPT]` Prompt 設計與調整紀錄
+- `[DRAFT]` 架構草稿（待正式化）
+- `[REF]` 參考資料或外部連結
+
+---
+
+## 筆記
+
+<!-- 新增時在最上方插入，格式如下 -->
 
 ---
 
@@ -74,4 +91,146 @@ entry-based 設計下，`queryCashFlowChanges` 同時回傳葉節點與父科目
 一筆交易同時含不同 CF 分類（例：CR INCOME 600 + CR INVESTING 400 = DR CASH 1000），
 `queryDirectOperatingCash` 因偵測到 INCOME 分錄而將整筆歸入 OPERATING，
 現金流入 1000 全部算入 Operating，未按比例拆分。
-個人財務場景中此情況極少，視為可接受的邊界行為（見 ARCHITECTURE.md ADR-002）。
+個人財務場景中此情況極少，視為可接受的邊界行為（見 ARCHITECTURE.md ADR-008）。
+
+---
+
+### 2026-05-15 [REF] 報表整合測試的設計模式
+
+**基礎建設**
+
+所有報表整合測試位於 `internal/repos/query/report_test.go`，使用共用 helpers：
+- `testutil.NewTestDB(t)` — in-memory SQLite，自動執行 migration + seed accounts，測試結束自動關閉
+- `sumInsertTxn(t, db, txnID, date, debitAcct, creditAcct, amount)` — 插入一筆借貸對稱分錄
+- `sumInsertPeriod(t, db, id, type, start, end, closed)` — 建立月結紀錄（closed=true 代表已關帳）
+- `snapRepo.BulkInsert(ctx, merchantID, closingID)` — 建立餘額快照（用於快照路徑測試）
+- `testCtx()` — 帶 `merchant_id=1` 的 context，與 seed 資料一致
+
+**金額公式對照（避免測試寫錯方向）**
+
+| 科目類型 | 正常方向 | balance / amount | period_change（權益表）|
+|---------|---------|-----------------|----------------------|
+| ASSET   | DEBIT   | debit − credit  | credit − debit（CF用）|
+| LIABILITY | CREDIT | credit − debit  | —                    |
+| EQUITY  | CREDIT  | credit − debit  | credit − debit        |
+| INCOME  | CREDIT  | credit − debit  | —（損益表用）          |
+| EXPENSE | DEBIT   | debit − credit  | —（損益表用）          |
+
+**測試場景分類**
+
+每個查詢函式應涵蓋兩條路徑：
+1. **無快照路徑**（`ErrNoRows`）：直接全掃 journal_entries，用 `sumInsertTxn` 建立資料即可
+2. **有快照路徑**：先建立月結 `sumInsertPeriod` + `snapRepo.BulkInsert`，再加 delta 交易
+
+目前完成的測試覆蓋：
+- `GetBalanceSheet`：無快照（葉/彙總/has_child/depth）、有快照（含/不含 delta）→ 完整
+- `GetIncomeStatement`：無快照（葉/彙總）、有快照（月對齊/三月結 delta_pre 非空）→ 完整
+- `GetCashFlowStatement`：無快照（期初期末現金/三分類/淨利/NetChange）→ **快照路徑待補**
+- `GetEquityStatement`：無快照（期初期間區分/彙總/淨利虛擬行/total_* 合計）→ **快照路徑待補**
+
+---
+
+### 2026-05-15 [DRAFT] 股東權益變動表 SQL 設計要點
+
+**期初／期間金額用單次 CTE 分離**
+
+不用兩段查詢分別取期初和期間，而是在 `period_entries` CTE 中用 `CASE WHEN txn_date < start_date` 和 `CASE WHEN txn_date >= start_date AND txn_date <= end_date` 在同一次掃描分離兩段金額。這樣只需一次 journal_entries 掃描，leaf 和 summary 的計算都能直接 JOIN 這個 CTE。
+
+**彙總節點透過 account_closure 聚合葉節點 period_entries**
+
+summary 科目不直接 JOIN journal_entries（會重複計算），而是 JOIN `account_closure`（depth > 0）取得所有後裔葉節點，再 JOIN `period_entries` CTE 彙總。這與 `v_account_balances` view 的設計邏輯一致。
+
+**total_* 只累計 parent_id IS NULL 的頂層科目**
+
+若對所有科目（含彙總節點）累加，頂層彙總科目已包含子科目的值，再加子科目就會重複計算。只取 `parent_id IS NULL` 的科目代表真正的頂層彙總，等同於對整個權益類別取一次合計。
+
+**本期淨利複用 GetIncomeStatement**
+
+直接呼叫已有的 `GetIncomeStatement` 取得 `NetIncome`，而非重新寫一段 SQL。好處是：快照優化邏輯（`queryIncomeStatementWithSnaps`）自動繼承，不需在 equity 查詢中重新實作。
+
+---
+
+### 2026-05-15 [REF] 資料庫 Schema 新增欄位的完整步驟
+
+每次在既有資料表新增欄位時，**必須同步修改以下五個位置**，缺一不可：
+
+**1. Migration 檔案（`internal/database/migrations/`）**
+- 建立新的 migration 檔，命名格式：`YYYYMMDDNNN_描述.sql`
+- 使用 `+goose Up` / `+goose Down` 包覆 DDL（ALTER TABLE ADD COLUMN / DROP COLUMN）
+- SQLite 的 `ALTER TABLE DROP COLUMN` 需 SQLite 3.35+，確認環境版本
+
+**2. Schema 定義（`internal/database/schema.sql`）**
+- 在對應 CREATE TABLE 中加入欄位定義
+- 此檔案供 sqlc 靜態分析使用，不實際執行，必須與 migration 的最終狀態一致
+- 若有 CHECK constraint，在此一併宣告（sqlc 會讀取 constraint 資訊）
+
+**3. SQL 查詢（`internal/database/queries/*.sql`）**
+- SELECT 查詢：將新欄位加入 SELECT 清單（所有讀取該資料表的查詢）
+- INSERT 查詢：加入欄位名稱與對應的 `?` 佔位符
+- UPDATE 查詢：加入 `欄位名 = ?` 到 SET 子句
+
+**4. sqlc.yaml（若欄位需要型別映射）**
+- 若欄位型別需覆寫（如 enum、decimal），在 `overrides` 區段加入：
+  ```yaml
+  - column: "table_name.column_name"
+    go_type:
+      import: "套件路徑"
+      type: "型別名稱"
+  ```
+- nullable 欄位搭配 `emit_pointers_for_null_types: true` 會自動生成 `*型別`
+
+**5. Projection Model（`internal/model/db/projection/*.go`）**
+- 在對應的 struct 加入欄位定義（型別需與 sqlc.yaml override 一致）
+- dbmap-gen 會依 `//dbmap:sqlcdb=...` 注釋自動重新生成轉換函式
+
+**執行順序**
+```
+修改 migration → 修改 schema.sql → 修改 queries → 修改 sqlc.yaml（視需要）
+→ 修改 projection model → go generate ./... → go build ./... → go test ./...
+```
+
+**常見錯誤**
+- 只改了 schema.sql 沒改 migration：本機重建資料庫正常，但線上升級時欄位不存在
+- 只改了 migration 沒改 schema.sql：sqlc 看不到欄位，生成的程式碼缺少對應欄位
+- SELECT 查詢漏加新欄位：dbmap-gen 生成的 `FromRow` 函式取不到值，欄位永遠是零值
+
+---
+
+### 2026-05-15 [DEBUG] sqlc nullable enum 欄位的指標生成機制
+
+問題：想讓 `accounts.cash_flow_category`（nullable TEXT）在 sqlcdb 中生成 `*enums.CashFlowCategory` 而非 `*string`。
+
+關鍵發現：
+- `sqlc.yaml` 已設定 `emit_pointers_for_null_types: true`
+- 在 `overrides` 中宣告 `column: "accounts.cash_flow_category"` → `enums.CashFlowCategory`（不帶指標）
+- sqlc 會自動合併兩者，最終生成 `*enums.CashFlowCategory`
+- 不需要在 Go 端額外包裝 `EnumPtr` helper，也不需要 `NullEnum[T]`
+
+結論：只要 `emit_pointers_for_null_types: true` 且 override 宣告基底型別，sqlc 自動處理指標化。
+
+---
+
+### 2026-05-15 [DRAFT] 現金流量表間接法公式推導
+
+核心公式：非 CASH 科目的現金流量影響 = `period_credit − period_debit`
+
+推導：
+- 資產科目（借方正常）：資產增加 → 借方增加 → debit > credit → 結果為負 → 現金流出 ✓
+- 負債科目（貸方正常）：負債增加 → 貸方增加 → credit > debit → 結果為正 → 現金流入 ✓
+- 費用科目（借方正常）：費用發生 → debit 增加 → 結果為負 → 減少淨利，但本身代表非現金調整（如折舊）
+- 收入科目（貸方正常）：已在淨利中反映，OPERATING 分類的收入調整項同理適用
+
+此公式不需依科目類型分支處理，一條公式通吃所有分類，是 SQL 可以直接計算的形式。
+
+---
+
+### 2026-05-15 [IDEA] 現金流量表現有設計的已知限制
+
+1. 非現金交易（如折舊費用）目前無法從科目資料自動識別是否為非現金項目，需人工標記或未來加欄位
+2. `cash_flow_category` 目前只有 seed 預設值，若使用者新增科目沒有設定，該科目不會出現在報表中（靜默略過）
+3. 期初現金計算用 `start_date`（exclusive），期末用 `end_date`（inclusive），與 IncomeStatement 的慣例一致，但需注意日期邊界
+
+<!--
+### YYYY-MM-DD [分類] 標題
+內容（自由格式）
+-->

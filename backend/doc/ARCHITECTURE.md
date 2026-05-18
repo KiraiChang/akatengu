@@ -1,100 +1,225 @@
 # Architecture Decision Records (ADR)
 
----
-
-## ADR-001：現金流量表分類來源改為 journal_entries
-
-**日期：** 2026-05-16
-**狀態：** 已採用
-
-### 背景
-
-原始設計將 `cash_flow_category`（OPERATING / INVESTING / FINANCING）掛在 `accounts` 資料表，
-導致同一科目下的所有分錄必須歸入同一個現金流量類別，無法針對個別交易彈性分類。
-
-例如：股利支付在 IFRS 可歸入 OPERATING 或 FINANCING；
-應收帳款依交易性質可能是 OPERATING 或 INVESTING。
-
-### 決策
-
-將 OPERATING / INVESTING / FINANCING 分類移至 `journal_entries.cash_flow_category`（nullable）。
-每筆分錄可獨立設定，前端依所選科目的 `accounts.cash_flow_category` 作為預填預設值，使用者可自行修改。
-
-`accounts.cash_flow_category` 保留以下用途：
-- `CASH`：識別現金及約當現金科目，用於計算期初 / 期末現金餘額（`queryCashBefore` / `queryCashUpTo`）。
-- `OPERATING / INVESTING / FINANCING`：提供前端預設值參考，不再參與計算。
-
-### 取捨
-
-| 面向 | 舊設計（account-based） | 新設計（entry-based） |
-|------|------------------------|----------------------|
-| 彈性 | 低，同科目只能一個分類 | 高，每筆分錄獨立設定 |
-| 資料完整性 | account 設定後即生效 | 需前端 / pipeline 主動填入 |
-| 系統自動分錄 | 靠科目自動帶入 | 需逐案評估並補上（見 TODO.md） |
-| 查詢複雜度 | 較低 | 略高，需 GROUP BY (account_id, cash_flow_category) |
-
-### 不採用方案
-
-- **保留 account-based**：無法支援同一科目多分類需求，排除。
-- **同時維護兩個來源**：增加維護成本與資料一致性風險，排除。
+系統長期架構決策紀錄。每筆 ADR 記錄「為什麼這樣設計」，包含被拒絕的替代方案與取捨理由。
+**ADR 一旦建立不得刪除**，狀態變更時更新 `狀態` 欄位即可。
 
 ---
 
-## ADR-002：直接法現金流量表（Direct Method）架構設計
+## 狀態說明
 
-**日期：** 2026-05-16
-**狀態：** 已採用
+| 狀態 | 說明 |
+|------|------|
+| Proposed | 提案中，尚未決定 |
+| Accepted | 已採用 |
+| Deprecated | 曾採用，已廢棄（被新 ADR 取代） |
+| Superseded by ADR-XXX | 被指定 ADR 取代 |
 
-### 背景
+---
 
-間接法（Indirect Method）以本期淨利為起點加減調整項，適合財務人員分析，但不直觀。
-直接法（Direct Method）直接呈現實際現金收入（CashReceived）與現金支出（CashPaid），
-對個人財務使用者更容易理解，且兩法 Operating Total 數學恆等，可作為交互驗證手段。
+## 決策清單
 
-### 決策
+| 編號 | 標題 | 狀態 | 日期 |
+|------|------|------|------|
+| [ADR-001](#adr-001-事件溯源作為核心寫入架構) | 事件溯源作為核心寫入架構 | Accepted | 2024-01-01 |
+| [ADR-002](#adr-002-使用-sqlite-作為資料庫) | 使用 SQLite 作為資料庫 | Accepted | 2024-01-01 |
+| [ADR-003](#adr-003-金額欄位使用-decimaldecimal) | 金額欄位使用 decimal.Decimal | Accepted | 2024-01-01 |
+| [ADR-004](#adr-004-現金流量表採用間接法account-based) | 現金流量表採用間接法（account-based） | Superseded by ADR-007 | 2026-05-15 |
+| [ADR-005](#adr-005-可為空的-enum-欄位型別映射策略) | 可為空的 enum 欄位型別映射策略 | Accepted | 2026-05-15 |
+| [ADR-006](#adr-006-股東權益變動表的本期淨利補入策略) | 股東權益變動表的本期淨利補入策略 | Accepted | 2026-05-15 |
+| [ADR-007](#adr-007-現金流量表分類來源改為-journal_entriesentry-based) | 現金流量表分類來源改為 journal_entries（entry-based） | Accepted | 2026-05-16 |
+| [ADR-008](#adr-008-直接法現金流量表direct-method架構設計) | 直接法現金流量表（Direct Method）架構設計 | Accepted | 2026-05-16 |
 
-新增獨立的 `GetDirectCashFlowStatement` 方法，與間接法並存，提供不同使用情境：
-- 間接法（`/report/cash_flow_statement`）：財務分析、損益拆解
-- 直接法（`/report/cash_flow_statement_direct`）：現金收支明細、兩法驗證
+---
 
-#### Operating 活動現金計算方式
+## ADR-001 事件溯源作為核心寫入架構
 
-1. 識別「營業活動交易（operating_txns）」—— 取兩個條件的聯集：
-   - 含 `a.type IN ('INCOME','EXPENSE')` 分錄的交易（損益交易）
-   - 含 `je.cash_flow_category = 'OPERATING'` 分錄的交易（非損益的OPERATING調整）
-2. 對這些交易中所有 `accounts.cash_flow_category = 'CASH'` 的分錄加總借方與貸方：
-   - `CashReceived = SUM(debit)` （現金流入）
-   - `CashPaid = SUM(credit)` （現金流出，以正數呈現）
-   - `Total = CashReceived - CashPaid`
+- **狀態**：Accepted
+- **日期**：2024-01-01
+- **背景**：
+  會計系統需要完整的稽核軌跡，每一筆交易都必須可追溯，且支援重播（replay）以重建任意時間點的狀態。
+- **決策**：
+  採用事件溯源（Event Sourcing）模式，所有寫入操作透過 `EventStoreService.Append` 進入，事件不可變更，讀模型（Projection）由事件重播建立。
+- **替代方案**：
+  - CRUD 直寫：實作簡單，但無法保留完整歷史，稽核困難。
+- **後果**：
+  - 正面：完整稽核軌跡、可重播、讀寫分離清晰。
+  - 負面：寫入鏈路較長，新增事件類型需同步新增 Pipeline 與 Projection。
 
-#### Investing / Financing 重用間接法查詢
+---
 
-直接法的投資 / 籌資活動數字與間接法完全相同，因此：
-- 直接重用 `queryCashFlowChanges`，只跳過 OPERATING rows 不累入 Total
-- 無需另寫 SQL，維護成本最低
+## ADR-002 使用 SQLite 作為資料庫
 
-#### 期初 / 期末現金重用
+- **狀態**：Accepted
+- **日期**：2024-01-01
+- **背景**：
+  本系統為個人/小團隊財務管理工具，部署環境為單機，不需要分散式資料庫。
+- **決策**：
+  採用 SQLite（WAL 模式，單一連線），透過 `golang-migrate` 管理 schema 版本。
+- **替代方案**：
+  - PostgreSQL：功能強大但需額外部署，對單機場景過重。
+- **後果**：
+  - 正面：零部署成本、檔案即資料庫、WAL 模式下讀寫效能尚可。
+  - 負面：不支援水平擴展，並發寫入受單一連線限制（`MaxOpenConns=1`）。
 
-`queryCashBefore` / `queryCashUpTo` 兩個 CASH 科目聚合查詢被兩法共用，無需複製。
+---
 
-### 取捨
+## ADR-003 金額欄位使用 decimal.Decimal
 
-| 面向 | 直接法 | 間接法 |
-|------|--------|--------|
-| 使用者易讀性 | 高（顯示實際現金流） | 中（需理解調整項意義） |
-| 查詢複雜度 | 略高（operating_txns 兩層 CTE） | 低（直接聚合 OPERATING entries） |
-| 兩法可互相驗證 | ✓ Operating Total 恆等 | ✓ |
-| 混合分類交易精準度 | 邊界行為（整筆歸入 OPERATING） | 精確（按 entry 分類） |
+- **狀態**：Accepted
+- **日期**：2024-01-01
+- **背景**：
+  浮點數（float64）在金融計算中會產生精度誤差，不適合儲存金額。
+- **決策**：
+  所有金額欄位一律使用 `github.com/shopspring/decimal` 的 `Decimal` 型別，並在 `sqlc.yaml` 的 `overrides` 中宣告型別映射。
+- **替代方案**：
+  - float64：有精度問題，拒絕。
+  - int64（以分為單位）：可行但需處理幣別小數位數，後續擴充較複雜。
+- **後果**：
+  - 正面：精確的十進位運算，符合會計需求。
+  - 負面：aggregate 函數結果（SUM、COALESCE）需額外建立 View 才能正確映射型別。
 
-### 已知限制與可接受邊界行為
+---
 
-一筆交易同時含不同 CF 分類的分錄（如：CR INCOME 600 + CR INVESTING 400 = DR CASH 1000），
-`queryDirectOperatingCash` 會將整筆交易歸入 OPERATING（因偵測到 INCOME 分錄），
-現金流入 1000 全算入 CashReceived 而非按比例拆分 600/400。
+## ADR-004 現金流量表採用間接法（account-based）
 
-**判斷**：個人財務情境中幾乎不會出現此類混合交易，視為可接受的邊界行為，不增加查詢複雜度處理。
+- **狀態**：Superseded by ADR-007
+- **日期**：2026-05-15
+- **背景**：
+  需要提供現金流量表報表，有間接法（Indirect Method）和直接法（Direct Method）兩種實作方式。間接法從淨利出發，調整非現金科目的期間變動；直接法直接列示現金收付明細。
+- **決策**：
+  採用間接法。計算公式統一以 `期間 credit - 期間 debit` 表達所有非 CASH 科目的現金流量影響。此公式對借方正常科目（資產）與貸方正常科目（負債、權益）均語義正確：資產增加（借方增加）→ 現金流出為負；負債增加（貸方增加）→ 融資流入為正。
+- **資料設計**：
+  在 `accounts` 資料表新增 `cash_flow_category TEXT CHECK (... IN ('CASH','OPERATING','INVESTING','FINANCING'))` 欄位。`CASH` 類別用於識別現金科目（期初/期末餘額），其餘三類用於分組調整項目。查詢端使用 `sqlx` 動態 SQL（非 sqlc），原因是篩選條件需在執行期依分類動態組裝。
+- **替代方案**：
+  - 直接法：需追蹤每筆交易的現金收付意圖，現有 journal_entries 資料結構無法直接支援，需大幅改動寫入模型。
+- **後果**：
+  - 正面：公式簡單、與現有 journal_entries 資料直接對應、不需改動寫入路徑。
+  - 負面：前端收到的是調整項目清單，需自行判斷呈現格式（設計上有意為之，以保持後端彈性）。
+- **取代原因**：
+  account-based 設計導致同一科目下所有分錄必須歸入同一現金流量類別，無法針對個別交易彈性分類。由 ADR-007（entry-based）取代。
 
-### 不採用方案
+---
 
-- **改寫間接法 SQL 同時輸出直接法欄位**：兩個呈現目的不同，合併會讓查詢難以維護，排除。
-- **在 Service 層從間接法結果換算直接法**：跳過了「實際現金移動」的查詢，無法正確還原直接法，排除。
+## ADR-005 可為空的 enum 欄位型別映射策略
+
+- **狀態**：Accepted
+- **日期**：2026-05-15
+- **背景**：
+  SQLite 的 nullable TEXT 欄位（如 `accounts.cash_flow_category`）在 sqlc 生成時會產生 `*string`，但系統的 Projection Model 應使用型別安全的 `*enums.CashFlowCategory`，否則需在 Projection Service 手動進行字串轉換，且 dbmap-gen 無法自動映射。
+- **決策**：
+  在 `sqlc.yaml` 的 `overrides` 區段宣告型別覆寫（`column: "accounts.cash_flow_category"` → `enums.CashFlowCategory`）。搭配已設定的 `emit_pointers_for_null_types: true`，sqlc 自動生成 `*enums.CashFlowCategory`。Projection Model 跟著使用相同指標型別，dbmap-gen 即可直接映射，Projection Service 不需任何轉換邏輯。
+- **替代方案**：
+  - Projection Model 保留 `*string`：需在 Service 層手動轉換（`s := p.CashFlowCategory.String(); cfCat = &s`），且 dbmap-gen 無法感知 enum 語義。
+  - 使用 `NullEnum[T]`：適合明確需要區分「NULL」與「零值」的場景，但此處指標語義已足夠。
+- **後果**：
+  - 正面：型別安全貫穿 DB → sqlcdb → Projection Model → Payload 全鏈路，Service 層零轉換邏輯。
+  - 負面：每新增一個 nullable enum 欄位都需在 `sqlc.yaml` 手動宣告 override，維護略繁。
+
+---
+
+## ADR-006 股東權益變動表的本期淨利補入策略
+
+- **狀態**：Accepted
+- **日期**：2026-05-15
+- **背景**：
+  股東權益變動表需要顯示期間權益的完整變動，包含「本期淨利」對權益的貢獻。問題在於：若當期帳未關帳，損益類科目（INCOME/EXPENSE）的餘額尚未結轉至保留盈餘（EQUITY 科目），單純查詢 EQUITY 科目的期間變動會低估實際權益增減。
+- **決策**：
+  採用後端自動補入策略（Direction B）：後端呼叫現有的 `GetIncomeStatement` 計算本期淨利，以 `is_virtual: true` 的虛擬行附加在權益科目清單尾端，同時將淨利加入 `total_period_change` 與 `total_end_balance`。各個真實 EQUITY 科目的 `end_balance` 保持原始帳面值不修改，讓前端能清楚區分已關帳的真實餘額與虛擬的本期損益貢獻。
+- **替代方案**：
+  - Direction A（前端自行合併）：後端只回傳 EQUITY 科目原始資料，前端另呼叫損益表 API 再合併。優點是後端邏輯單純；缺點是要求前端具備會計知識，且需多一次 API 呼叫。
+- **後果**：
+  - 正面：API 單次呼叫即可取得完整的股東權益變動表，前端零負擔。
+  - 負面：`GetIncomeStatement` 被 `GetEquityStatement` 隱式依賴；若未來損益表計算邏輯變動，權益表的淨利數字也會連動改變（屬於正確行為，但需留意）。
+
+---
+
+## ADR-007 現金流量表分類來源改為 journal_entries（entry-based）
+
+- **狀態**：Accepted
+- **日期**：2026-05-16
+- **背景**：
+  原始設計（ADR-004）將 `cash_flow_category`（OPERATING / INVESTING / FINANCING）掛在 `accounts` 資料表，
+  導致同一科目下的所有分錄必須歸入同一個現金流量類別，無法針對個別交易彈性分類。
+
+  例如：股利支付在 IFRS 可歸入 OPERATING 或 FINANCING；
+  應收帳款依交易性質可能是 OPERATING 或 INVESTING。
+- **決策**：
+  將 OPERATING / INVESTING / FINANCING 分類移至 `journal_entries.cash_flow_category`（nullable）。
+  每筆分錄可獨立設定，前端依所選科目的 `accounts.cash_flow_category` 作為預填預設值，使用者可自行修改。
+
+  `accounts.cash_flow_category` 保留以下用途：
+  - `CASH`：識別現金及約當現金科目，用於計算期初 / 期末現金餘額（`queryCashBefore` / `queryCashUpTo`）。
+  - `OPERATING / INVESTING / FINANCING`：提供前端預設值參考，不再參與計算。
+- **替代方案**：
+  - 保留 account-based：無法支援同一科目多分類需求，排除。
+  - 同時維護兩個來源：增加維護成本與資料一致性風險，排除。
+- **後果**：
+
+  | 面向 | 舊設計（account-based） | 新設計（entry-based） |
+  |------|------------------------|----------------------|
+  | 彈性 | 低，同科目只能一個分類 | 高，每筆分錄獨立設定 |
+  | 資料完整性 | account 設定後即生效 | 需前端 / pipeline 主動填入 |
+  | 系統自動分錄 | 靠科目自動帶入 | 需逐案評估並補上（見 TODO.md） |
+  | 查詢複雜度 | 較低 | 略高，需 GROUP BY (account_id, cash_flow_category) |
+
+---
+
+## ADR-008 直接法現金流量表（Direct Method）架構設計
+
+- **狀態**：Accepted
+- **日期**：2026-05-16
+- **背景**：
+  間接法（Indirect Method）以本期淨利為起點加減調整項，適合財務人員分析，但不直觀。
+  直接法（Direct Method）直接呈現實際現金收入（CashReceived）與現金支出（CashPaid），
+  對個人財務使用者更容易理解，且兩法 Operating Total 數學恆等，可作為交互驗證手段。
+- **決策**：
+  新增獨立的 `GetDirectCashFlowStatement` 方法，與間接法並存，提供不同使用情境：
+  - 間接法（`/report/cash_flow_statement`）：財務分析、損益拆解
+  - 直接法（`/report/cash_flow_statement_direct`）：現金收支明細、兩法驗證
+
+  **Operating 活動現金計算方式**：
+  1. 識別「營業活動交易（operating_txns）」—— 取兩個條件的聯集：
+     - 含 `a.type IN ('INCOME','EXPENSE')` 分錄的交易（損益交易）
+     - 含 `je.cash_flow_category = 'OPERATING'` 分錄的交易（非損益的OPERATING調整）
+  2. 對這些交易中所有 `accounts.cash_flow_category = 'CASH'` 的分錄加總借方與貸方：
+     - `CashReceived = SUM(debit)` （現金流入）
+     - `CashPaid = SUM(credit)` （現金流出，以正數呈現）
+     - `Total = CashReceived - CashPaid`
+
+  **Investing / Financing 重用間接法查詢**：直接重用 `queryCashFlowChanges`，只跳過 OPERATING rows 不累入 Total。
+
+  **期初 / 期末現金重用**：`queryCashBefore` / `queryCashUpTo` 被兩法共用。
+- **替代方案**：
+  - 改寫間接法 SQL 同時輸出直接法欄位：兩個呈現目的不同，合併會讓查詢難以維護，排除。
+  - 在 Service 層從間接法結果換算直接法：跳過了「實際現金移動」的查詢，無法正確還原直接法，排除。
+- **後果**：
+
+  | 面向 | 直接法 | 間接法 |
+  |------|--------|--------|
+  | 使用者易讀性 | 高（顯示實際現金流） | 中（需理解調整項意義） |
+  | 查詢複雜度 | 略高（operating_txns 兩層 CTE） | 低（直接聚合 OPERATING entries） |
+  | 兩法可互相驗證 | ✓ Operating Total 恆等 | ✓ |
+  | 混合分類交易精準度 | 邊界行為（整筆歸入 OPERATING） | 精確（按 entry 分類） |
+
+  **已知限制**：一筆交易同時含不同 CF 分類的分錄（如：CR INCOME 600 + CR INVESTING 400 = DR CASH 1000），`queryDirectOperatingCash` 會將整筆交易歸入 OPERATING，現金流入 1000 全算入 CashReceived 而非按比例拆分。個人財務情境中幾乎不會出現此類混合交易，視為可接受的邊界行為。
+
+---
+
+<!-- 新增 ADR 時複製以下範本 -->
+
+<!--
+## ADR-XXX 標題
+
+- **狀態**：Proposed
+- **日期**：YYYY-MM-DD
+- **背景**：
+  為什麼需要做這個決策？當時面臨什麼問題或限制？
+- **決策**：
+  最終採用的方案是什麼？
+- **替代方案**：
+  - 方案 A：為何不採用？
+  - 方案 B：為何不採用？
+- **後果**：
+  - 正面：這個決策帶來哪些好處？
+  - 負面：這個決策引入哪些代價或限制？
+-->
