@@ -19,6 +19,22 @@
 
 <!-- 新增問題時複製以下範本，依日期降冪排列 -->
 
+### [ISSUE-004] Svelte 唯讀展示用 `<label>` 未關聯控制項導致 a11y 警告
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-19
+- **嚴重程度**：Low
+- **位置**：`src/views/Accounts.svelte`、`src/views/Ledger.svelte`、`src/views/Investment.svelte`
+- **描述**：
+  在 modal 內新增唯讀審計欄位（更新者 / 更新時間）時，`<label>` 未加 `for` 屬性，`npm run check` 回報 `a11y_label_has_associated_control` 警告，共 6 筆。
+- **影響範圍**：
+  僅警告，不影響功能，但 `npm run check` 輸出有雜訊。
+- **解決方向**：
+  即使是唯讀 `<input>`，仍需 `for` + `id` pair；或改用 `<p>` 等非互動元素搭配 `<span>` 顯示，完全不需 label。
+- **解決紀錄**：
+  為每個唯讀欄位補上靜態 `id`（`f-acct-updated-by`、`f-ldgr-updated-by`、`f-inv-updated-by` 等），`<label for="...">` 對應。警告全部消除，`npm run check` 回報 0 errors 0 warnings。
+
+---
+
 ### [ISSUE-003] `npm run lint` 執行失敗（eslint: command not found）
 - **狀態**：🟢 Resolved
 - **日期**：2026-05-16

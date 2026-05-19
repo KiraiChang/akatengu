@@ -27,6 +27,7 @@
 | ADR-005 | 財務報表視圖拆分為獨立元件並建立共用工具層 | Accepted | 2026-05-15 |
 | ADR-006 | Svelte 5 衍生 UI 狀態一律使用 `$derived` 而非 `$effect` | Accepted | 2026-05-15 |
 | ADR-007 | 後端 `decimal.Decimal` 對應前端 `string`，顯示層才轉數字 | Accepted | 2026-05-15 |
+| ADR-008 | 所有 Projection 模型一律加入 `updated_by` / `updated_at` 審計欄位 | Accepted | 2026-05-19 |
 
 ---
 
@@ -162,6 +163,29 @@
 - **後果**：
   - 正面：`$derived` 語意清晰（「這個值由那些 state 決定」）；不可能發生因寫入觸發自身的迴圈；程式碼量更少。
   - 負面：若衍生計算涉及非同步操作，`$derived` 無法直接使用，仍需 `$effect`。
+
+---
+
+---
+
+## ADR-008 所有 Projection 模型一律加入 `updated_by` / `updated_at` 審計欄位
+
+- **狀態**：Accepted
+- **日期**：2026-05-19
+- **背景**：
+  後端 `internal/model/db/projection/` 的所有查詢用 struct（Account、LedgerAccount、Transaction、Entry、Installment、InstallmentPayment、Investment、InvestmentLot、InvestmentMovement、PeriodClosing）補入了 `updated_at *string` 與 `updated_by *string`。前端需決定是否在 UI 顯示這兩個欄位，以及顯示的位置與層級。
+- **決策**：
+  - **TypeScript interface**：所有對應的 interface 補上 `updated_by: string | null` 與 `updated_at: string | null`（nullable，對應 Go `*string`）。
+  - **列表**（HTML table）：加入 `更新者` / `更新時間` 欄（`hidden md:table-cell`，桌面才顯示）。
+  - **子表格**（`grid-template-columns` 自訂）：在 CSS 加寬度，並在 HTML header + row 各補 `<span>`。
+  - **Detail / 展開面板**：能對應到資料列的地方直接顯示；無獨立 detail modal 的子表格（Entry、Payment、Lot、Movement）只在 grid row 顯示。
+  - **Edit modal**：唯讀展示（readonly input），放在備註欄下方，僅在 `mode === 'edit'` 時顯示。
+- **替代方案**：
+  - **只在 types 補欄位，不在 UI 顯示**：型別安全，但損失了審計可見性，使用者無法從 UI 確認最後修改者。
+  - **獨立「歷史紀錄」展開面板**：更完整，但目前後端未提供歷史查詢 API，超出本次範圍。
+- **後果**：
+  - 正面：使用者可在列表與 modal 直接看到最後更新者與時間，提升可稽核性。
+  - 負面：每個自訂 grid 子表格需同步修改 CSS 與 HTML 兩處（已記錄於 NOTES.md）；新增唯讀 label 需搭配 `for`/`id`，否則觸發 a11y 警告（見 ISSUE-004）。
 
 ---
 

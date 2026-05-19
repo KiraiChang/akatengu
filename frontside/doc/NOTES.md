@@ -19,6 +19,47 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-19｜Projection audit 欄位補充模式
+
+#### 唯讀審計欄（更新者 / 更新時間）顯示模式
+
+Modal 內顯示唯讀審計資料的標準寫法：
+
+```svelte
+{#if mode === 'edit'}
+  {@const item = items.find(i => i.id === editId)}
+  {#if item}
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="f-xxx-updated-by">更新者</label>
+        <input id="f-xxx-updated-by" class="form-input" type="text"
+               value={item.updated_by ?? '—'} readonly
+               style="background:#f5f0e8;cursor:default;" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="f-xxx-updated-at">更新時間</label>
+        <input id="f-xxx-updated-at" class="form-input" type="text"
+               value={item.updated_at ?? '—'} readonly
+               style="background:#f5f0e8;cursor:default;" />
+      </div>
+    </div>
+  {/if}
+{/if}
+```
+
+注意：`<label>` 一定要有 `for`，對應 `<input id="..."`，否則 `npm run check` 報 `a11y_label_has_associated_control`（見 ISSUE-004）。
+
+#### 自訂 grid 子表格新增欄時的同步清單
+
+凡是使用 `grid-template-columns` 的子表格（`inv-lot-row`、`inv-movement-row`、`inst-payment-item` 等），新增欄位需同步修改兩處：
+
+1. **CSS** — `src/styles/views/<檔案>.css`：在 header + row 的 `grid-template-columns` 加上對應寬度
+2. **HTML** — view 檔案的 header `<span>` 與 row `<span>` 各補一個
+
+若只改其中一處，欄位會錯位或多出空白欄，視覺上難以察覺。
+
+---
+
 ### 後端合作慣例
 
 #### 新增後端欄位時的前端 Checklist
