@@ -16,6 +16,7 @@ type InsertEventParams struct {
 	EventType        event_types.EventType
 	Payload          json.RawMessage
 	Metadata         json.RawMessage
+	UpdatedBy        *string
 }
 
 type UnitOfWork interface {

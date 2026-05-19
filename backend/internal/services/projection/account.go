@@ -41,6 +41,7 @@ func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx ev
 		return err
 	}
 
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.AccountRepo.CreateAccount(ctx, projection.Account{
 		MerchantID:       ct.MerchantID,
 		AccountId:        p.AccountId,
@@ -53,6 +54,7 @@ func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx ev
 		IsActive:         p.IsActive,
 		Note:             p.Note,
 		CashFlowCategory: p.CashFlowCategory,
+		UpdatedBy:        updatedBy,
 	}); err != nil {
 		return err
 	}
@@ -66,6 +68,7 @@ func (s *AccountProjectionService) applyLedgerCreate(ctx context.Context, tx eve
 		return err
 	}
 
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.AccountRepo.CreateLedgerAccount(ctx, projection.LedgerAccount{
 		MerchantID:  ct.MerchantID,
 		AccountId:   p.AccountId,
@@ -79,6 +82,7 @@ func (s *AccountProjectionService) applyLedgerCreate(ctx context.Context, tx eve
 		DueDay:      p.DueDay,
 		IsActive:    p.IsActive,
 		Note:        p.Note,
+		UpdatedBy:   updatedBy,
 	}); err != nil {
 		return err
 	}
@@ -92,6 +96,7 @@ func (s *AccountProjectionService) applyAccountUpdated(ctx context.Context, tx e
 		return err
 	}
 
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.AccountRepo.UpdateAccount(ctx, projection.Account{
 		MerchantID:       ct.MerchantID,
 		AccountId:        p.AccountId,
@@ -105,6 +110,7 @@ func (s *AccountProjectionService) applyAccountUpdated(ctx context.Context, tx e
 		Note:             p.Note,
 		Version:          p.Version,
 		CashFlowCategory: p.CashFlowCategory,
+		UpdatedBy:        updatedBy,
 	}); err != nil {
 		return err
 	}
@@ -118,6 +124,7 @@ func (s *AccountProjectionService) applyLedgerUpdated(ctx context.Context, tx ev
 		return err
 	}
 
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.AccountRepo.UpdateLedgerAccount(ctx, projection.LedgerAccount{
 		MerchantID:  ct.MerchantID,
 		LedgerId:    p.LedgerId,
@@ -133,6 +140,7 @@ func (s *AccountProjectionService) applyLedgerUpdated(ctx context.Context, tx ev
 		IsActive:    p.IsActive,
 		Note:        p.Note,
 		Version:     p.Version,
+		UpdatedBy:   updatedBy,
 	}); err != nil {
 		return err
 	}

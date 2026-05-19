@@ -440,6 +440,8 @@
         <span class="num">合計</span>
         <span>繳費日</span>
         <span>狀態</span>
+        <span>更新者</span>
+        <span>更新時間</span>
         <span></span>
       </div>
       {#each payment.items as p (p.payment_id)}
@@ -455,6 +457,8 @@
           <span>
             <span class="badge {PAY_STATUS_CSS[p.status]}">{PAY_STATUS_LABELS[p.status]}</span>
           </span>
+          <span>{p.updated_by ?? '—'}</span>
+          <span>{p.updated_at ?? '—'}</span>
           <span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
             {#if p.status === 'PENDING'}
               <button
@@ -516,14 +520,16 @@
           <th class="inst-amount">每期金額</th>
           <th>開始日</th>
           <th>利息</th>
+          <th class="hidden md:table-cell">更新者</th>
+          <th class="hidden md:table-cell">更新時間</th>
           <th>狀態</th>
         </tr>
       </thead>
       <tbody>
         {#if isLoading && installments.length === 0}
-          <tr><td colspan="8" class="table-empty">載入中...</td></tr>
+          <tr><td colspan="10" class="table-empty">載入中...</td></tr>
         {:else if installments.length === 0}
-          <tr><td colspan="8" class="table-empty">無資料</td></tr>
+          <tr><td colspan="10" class="table-empty">無資料</td></tr>
         {:else}
           {#each installments as inst (inst.installment_id)}
             {@const isExpanded = expandedId === inst.installment_id}
@@ -551,6 +557,8 @@
               <td class="inst-amount mono">{fmtAmt(inst.amount_per_period)}</td>
               <td class="mono">{inst.start_date}</td>
               <td>{interestLabel(inst)}</td>
+              <td class="hidden md:table-cell">{inst.updated_by ?? '—'}</td>
+              <td class="hidden md:table-cell">{inst.updated_at ?? '—'}</td>
               <td onclick={(e) => e.stopPropagation()}>
                 <span class="badge {STATUS_CSS[inst.status]}">{STATUS_LABELS[inst.status]}</span>
                 {#if inst.transaction_id !== null}
@@ -567,7 +575,7 @@
 
             {#if isInstEntryExpanded}
               <tr>
-                <td colspan="8" class="inst-payment-cell">
+                <td colspan="10" class="inst-payment-cell">
                   <div class="txn-entries">
                     <TxnEntryPanel
                       rows={instEntryState?.rows ?? []}
@@ -583,7 +591,7 @@
 
             {#if isExpanded}
               <tr class="inst-payment-row">
-                <td colspan="8" class="inst-payment-cell">
+                <td colspan="10" class="inst-payment-cell">
                   {@render instPaymentContent(inst)}
                 </td>
               </tr>

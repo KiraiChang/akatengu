@@ -14,6 +14,7 @@ type Context[S any, P payload.Payload] struct {
 
 type Result struct {
 	MerchantID int64
+	UpdatedBy  string
 	Payload    payload.Payload
 	State      any
 	Event      db.EventStore

@@ -103,6 +103,29 @@
   - `payload.TransactionEntryPayload.CashFlowCategory *enums.CashFlowCategory`（nil → 轉換為零值再寫入）
   在 `applyTransaction` 做 nil check 後解參考，確保 payload nil 正確轉為 DB NULL。
 
+### [ISSUE-005] sqlc 不讀取 migration 檔，新增欄位必須同步更新 schema.sql
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-19
+- **嚴重程度**：Medium
+- **位置**：`internal/database/schema.sql`
+- **描述**：
+  新增 `updated_by` / `updated_at` 欄位時，只在 `migrations/` 的 `ALTER TABLE` 語句中加入欄位，
+  並更新了 `.sql` 查詢檔（INSERT / UPDATE / SELECT）。
+  但執行 `go generate ./...`（sqlc generate）後，生成的 Params struct 仍不含 `UpdatedBy` 欄位，
+  導致 `go build` 報 `unknown field UpdatedBy in struct literal` 錯誤。
+- **根本原因**：
+  sqlc 以 `schema.sql` 作為唯一的資料庫結構定義來源，**不讀取** `migrations/` 目錄下的 `ALTER TABLE`。
+  `ALTER TABLE` 僅供 goose 在 runtime 執行，sqlc 看不到這些變更。
+- **影響範圍**：
+  所有透過 sqlc 生成的 Params / Row struct，若欄位未在 `schema.sql` 中定義，都不會出現在生成的 Go 程式碼中。
+- **解決紀錄**：
+  在 `schema.sql` 的對應 `CREATE TABLE` 語句中，同步加入 `updated_by TEXT` 與 `updated_at TEXT`，
+  重新執行 `go generate ./...` 後問題解除。
+  **結論：新增欄位時，`schema.sql` 與 migration 檔必須同時更新。**
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open

@@ -643,6 +643,8 @@
           <span class="num">總成本</span>
           <span class="num">剩餘數量</span>
           <span class="num">未實現單位公允(TWD)</span>
+          <span>更新者</span>
+          <span>更新時間</span>
           <span>狀態</span>
         </div>
         {#each holding.lots as lot (lot.lot_id)}
@@ -676,6 +678,8 @@
             <span class="num mono">{fmtDec(lot.total_cost)}</span>
             <span class="num mono">{fmtDec(lot.remaining_qty)}</span>
             <span class="num mono">{fmtDec(lot.unrealized_unit_twd)}</span>
+            <span>{lot.updated_by ?? '—'}</span>
+            <span>{lot.updated_at ?? '—'}</span>
             <span>
               <span class="badge inv-lot-{lot.status.toLowerCase()}">{LOT_STATUS_LABELS[lot.status]}</span>
             </span>
@@ -793,6 +797,8 @@
           <span class="num">手續費</span>
           <span class="num">稅金</span>
           <span class="num">資本利得</span>
+          <span>更新者</span>
+          <span>更新時間</span>
           <span></span>
         </div>
         {#each movState.items as mov (mov.movement_id)}
@@ -810,6 +816,8 @@
             <span class="num mono">{fmtDec(mov.fee)}</span>
             <span class="num mono">{fmtDec(mov.tax)}</span>
             <span class="num mono">{mov.realized_gain !== null ? fmtDec(mov.realized_gain) : '—'}</span>
+            <span>{mov.updated_by ?? '—'}</span>
+            <span>{mov.updated_at ?? '—'}</span>
             <span>
               {#if mov.txn_id !== null}
                 <button
@@ -866,15 +874,17 @@
           <th>關聯科目</th>
           <th>計價方法</th>
           <th>IFRS 分類</th>
+          <th class="hidden md:table-cell">更新者</th>
+          <th class="hidden md:table-cell">更新時間</th>
           <th>狀態</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {#if isLoading && investments.length === 0}
-          <tr><td colspan="9" class="table-empty">載入中...</td></tr>
+          <tr><td colspan="11" class="table-empty">載入中...</td></tr>
         {:else if investments.length === 0}
-          <tr><td colspan="9" class="table-empty">無資料</td></tr>
+          <tr><td colspan="11" class="table-empty">無資料</td></tr>
         {:else}
           {#each investments as inv (inv.investment_id)}
             {@const isExpanded = expandedId === inv.investment_id}
@@ -901,6 +911,8 @@
                   {IFRS_CATEGORY_LABELS[inv.ifrs_category]}
                 </span>
               </td>
+              <td class="hidden md:table-cell">{inv.updated_by ?? '—'}</td>
+              <td class="hidden md:table-cell">{inv.updated_at ?? '—'}</td>
               <td>
                 {#if inv.is_active}
                   <span class="badge approved">持有中</span>
@@ -917,7 +929,7 @@
 
             {#if isExpanded}
               <tr class="inv-holding-row">
-                <td colspan="9" class="inv-holding-cell">
+                <td colspan="11" class="inv-holding-cell">
                   {@render invHoldingInner(inv)}
                 </td>
               </tr>
@@ -1110,6 +1122,22 @@
             啟用（持有中）
           </label>
         </div>
+
+        {#if mode === 'edit'}
+          {@const inv = investments.find(i => i.investment_id === editId)}
+          {#if inv}
+            <div class="form-row" style="margin-top:8px;">
+              <div class="form-group">
+                <label class="form-label" for="f-inv-updated-by">更新者</label>
+                <input id="f-inv-updated-by" class="form-input" type="text" value={inv.updated_by ?? '—'} readonly style="background:#f5f0e8;cursor:default;" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="f-inv-updated-at">更新時間</label>
+                <input id="f-inv-updated-at" class="form-input" type="text" value={inv.updated_at ?? '—'} readonly style="background:#f5f0e8;cursor:default;" />
+              </div>
+            </div>
+          {/if}
+        {/if}
 
         <div class="modal-footer" style="padding:0;margin-top:8px;">
           <button type="button" class="btn-ghost" onclick={closeModal} disabled={isSaving}>取消</button>

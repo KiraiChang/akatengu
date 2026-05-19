@@ -1,18 +1,18 @@
 -- name: InsertEvent :execlastid
 INSERT INTO event_store
-    (aggregate_type, aggregate_id, aggregate_version, event_type, payload, metadata)
-VALUES (?, ?, ?, ?, ?, ?);
+    (aggregate_type, aggregate_id, aggregate_version, event_type, payload, metadata, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetEventsByAggregate :many
 SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
-       aggregate_version, event_type, payload, metadata
+       aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
 WHERE aggregate_type = ? AND aggregate_id = ?
 ORDER BY aggregate_version;
 
 -- name: GetEventsAfterVersion :many
 SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
-       aggregate_version, event_type, payload, metadata
+       aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
 WHERE aggregate_type    = ?
   AND aggregate_id      = ?
@@ -21,21 +21,21 @@ ORDER BY aggregate_version;
 
 -- name: GetEventsAfterEventID :many
 SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
-       aggregate_version, event_type, payload, metadata
+       aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
 WHERE event_id > ?
 ORDER BY event_id;
 
 -- name: GetEventsAfterEventIDByType :many
 SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
-       aggregate_version, event_type, payload, metadata
+       aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
 WHERE event_id > ? AND aggregate_type = ?
 ORDER BY event_id;
 
 -- name: GetEventsAfterEventIDLimited :many
 SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
-       aggregate_version, event_type, payload, metadata
+       aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
 WHERE event_id > ?
 ORDER BY event_id
@@ -43,7 +43,7 @@ LIMIT ?;
 
 -- name: GetEventsAfterEventIDByTypeLimited :many
 SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
-       aggregate_version, event_type, payload, metadata
+       aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
 WHERE event_id > ? AND aggregate_type = ?
 ORDER BY event_id
@@ -51,14 +51,14 @@ LIMIT ?;
 
 -- name: ReplayAllAggregates :many
 SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
-       aggregate_version, event_type, payload, metadata
+       aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
 WHERE event_id > ?
 ORDER BY event_id;
 
 -- name: ReplayByAggregate :many
 SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
-       aggregate_version, event_type, payload, metadata
+       aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
 WHERE event_id > ? AND aggregate_type = ?
 ORDER BY event_id;

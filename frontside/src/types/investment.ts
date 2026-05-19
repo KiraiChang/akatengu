@@ -13,6 +13,8 @@ export interface Investment {
   ifrs_category: IFRSCategory;
   is_active:     boolean;
   version:       number;
+  updated_by:    string | null;
+  updated_at:    string | null;
 }
 
 export interface InvestmentCreatedPayload {
@@ -46,6 +48,8 @@ export interface InvestmentLot {
   remaining_qty:        string;
   status:               LotStatus;
   unrealized_unit_twd:  string;
+  updated_by:           string | null;
+  updated_at:           string | null;
 }
 
 export interface InvestmentPosition {
@@ -55,6 +59,8 @@ export interface InvestmentPosition {
   total_cost:       string;
   avg_cost:         string;
   market_price_twd: string;
+  updated_by:       string | null;
+  updated_at:       string | null;
 }
 
 export interface InvestmentBoughtPayload {
@@ -111,4 +117,6 @@ export interface InvestmentMovement {
   net_amount:      string | null;
   withholding_tax: string | null;
   SplitRatio:      string | null;
+  updated_by:      string | null;
+  updated_at:      string | null;
 }

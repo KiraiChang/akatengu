@@ -7,7 +7,8 @@ CREATE TABLE event_store (
     aggregate_version INTEGER NOT NULL,
     event_type        TEXT    NOT NULL,
     payload           TEXT    NOT NULL,
-    metadata          TEXT
+    metadata          TEXT,
+    updated_by        TEXT
 );
 
 CREATE TABLE aggregate_versions (
@@ -47,6 +48,8 @@ CREATE TABLE accounts (
     note               TEXT,
     version            INTEGER NOT NULL,
     cash_flow_category TEXT    CHECK (cash_flow_category IN ('CASH', 'OPERATING', 'INVESTING', 'FINANCING')),
+    updated_by         TEXT,
+    updated_at         TEXT,
     PRIMARY KEY (account_id, merchant_id)
 );
 
@@ -64,7 +67,9 @@ CREATE TABLE ledger_accounts (
     due_day      TEXT,
     is_active    INTEGER NOT NULL DEFAULT 1,
     note         TEXT,
-    version      INTEGER NOT NULL
+    version      INTEGER NOT NULL,
+    updated_by   TEXT,
+    updated_at   TEXT
 );
 
 CREATE TABLE sys_accounts (
@@ -87,7 +92,9 @@ CREATE TABLE transactions (
     receipt_no     TEXT,
     note           TEXT,
     version        INTEGER NOT NULL,
-    ref_txn_id     INTEGER
+    ref_txn_id     INTEGER,
+    updated_by     TEXT,
+    updated_at     TEXT
 );
 
 CREATE TABLE journal_entries (
@@ -99,7 +106,9 @@ CREATE TABLE journal_entries (
     debit               REAL    NOT NULL DEFAULT 0,
     credit              REAL    NOT NULL DEFAULT 0,
     note                TEXT,
-    cash_flow_category  TEXT    CHECK (cash_flow_category IN ('OPERATING', 'INVESTING', 'FINANCING'))
+    cash_flow_category  TEXT    CHECK (cash_flow_category IN ('OPERATING', 'INVESTING', 'FINANCING')),
+    updated_by          TEXT,
+    updated_at          TEXT
 );
 
 CREATE TABLE installments (
@@ -116,7 +125,9 @@ CREATE TABLE installments (
     interest_rate     REAL    NOT NULL DEFAULT 0,
     interest_type     TEXT    NOT NULL,
     status            TEXT    NOT NULL DEFAULT 'ACTIVE',
-    note              TEXT
+    note              TEXT,
+    updated_by        TEXT,
+    updated_at        TEXT
 );
 
 CREATE TABLE installment_payments (
@@ -129,7 +140,9 @@ CREATE TABLE installment_payments (
     interest       REAL    NOT NULL,
     due_date       TEXT    NOT NULL,
     paid_date      TEXT,
-    status         TEXT    NOT NULL DEFAULT 'PENDING'
+    status         TEXT    NOT NULL DEFAULT 'PENDING',
+    updated_by     TEXT,
+    updated_at     TEXT
 );
 
 CREATE TABLE reconciliations (
@@ -168,7 +181,9 @@ CREATE TABLE period_closings (
     closed_at      TEXT,
     note           TEXT,
     reopen_at      TEXT,
-    reopen_reason  TEXT
+    reopen_reason  TEXT,
+    updated_by     TEXT,
+    updated_at     TEXT
 );
 
 CREATE TABLE account_balance_snapshots (
@@ -192,7 +207,9 @@ CREATE TABLE investments (
     cost_method   TEXT    NOT NULL DEFAULT 'FIFO',
     ifrs_category TEXT    NOT NULL DEFAULT 'FVTPL',
     is_active     INTEGER NOT NULL DEFAULT 1,
-    version       INTEGER NOT NULL
+    version       INTEGER NOT NULL,
+    updated_by    TEXT,
+    updated_at    TEXT
 );
 
 CREATE TABLE investment_lots (
@@ -207,7 +224,9 @@ CREATE TABLE investment_lots (
     total_cost    REAL    NOT NULL,
     remaining_qty       REAL NOT NULL,
     status              TEXT NOT NULL DEFAULT 'OPEN',
-    unrealized_unit_twd REAL NOT NULL DEFAULT 0
+    unrealized_unit_twd REAL NOT NULL DEFAULT 0,
+    updated_by          TEXT,
+    updated_at          TEXT
 );
 
 CREATE TABLE investment_movements (
@@ -229,7 +248,9 @@ CREATE TABLE investment_movements (
     split_ratio     REAL,
     gross_amount    REAL,
     net_amount      REAL,
-    withholding_tax REAL
+    withholding_tax REAL,
+    updated_by      TEXT,
+    updated_at      TEXT
 );
 
 CREATE TABLE investment_positions (
@@ -239,7 +260,9 @@ CREATE TABLE investment_positions (
     total_quantity  REAL    NOT NULL,
     total_cost      REAL    NOT NULL,
     avg_cost        REAL    NOT NULL DEFAULT 0,
-    market_price_twd REAL   NOT NULL DEFAULT 0
+    market_price_twd REAL   NOT NULL DEFAULT 0,
+    updated_by      TEXT,
+    updated_at      TEXT
 );
 
 CREATE TABLE investment_lot_disposals (

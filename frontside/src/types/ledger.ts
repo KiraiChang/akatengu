@@ -14,6 +14,8 @@ export interface LedgerAccount {
   is_active:    boolean;
   note:         string | null;
   version:      number;
+  updated_by:   string | null;
+  updated_at:   string | null;
 }
 
 export interface LedgerAccountUpdatePayload {

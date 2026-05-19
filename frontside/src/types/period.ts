@@ -15,6 +15,8 @@ export interface PeriodClosing {
   note:           string | null;
   reopen_at:      string | null;
   reopen_reason:  string | null;
+  updated_by:     string | null;
+  updated_at:     string | null;
 }
 
 // POST payloads — 有 json tags → snake_case

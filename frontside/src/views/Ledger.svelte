@@ -254,14 +254,16 @@
           <th class="td-amount">餘額</th>
           <th>狀態</th>
           <th>備註</th>
+          <th class="hidden md:table-cell">更新者</th>
+          <th class="hidden md:table-cell">更新時間</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {#if isLoading && ledgers.length === 0}
-          <tr><td colspan="10" class="table-empty">載入中...</td></tr>
+          <tr><td colspan="12" class="table-empty">載入中...</td></tr>
         {:else if ledgers.length === 0}
-          <tr><td colspan="10" class="table-empty">無資料</td></tr>
+          <tr><td colspan="12" class="table-empty">無資料</td></tr>
         {:else}
           {#each ledgers as ledger (ledger.ledger_id)}
             <tr>
@@ -286,6 +288,8 @@
                 {/if}
               </td>
               <td class="note-cell">{ledger.note ?? '—'}</td>
+              <td class="hidden md:table-cell">{ledger.updated_by ?? '—'}</td>
+              <td class="hidden md:table-cell">{ledger.updated_at ?? '—'}</td>
               <td>
                 <button class="btn-ghost" style="padding:2px 10px;font-size:11px;" onclick={() => openEditModal(ledger)}>編輯</button>
               </td>
@@ -492,6 +496,22 @@
             placeholder="選填"
           />
         </div>
+
+        {#if mode === 'edit'}
+          {@const ldgr = ledgers.find(l => l.ledger_id === form.ledger_id)}
+          {#if ldgr}
+            <div class="form-row" style="margin-top:8px;">
+              <div class="form-group">
+                <label class="form-label" for="f-ldgr-updated-by">更新者</label>
+                <input id="f-ldgr-updated-by" class="form-input" type="text" value={ldgr.updated_by ?? '—'} readonly style="background:#f5f0e8;cursor:default;" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="f-ldgr-updated-at">更新時間</label>
+                <input id="f-ldgr-updated-at" class="form-input" type="text" value={ldgr.updated_at ?? '—'} readonly style="background:#f5f0e8;cursor:default;" />
+              </div>
+            </div>
+          {/if}
+        {/if}
 
         <div class="modal-footer" style="padding:0;margin-top:8px;">
           <button type="button" class="btn-ghost" onclick={() => { showModal = false; }} disabled={isSaving}>取消</button>

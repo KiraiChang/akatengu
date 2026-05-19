@@ -38,7 +38,7 @@
 
 .period-thead {
   display: grid;
-  grid-template-columns: 120px 120px 110px 110px 1fr 160px;
+  grid-template-columns: 120px 120px 110px 110px 80px 90px 1fr 160px;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid #1a1c28;
 }
@@ -62,7 +62,7 @@
 
 .period-row {
   display: grid;
-  grid-template-columns: 120px 120px 110px 110px 1fr 160px;
+  grid-template-columns: 120px 120px 110px 110px 80px 90px 1fr 160px;
   align-items: center;
   border-bottom: 1px solid #0d0f16;
   transition: background 0.1s;

@@ -56,6 +56,7 @@ func (s *InvestmentProjectionService) applyInvestmentCreated(ctx context.Context
 	if ifrsCategory.IsZero() {
 		ifrsCategory = enums.IFRSCategoryFVTPL.Enum()
 	}
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.InvestmentRepo.CreateInvestment(ctx, projection.Investment{
 		MerchantID:   ct.MerchantID,
 		AccountId:    p.AccountId,
@@ -66,6 +67,7 @@ func (s *InvestmentProjectionService) applyInvestmentCreated(ctx context.Context
 		CostMethod:   p.CostMethod,
 		IFRSCategory: ifrsCategory,
 		IsActive:     p.IsActive,
+		UpdatedBy:    updatedBy,
 	}); err != nil {
 		return err
 	}
@@ -80,6 +82,7 @@ func (s *InvestmentProjectionService) applyInvestmentUpdate(ctx context.Context,
 	}
 
 	// 業務邏輯：組裝 proj model
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.InvestmentRepo.UpdateInvestment(ctx, projection.Investment{
 		MerchantID:   ct.MerchantID,
 		InvestmentId: p.InvestmentId,
@@ -91,6 +94,7 @@ func (s *InvestmentProjectionService) applyInvestmentUpdate(ctx context.Context,
 		CostMethod:   p.CostMethod,
 		IsActive:     p.IsActive,
 		Version:      p.Version,
+		UpdatedBy:    updatedBy,
 	}); err != nil {
 		return err
 	}
@@ -132,18 +136,22 @@ func (s *InvestmentProjectionService) applyInvestmentBought(ctx context.Context,
 	}
 
 	// 業務邏輯：組裝 proj model
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
 		return err
 	}
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
 		st.Position.MerchantID = ct.MerchantID
+		st.Position.UpdatedBy = updatedBy
 		err = tx.Projection.InvestmentRepo.UpsertPosition(ctx, st.Position)
 	} else {
 		st.Lot.MerchantID = ct.MerchantID
 		st.Lot.MovementId = st.Movement.MovementId
+		st.Lot.UpdatedBy = updatedBy
 		st.Lot.LotId, err = tx.Projection.InvestmentRepo.InsertLot(ctx, st.Lot)
 		if err != nil {
 			return err
@@ -164,14 +172,17 @@ func (s *InvestmentProjectionService) applyInvestmentSold(ctx context.Context, t
 	}
 
 	// 業務邏輯：組裝 proj model
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
 		return err
 	}
 
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
+		st.Position.UpdatedBy = updatedBy
 		err = tx.Projection.InvestmentRepo.UpdateInvestmentPositionSold(ctx, st.Position)
 		if err != nil {
 			return err
@@ -201,20 +212,22 @@ func (s *InvestmentProjectionService) applyStockSplit(ctx context.Context, tx ev
 	}
 
 	// 業務邏輯：組裝 proj model
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
 		return err
 	}
 
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
-		err = tx.Projection.InvestmentRepo.PositionSplit(ctx, p.InvestmentId, p.Ratio)
+		err = tx.Projection.InvestmentRepo.PositionSplit(ctx, p.InvestmentId, p.Ratio, updatedBy)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := tx.Projection.InvestmentRepo.LotSplit(ctx, p.InvestmentId, p.Ratio)
+		err := tx.Projection.InvestmentRepo.LotSplit(ctx, p.InvestmentId, p.Ratio, updatedBy)
 		if err != nil {
 			return err
 		}
@@ -233,20 +246,22 @@ func (s *InvestmentProjectionService) applyDividendReceived(ctx context.Context,
 	}
 
 	// 業務邏輯：組裝 proj model
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
 		return err
 	}
 
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
-		err = tx.Projection.InvestmentRepo.PositionSplit(ctx, p.InvestmentId, p.Ratio)
+		err = tx.Projection.InvestmentRepo.PositionSplit(ctx, p.InvestmentId, p.Ratio, updatedBy)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := tx.Projection.InvestmentRepo.LotSplit(ctx, p.InvestmentId, p.Ratio)
+		err := tx.Projection.InvestmentRepo.LotSplit(ctx, p.InvestmentId, p.Ratio, updatedBy)
 		if err != nil {
 			return err
 		}
@@ -265,8 +280,10 @@ func (s *InvestmentProjectionService) applyUnrealizedMarked(ctx context.Context,
 	}
 
 	// 1. 插入 movement（MARK）
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
 		return fmt.Errorf("insert mark movement: %w", err)
@@ -274,12 +291,12 @@ func (s *InvestmentProjectionService) applyUnrealizedMarked(ctx context.Context,
 
 	// 2. 更新公允價值：AVG 更新 position，FIFO 更新各批次 unrealized_unit_twd
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
-		if err := tx.Projection.InvestmentRepo.UpdatePositionFairValue(ctx, st.Investment.InvestmentId, st.NewMarketPriceTWD); err != nil {
+		if err := tx.Projection.InvestmentRepo.UpdatePositionFairValue(ctx, st.Investment.InvestmentId, st.NewMarketPriceTWD, updatedBy); err != nil {
 			return fmt.Errorf("update position fair value: %w", err)
 		}
 	} else {
 		for _, u := range st.LotUnrealizedUpdates {
-			if err := tx.Projection.InvestmentRepo.UpdateLotUnrealizedUnit(ctx, u.LotId, u.UnrealizedUnitTWD); err != nil {
+			if err := tx.Projection.InvestmentRepo.UpdateLotUnrealizedUnit(ctx, u.LotId, u.UnrealizedUnitTWD, updatedBy); err != nil {
 				return fmt.Errorf("update lot unrealized (lot %d): %w", u.LotId, err)
 			}
 		}

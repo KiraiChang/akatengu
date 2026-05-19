@@ -56,7 +56,8 @@ func (s *TransactionProjectionService) applyCreated(ctx context.Context, tx even
 		return err
 	}
 
-	if _, err := s.applyTransaction(ctx, tx, *p, enums.TransactionStatusActive.Enum(), ct.MerchantID); err != nil {
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	if _, err := s.applyTransaction(ctx, tx, *p, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy); err != nil {
 		return err
 	}
 
@@ -107,17 +108,18 @@ func (s *TransactionProjectionService) applyPeriodAnnualClosed(ctx context.Conte
 		return err
 	}
 
-	closingTxnId, err := s.applyTransaction(ctx, tx, state.ClosedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID)
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	closingTxnId, err := s.applyTransaction(ctx, tx, state.ClosedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
 	if err != nil {
 		return err
 	}
 
-	openingTxnId, err := s.applyTransaction(ctx, tx, state.OpenedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID)
+	openingTxnId, err := s.applyTransaction(ctx, tx, state.OpenedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Projection.PeriodCloseRepo.UpdatePeriodCloseTxnId(ctx, p.ClosingId, &closingTxnId, &openingTxnId)
+	err = tx.Projection.PeriodCloseRepo.UpdatePeriodCloseTxnId(ctx, p.ClosingId, &closingTxnId, &openingTxnId, updatedBy)
 	if err != nil {
 		return err
 	}
@@ -136,27 +138,28 @@ func (s *TransactionProjectionService) applyPeriodAnnualReopened(ctx context.Con
 		return err
 	}
 
-	reverseClosedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseClosedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID)
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	reverseClosedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseClosedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID, updatedBy)
 	if err != nil {
 		return err
 	}
 
-	reverseOpenedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseOpenedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID)
+	reverseOpenedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseOpenedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID, updatedBy)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Projection.TransactionRepo.SysUpdateTxnStatus(ctx, *state.ReverseClosedTxn.RefTxnId, &reverseClosedTxnId, enums.TransactionStatusVoided.Enum())
+	err = tx.Projection.TransactionRepo.SysUpdateTxnStatus(ctx, *state.ReverseClosedTxn.RefTxnId, &reverseClosedTxnId, enums.TransactionStatusVoided.Enum(), updatedBy)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Projection.TransactionRepo.SysUpdateTxnStatus(ctx, *state.ReverseOpenedTxn.RefTxnId, &reverseOpenedTxnId, enums.TransactionStatusVoided.Enum())
+	err = tx.Projection.TransactionRepo.SysUpdateTxnStatus(ctx, *state.ReverseOpenedTxn.RefTxnId, &reverseOpenedTxnId, enums.TransactionStatusVoided.Enum(), updatedBy)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Projection.PeriodCloseRepo.UpdatePeriodCloseTxnId(ctx, p.ClosingId, nil, nil)
+	err = tx.Projection.PeriodCloseRepo.UpdatePeriodCloseTxnId(ctx, p.ClosingId, nil, nil, updatedBy)
 	if err != nil {
 		return err
 	}
@@ -174,18 +177,19 @@ func (s *TransactionProjectionService) applyInvestmentBought(ctx context.Context
 		return err
 	}
 
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID)
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Projection.InvestmentRepo.UpdateMovement(ctx, st.Movement.MovementId, txnId)
+	err = tx.Projection.InvestmentRepo.UpdateMovement(ctx, st.Movement.MovementId, txnId, updatedBy)
 	if err != nil {
 		return err
 	}
 
 	if st.Investment.CostMethod.Is(enums.CostMethodFIFO) {
-		err = tx.Projection.InvestmentRepo.UpdateLot(ctx, st.Investment.InvestmentId, txnId)
+		err = tx.Projection.InvestmentRepo.UpdateLot(ctx, st.Investment.InvestmentId, txnId, updatedBy)
 		if err != nil {
 			return err
 		}
@@ -203,12 +207,13 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 		return err
 	}
 
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID)
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
 	if err != nil {
 		return err
 	}
 
-	err = tx.Projection.InvestmentRepo.UpdateMovement(ctx, st.Movement.MovementId, txnId)
+	err = tx.Projection.InvestmentRepo.UpdateMovement(ctx, st.Movement.MovementId, txnId, updatedBy)
 	if err != nil {
 		return err
 	}
@@ -225,7 +230,7 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 	return nil
 }
 
-func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx event_store.EventStoreRepositories, p payload.TransactionCreatedPayload, status enums.TransactionStatus, merchantID int64) (int64, error) {
+func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx event_store.EventStoreRepositories, p payload.TransactionCreatedPayload, status enums.TransactionStatus, merchantID int64, updatedBy *string) (int64, error) {
 	totalDebit, totalCredit := decimal.Zero, decimal.Zero
 	for _, e := range p.Entries {
 		totalDebit = totalDebit.Add(e.Debit)
@@ -245,6 +250,7 @@ func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx 
 		ReceiptNo:       p.ReceiptNo,
 		Note:            p.Note,
 		RefTxnId:        p.RefTxnId,
+		UpdatedBy:       updatedBy,
 	})
 	if err != nil {
 		return 0, err
@@ -264,6 +270,7 @@ func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx 
 			Debit:            e.Debit,
 			Credit:           e.Credit,
 			CashFlowCategory: cf,
+			UpdatedBy:        updatedBy,
 		}
 	}
 
@@ -283,12 +290,13 @@ func (s *TransactionProjectionService) applyDevidendReceived(ctx context.Context
 		return err
 	}
 
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if st.Transaction != nil {
-		txnId, err := s.applyTransaction(ctx, tx, *st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID)
+		txnId, err := s.applyTransaction(ctx, tx, *st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
 		if err != nil {
 			return err
 		}
-		err = tx.Projection.InvestmentRepo.UpdateMovement(ctx, st.Movement.MovementId, txnId)
+		err = tx.Projection.InvestmentRepo.UpdateMovement(ctx, st.Movement.MovementId, txnId, updatedBy)
 		if err != nil {
 			return err
 		}
@@ -338,11 +346,12 @@ func (s *TransactionProjectionService) applyInstallmentCreated(ctx context.Conte
 		Currency:        "TWD",
 		Entries:         entries,
 	}
-	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum(), ct.MerchantID)
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
 	if err != nil {
 		return err
 	}
-	return tx.Projection.InstallmentRepo.UpdateInstallmentTxn(ctx, st.Installment.InstallmentId, txnId)
+	return tx.Projection.InstallmentRepo.UpdateInstallmentTxn(ctx, st.Installment.InstallmentId, txnId, updatedBy)
 }
 
 func (s *TransactionProjectionService) applyInstallmentPeriodPaid(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
@@ -386,9 +395,10 @@ func (s *TransactionProjectionService) applyInstallmentPeriodPaid(ctx context.Co
 		Currency:        "TWD",
 		Entries:         entries,
 	}
-	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum(), ct.MerchantID)
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, payload, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
 	if err != nil {
 		return err
 	}
-	return tx.Projection.InstallmentRepo.UpdatePaymentTxn(ctx, st.Installment.InstallmentId, txnId)
+	return tx.Projection.InstallmentRepo.UpdatePaymentTxn(ctx, st.Installment.InstallmentId, txnId, updatedBy)
 }

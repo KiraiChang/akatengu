@@ -58,4 +58,6 @@ export interface Account {
   note:               string | null;
   version:            number;
   cash_flow_category: CashFlowCategory | null;
+  updated_by:         string | null;
+  updated_at:         string | null;
 }

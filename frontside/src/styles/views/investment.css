@@ -59,7 +59,7 @@
 .inv-lot-header,
 .inv-lot-row {
   display: grid;
-  grid-template-columns: 160px 1fr 1fr 1fr 1fr 1fr 64px;
+  grid-template-columns: 160px 1fr 1fr 1fr 1fr 1fr 80px 90px 64px;
   gap: 0;
   align-items: center;
 }
@@ -223,7 +223,7 @@
 .inv-movement-header,
 .inv-movement-row {
   display: grid;
-  grid-template-columns: 120px 80px 1fr 1fr 1fr 1fr 1fr 64px;
+  grid-template-columns: 120px 80px 1fr 1fr 1fr 1fr 1fr 80px 90px 64px;
   gap: 0;
   align-items: center;
 }

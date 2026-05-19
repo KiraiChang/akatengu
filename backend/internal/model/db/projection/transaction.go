@@ -20,6 +20,8 @@ type Entry struct {
 	Credit           decimal.Decimal        `db:"credit" json:"credit"`
 	Note             *string                `db:"note" json:"note"`
 	CashFlowCategory enums.CashFlowCategory `db:"cash_flow_category" json:"cash_flow_category"`
+	UpdatedBy        *string                `db:"updated_by" json:"updated_by"`
+	UpdatedAt        *string                `db:"updated_at" json:"updated_at"`
 }
 
 //dbmap:sqlcdb=Transaction
@@ -39,4 +41,6 @@ type Transaction struct {
 	Note            *string                 `db:"note" json:"note"`
 	Version         int64                   `db:"version" json:"version"`
 	RefTxnId        *int64                  `db:"ref_txn_id" json:"ref_txn_id"`
+	UpdatedBy       *string                 `db:"updated_by" json:"updated_by"`
+	UpdatedAt       *string                 `db:"updated_at" json:"updated_at"`
 }

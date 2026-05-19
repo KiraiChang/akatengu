@@ -26,6 +26,8 @@ type Installment struct {
 	InterestType    enums.InterestType      `db:"interest_type" json:"interest_type"`
 	Status          enums.InstallmentStatus `db:"status" json:"status"`
 	Note            string                  `db:"note" json:"note"`
+	UpdatedBy       *string                 `db:"updated_by" json:"updated_by"`
+	UpdatedAt       *string                 `db:"updated_at" json:"updated_at"`
 }
 
 //dbmap:sqlcdb=InstallmentPayment
@@ -43,4 +45,6 @@ type InstallmentPayment struct {
 	DueDate       string                         `db:"due_date" json:"due_date"`
 	PaidDate      *string                        `db:"paid_date" json:"paid_date"`
 	Status        enums.InstallmentPaymentStatus `db:"status" json:"status"`
+	UpdatedBy     *string                        `db:"updated_by" json:"updated_by"`
+	UpdatedAt     *string                        `db:"updated_at" json:"updated_at"`
 }

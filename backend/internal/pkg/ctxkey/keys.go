@@ -3,6 +3,8 @@ package ctxkey
 import (
 	"context"
 	"fmt"
+
+	jwtpkg "akatengu/internal/pkg/jwt"
 )
 
 type key string
@@ -19,4 +21,12 @@ func GetMerchantID(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("merchant_id not in context — missing MerchantAuth middleware")
 	}
 	return v, nil
+}
+
+func GetUserName(ctx context.Context) string {
+	claims, ok := ctx.Value(UserClaims).(*jwtpkg.Claims)
+	if !ok || claims == nil {
+		return ""
+	}
+	return claims.UserName
 }

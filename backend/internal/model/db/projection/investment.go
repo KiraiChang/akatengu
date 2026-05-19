@@ -26,6 +26,8 @@ type Investment struct {
 	IFRSCategory enums.IFRSCategory `db:"ifrs_category" json:"ifrs_category"`
 	IsActive     bool               `db:"is_active" json:"is_active"`
 	Version      int64              `db:"version" json:"version"`
+	UpdatedBy    *string            `db:"updated_by" json:"updated_by"`
+	UpdatedAt    *string            `db:"updated_at" json:"updated_at"`
 }
 
 // InvestmentLot 投資庫存表
@@ -47,6 +49,8 @@ type InvestmentLot struct {
 	RemainingQty      decimal.Decimal `db:"remaining_qty" json:"remaining_qty"`
 	Status            enums.LotStatus `db:"status" json:"status"`
 	UnrealizedUnitTWD decimal.Decimal `db:"unrealized_unit_twd" json:"unrealized_unit_twd"`
+	UpdatedBy         *string         `db:"updated_by" json:"updated_by"`
+	UpdatedAt         *string         `db:"updated_at" json:"updated_at"`
 }
 
 //dbmap:sqlcdb=InvestmentLotDisposal
@@ -69,7 +73,6 @@ type InvestmentLotDisposals struct {
 //dbmap:sqlcdb=InvestmentPosition
 //dbmap:sqlcdb=UpsertInvestmentPositionParams
 //dbmap:sqlcdb=UpdateInvestmentPositionSoldParams
-//dbmap:sqlcdb=UpdateInvestmentPositionFairValueParams
 //dbmap:sqlcdb=GetPositionRow
 type InvestmentPosition struct {
 	MerchantID     int64           `db:"merchant_id" json:"merchant_id"`
@@ -79,6 +82,8 @@ type InvestmentPosition struct {
 	TotalCost      decimal.Decimal `db:"total_cost" json:"total_cost"`
 	AvgCost        decimal.Decimal `db:"avg_cost" json:"avg_cost"`
 	MarketPriceTWD decimal.Decimal `db:"market_price_twd" json:"market_price_twd"`
+	UpdatedBy      *string         `db:"updated_by" json:"updated_by"`
+	UpdatedAt      *string         `db:"updated_at" json:"updated_at"`
 }
 
 // InvestmentMovement 投資異動表
@@ -111,6 +116,9 @@ type InvestmentMovement struct {
 
 	// --- Corporate Action ---
 	SplitRatio decimal.NullDecimal `db:"split_ratio"`
+
+	UpdatedBy *string `db:"updated_by" json:"updated_by"`
+	UpdatedAt *string `db:"updated_at" json:"updated_at"`
 }
 
 // InvestmentSummary 庫存摘要（從 v_investment_summary）

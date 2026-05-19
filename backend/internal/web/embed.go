@@ -3,6 +3,7 @@ package web
 import (
 	"embed"
 	"io/fs"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -14,7 +15,7 @@ var staticFiles embed.FS
 func FileSystem() http.FileSystem {
 	sub, err := fs.Sub(staticFiles, "static")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	return http.FS(sub)
 }

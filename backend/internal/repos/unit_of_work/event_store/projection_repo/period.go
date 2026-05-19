@@ -24,28 +24,31 @@ func (r *sqlxPeriodCloseRepo) InsertPeriodClose(ctx context.Context, c projectio
 }
 
 func (r *sqlxPeriodCloseRepo) UpdatePeriodCloseSnapshotByPeriod(ctx context.Context,
-	id int64, snapshot string, closedAt *string) error {
+	id int64, snapshot string, closedAt *string, updatedBy *string) error {
 	return r.q.UpdatePeriodCloseSnapshot(ctx, sqlcdb.UpdatePeriodCloseSnapshotParams{
 		Status:    enums.PeriodTypeStatusClosed.Enum(),
 		ClosedAt:  closedAt,
 		Snapshot:  &snapshot,
+		UpdatedBy: updatedBy,
 		ClosingID: id,
 	})
 }
 
-func (r *sqlxPeriodCloseRepo) ReopenPeriodClose(ctx context.Context, id int64, reason string, at string) error {
+func (r *sqlxPeriodCloseRepo) ReopenPeriodClose(ctx context.Context, id int64, reason string, at string, updatedBy *string) error {
 	return r.q.ReopenPeriodClose(ctx, sqlcdb.ReopenPeriodCloseParams{
 		Status:       enums.PeriodTypeStatusReopened.Enum(),
 		ReopenReason: &reason,
 		ReopenAt:     &at,
+		UpdatedBy:    updatedBy,
 		ClosingID:    id,
 	})
 }
 
-func (r *sqlxPeriodCloseRepo) UpdatePeriodCloseTxnId(ctx context.Context, id int64, closingTxnId *int64, openingTxnId *int64) error {
+func (r *sqlxPeriodCloseRepo) UpdatePeriodCloseTxnId(ctx context.Context, id int64, closingTxnId *int64, openingTxnId *int64, updatedBy *string) error {
 	return r.q.UpdatePeriodCloseTxnID(ctx, sqlcdb.UpdatePeriodCloseTxnIDParams{
 		ClosingID:    id,
 		ClosingTxnID: closingTxnId,
 		OpeningTxnID: openingTxnId,
+		UpdatedBy:    updatedBy,
 	})
 }

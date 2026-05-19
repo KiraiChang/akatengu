@@ -1,7 +1,8 @@
 -- name: GetInstallment :one
 SELECT installment_id, txn_id, ledger_id, description, total_amount,
        total_periods, amount_per_period, start_date, end_date,
-       interest_rate, interest_type, status, note
+       interest_rate, interest_type, status, note,
+       updated_by, updated_at
 FROM installments
 WHERE installment_id = @installment_id AND merchant_id = @merchant_id;
 
@@ -13,6 +14,7 @@ SELECT
              i.installment_id, i.txn_id, i.ledger_id, i.description, i.total_amount,
              i.total_periods, i.amount_per_period, i.start_date, i.end_date,
              i.interest_rate, i.interest_type, i.status, i.note,
+             i.updated_by, i.updated_at,
              total.cnt AS total,
              COUNT(p.payment_id) AS paid_periods
          FROM installments AS i, total
@@ -22,13 +24,15 @@ SELECT
          GROUP BY
              i.installment_id, i.txn_id, i.ledger_id, i.description, i.total_amount,
              i.total_periods, i.amount_per_period, i.start_date, i.end_date,
-             i.interest_rate, i.interest_type, i.status, i.note
+             i.interest_rate, i.interest_type, i.status, i.note,
+             i.updated_by, i.updated_at
          ORDER BY i.start_date DESC
     LIMIT @limit OFFSET @offset;
 
 -- name: GetInstallmentPayment :one
 SELECT payment_id, installment_id, txn_id, period_no, amount,
-       interest, due_date, paid_date, status
+       interest, due_date, paid_date, status,
+       updated_by, updated_at
 FROM installment_payments
 WHERE installment_id = @installment_id AND period_no = @period_no AND merchant_id = @merchant_id;
 
@@ -40,6 +44,7 @@ WITH total AS (
 )
          SELECT p.payment_id, p.installment_id, p.txn_id, p.period_no, p.amount,
                 p.interest, p.due_date, p.paid_date, p.status,
+                p.updated_by, p.updated_at,
                 total.cnt AS total
          FROM installment_payments AS p, total
          WHERE p.installment_id = @installment_id AND p.merchant_id = @merchant_id
@@ -49,31 +54,39 @@ WITH total AS (
 -- name: InsertInstallment :execlastid
 INSERT INTO installments
     (merchant_id, ledger_id, description, total_amount, total_periods,
-     amount_per_period, start_date, interest_rate, interest_type, status, note)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+     amount_per_period, start_date, interest_rate, interest_type, status, note, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertInstallmentPayment :execlastid
 INSERT INTO installment_payments
-    (merchant_id, installment_id, period_no, amount, interest, due_date, status)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+    (merchant_id, installment_id, period_no, amount, interest, due_date, status, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateInstallmentTxn :exec
 UPDATE installments
-SET txn_id = ?
+SET txn_id     = ?,
+    updated_by = ?,
+    updated_at = datetime('now')
 WHERE installment_id = ?;
 
 -- name: PaidInstallmentPayment :exec
 UPDATE installment_payments
-SET status    = ?,
-    paid_date = ?
+SET status     = ?,
+    paid_date  = ?,
+    updated_by = ?,
+    updated_at = datetime('now')
 WHERE payment_id = ?;
 
 -- name: UpdateInstallmentStatus :exec
 UPDATE installments
-SET status = ?
+SET status     = ?,
+    updated_by = ?,
+    updated_at = datetime('now')
 WHERE installment_id = ?;
 
 -- name: UpdatePaymentTxn :exec
 UPDATE installment_payments
-SET txn_id = ?
+SET txn_id     = ?,
+    updated_by = ?,
+    updated_at = datetime('now')
 WHERE payment_id = ?;

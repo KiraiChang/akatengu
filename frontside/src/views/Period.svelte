@@ -201,6 +201,8 @@
       <span>結束日期</span>
       <span>狀態</span>
       <span>關帳日</span>
+      <span>更新者</span>
+      <span>更新時間</span>
       <span>備註</span>
       <span></span>
     </div>
@@ -220,6 +222,8 @@
             </span>
           </span>
           <span class="period-cell period-dim">{p.closed_at ?? '—'}</span>
+          <span class="period-cell period-dim">{p.updated_by ?? '—'}</span>
+          <span class="period-cell period-dim">{p.updated_at ?? '—'}</span>
           <span class="period-cell period-dim">{p.note ?? ''}</span>
           <span class="period-cell period-actions">
             {#if p.status === 'OPEN' || p.status === 'REOPENED'}

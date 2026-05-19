@@ -30,6 +30,13 @@ func coalesce(s, fallback string) string {
 	return s
 }
 
+func toUpdatedBy(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 func checkAndGetPayload[T any](ct *pipelines.Result) (*T, error) {
 	p, ok := ct.Payload.(T)
 	if !ok {

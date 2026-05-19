@@ -14,19 +14,21 @@ import (
 //dbmap:sqlcdb=GetChildrenAccountRow
 //dbmap:sqlcdb=GetAllAccountsRow
 type Account struct {
-	MerchantID       int64               `db:"merchant_id" json:"merchant_id"`
-	AccountId        string              `db:"account_id" json:"account_id"`
-	ParentId         *string             `db:"parent_id" json:"parent_id"`
-	Name             string              `db:"name" json:"name"`
-	Type             enums.AccountType   `db:"type" json:"type"`
-	NormalBalance    enums.NormalBalance `db:"normal_balance" json:"normal_balance"`
-	Currency         string              `db:"currency" json:"currency"`
-	IsSummary        bool                `db:"is_summary" json:"is_summary"`
-	IsActive         bool                `db:"is_active" json:"is_active"`
-	Note             *string             `db:"note" json:"note"`
-	Version          int64               `db:"version" json:"version"`
-	HasChild         bool                `db:"has_child" json:"has_child"`
+	MerchantID       int64                   `db:"merchant_id" json:"merchant_id"`
+	AccountId        string                  `db:"account_id" json:"account_id"`
+	ParentId         *string                 `db:"parent_id" json:"parent_id"`
+	Name             string                  `db:"name" json:"name"`
+	Type             enums.AccountType       `db:"type" json:"type"`
+	NormalBalance    enums.NormalBalance     `db:"normal_balance" json:"normal_balance"`
+	Currency         string                  `db:"currency" json:"currency"`
+	IsSummary        bool                    `db:"is_summary" json:"is_summary"`
+	IsActive         bool                    `db:"is_active" json:"is_active"`
+	Note             *string                 `db:"note" json:"note"`
+	Version          int64                   `db:"version" json:"version"`
+	HasChild         bool                    `db:"has_child" json:"has_child"`
 	CashFlowCategory *enums.CashFlowCategory `db:"cash_flow_category" json:"cash_flow_category"`
+	UpdatedBy        *string                 `db:"updated_by" json:"updated_by"`
+	UpdatedAt        *string                 `db:"updated_at" json:"updated_at"`
 }
 
 //dbmap:sqlcdb=LedgerAccount
@@ -50,6 +52,8 @@ type LedgerAccount struct {
 	IsActive    bool                    `db:"is_active" json:"is_active"`
 	Note        *string                 `db:"note" json:"note"`
 	Version     int64                   `db:"version" json:"version"`
+	UpdatedBy   *string                 `db:"updated_by" json:"updated_by"`
+	UpdatedAt   *string                 `db:"updated_at" json:"updated_at"`
 }
 
 //dbmap:sqlcdb=GetAllLedgerBalancesRow

@@ -10,8 +10,8 @@ import (
 
 type TransactionRepo interface {
 	InsertTxn(ctx context.Context, p projection.Transaction) (int64, error)
-	UpdateTxnStatus(ctx context.Context, txn_id int64, status enums.TransactionStatus, version int64) error
-	SysUpdateTxnStatus(ctx context.Context, txn_id int64, refTxnId *int64, status enums.TransactionStatus) error
+	UpdateTxnStatus(ctx context.Context, txn_id int64, status enums.TransactionStatus, version int64, updatedBy *string) error
+	SysUpdateTxnStatus(ctx context.Context, txn_id int64, refTxnId *int64, status enums.TransactionStatus, updatedBy *string) error
 	UpsertJournalEntries(ctx context.Context, entries []projection.Entry) error
 	GetEntriesByTxnId(ctx context.Context, txnId int64, merchantID int64) ([]projection.Entry, error)
 }
@@ -20,14 +20,10 @@ type InstallmentRepo interface {
 	// installment
 	InsertInstallment(ctx context.Context, p *projection.Installment) (int64, error)
 	InsertInstallmentPayment(ctx context.Context, p *projection.InstallmentPayment) (int64, error)
-	UpdateInstallmentTxn(ctx context.Context, inst_id int64, txn_id int64) error
-	PaidInstallmentPayment(ctx context.Context, id int64, date string) error
-	UpdateInstallmentStatus(ctx context.Context, id int64, status enums.InstallmentStatus) error
-	UpdatePaymentTxn(ctx context.Context, paymentId int64, txnId int64) error
-
-	//// reconciliation
-	//UpsertReconciliation(ctx context.Context, p ProjReconciliation) error
-	//UpsertReconciliationAdjustment(ctx context.Context, p ProjReconciliationAdjustment) error
+	UpdateInstallmentTxn(ctx context.Context, inst_id int64, txn_id int64, updatedBy *string) error
+	PaidInstallmentPayment(ctx context.Context, id int64, date string, updatedBy *string) error
+	UpdateInstallmentStatus(ctx context.Context, id int64, status enums.InstallmentStatus, updatedBy *string) error
+	UpdatePaymentTxn(ctx context.Context, paymentId int64, txnId int64, updatedBy *string) error
 }
 
 type AccountRepo interface {
@@ -51,21 +47,21 @@ type InvestmentRepo interface {
 	InsertLot(ctx context.Context, lot projection.InvestmentLot) (int64, error)
 	InsertLotDisposals(ctx context.Context, disposals projection.InvestmentLotDisposals) (int64, error)
 	InsertMovement(ctx context.Context, movement projection.InvestmentMovement) (int64, error)
-	UpdateMovement(ctx context.Context, id int64, txnId int64) error
-	UpdateLot(ctx context.Context, id int64, txnId int64) error
-	PositionSplit(ctx context.Context, id int64, ratio decimal.Decimal) error
-	LotSplit(ctx context.Context, id int64, ratio decimal.Decimal) error
+	UpdateMovement(ctx context.Context, id int64, txnId int64, updatedBy *string) error
+	UpdateLot(ctx context.Context, id int64, txnId int64, updatedBy *string) error
+	PositionSplit(ctx context.Context, id int64, ratio decimal.Decimal, updatedBy *string) error
+	LotSplit(ctx context.Context, id int64, ratio decimal.Decimal, updatedBy *string) error
 	UpdateInvestmentPositionSold(ctx context.Context, position projection.InvestmentPosition) error
 	UpdateDisposalTxn(ctx context.Context, lotId int64, txnId int64) error
-	UpdatePositionFairValue(ctx context.Context, investmentId int64, marketPriceTWD decimal.Decimal) error
-	UpdateLotUnrealizedUnit(ctx context.Context, lotId int64, unrealizedUnitTWD decimal.Decimal) error
+	UpdatePositionFairValue(ctx context.Context, investmentId int64, marketPriceTWD decimal.Decimal, updatedBy *string) error
+	UpdateLotUnrealizedUnit(ctx context.Context, lotId int64, unrealizedUnitTWD decimal.Decimal, updatedBy *string) error
 }
 
 type PeriodCloseRepo interface {
 	InsertPeriodClose(ctx context.Context, c projection.PeriodClosing) (*int64, error)
-	UpdatePeriodCloseSnapshotByPeriod(ctx context.Context, id int64, snapshot string, closedAt *string) error
-	ReopenPeriodClose(ctx context.Context, id int64, reason string, at string) error
-	UpdatePeriodCloseTxnId(ctx context.Context, id int64, closingTxnId *int64, openingTxnId *int64) error
+	UpdatePeriodCloseSnapshotByPeriod(ctx context.Context, id int64, snapshot string, closedAt *string, updatedBy *string) error
+	ReopenPeriodClose(ctx context.Context, id int64, reason string, at string, updatedBy *string) error
+	UpdatePeriodCloseTxnId(ctx context.Context, id int64, closingTxnId *int64, openingTxnId *int64, updatedBy *string) error
 }
 
 type AccountBalanceSnapshotRepo interface {

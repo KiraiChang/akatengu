@@ -1,6 +1,7 @@
 -- name: GetInvestment :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
-       name, cost_method, ifrs_category, is_active, version
+       name, cost_method, ifrs_category, is_active, version,
+       updated_by, updated_at
 FROM investments
 WHERE investment_id = @investment_id AND merchant_id = @merchant_id;
 
@@ -8,6 +9,7 @@ WHERE investment_id = @investment_id AND merchant_id = @merchant_id;
 WITH total AS (SELECT COUNT(*) AS cnt FROM investments WHERE merchant_id = @merchant_id)
 SELECT i.investment_id, i.account_id, i.asset_type, i.currency, i.symbol,
        i.name, i.cost_method, i.ifrs_category, i.is_active, i.version,
+       i.updated_by, i.updated_at,
        total.cnt AS total
 FROM investments AS i, total
 WHERE i.merchant_id = @merchant_id
@@ -17,18 +19,21 @@ OFFSET @offset;
 
 -- name: GetInvestmentBySymbol :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
-       name, cost_method, ifrs_category, is_active, version
+       name, cost_method, ifrs_category, is_active, version,
+       updated_by, updated_at
 FROM investments
 WHERE symbol = @symbol AND currency = @currency AND merchant_id = @merchant_id;
 
 -- name: GetPosition :one
-SELECT id, investment_id, total_quantity, total_cost, avg_cost, market_price_twd
+SELECT id, investment_id, total_quantity, total_cost, avg_cost, market_price_twd,
+       updated_by, updated_at
 FROM investment_positions
 WHERE investment_id = @investment_id AND merchant_id = @merchant_id;
 
 -- name: GetOpenLots :many
 SELECT lot_id, investment_id, movement_id, acquired_date, txn_id,
-       quantity, unit_cost, total_cost, remaining_qty, status, unrealized_unit_twd
+       quantity, unit_cost, total_cost, remaining_qty, status, unrealized_unit_twd,
+       updated_by, updated_at
 FROM investment_lots
 WHERE investment_id = @investment_id AND status != @status AND merchant_id = @merchant_id
 ORDER BY acquired_date, lot_id;
@@ -37,6 +42,7 @@ ORDER BY acquired_date, lot_id;
 WITH total AS (SELECT COUNT(*) AS cnt FROM investment_lots AS p2 WHERE p2.investment_id = @investment_id AND p2.merchant_id = @merchant_id)
 SELECT lot_id, p.investment_id, movement_id, acquired_date, txn_id,
        quantity, unit_cost, total_cost, remaining_qty, status, unrealized_unit_twd,
+       p.updated_by, p.updated_at,
        total.cnt AS total
 FROM investment_lots AS p, total
 WHERE p.investment_id = @investment_id AND p.merchant_id = @merchant_id
@@ -59,7 +65,8 @@ OFFSET @offset;
 SELECT movement_id, investment_id, event_id, txn_id, movement_type,
        movement_date, quantity, unit_price, unit_price_twd, exchange_rate,
        fee, tax, realized_gain, cost_basis, gross_amount, net_amount,
-       withholding_tax, split_ratio
+       withholding_tax, split_ratio,
+       updated_by, updated_at
 FROM investment_movements
 WHERE investment_id = @investment_id AND merchant_id = @merchant_id
 ORDER BY movement_date, movement_id;
@@ -70,6 +77,7 @@ SELECT movement_id, m.investment_id, event_id, txn_id, movement_type,
        movement_date, quantity, unit_price, unit_price_twd, exchange_rate,
        fee, tax, realized_gain, cost_basis, gross_amount, net_amount,
        withholding_tax, split_ratio,
+       m.updated_by, m.updated_at,
        total.cnt AS total
 FROM investment_movements AS m, total
 WHERE m.investment_id = @investment_id AND m.merchant_id = @merchant_id
@@ -79,8 +87,8 @@ OFFSET @offset;
 
 -- name: CreateInvestment :exec
 INSERT INTO investments
-    (merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1);
+    (merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);
 
 -- name: UpdateInvestment :exec
 UPDATE investments
@@ -91,30 +99,38 @@ SET account_id  = ?,
     name        = ?,
     cost_method = ?,
     is_active   = ?,
+    updated_by  = ?,
+    updated_at  = datetime('now'),
     version     = version + 1
 WHERE investment_id = ? AND merchant_id = ? AND version = ?;
 
 -- name: UpsertInvestmentPosition :exec
-INSERT INTO investment_positions (merchant_id, investment_id, total_quantity, total_cost)
-VALUES (?, ?, ?, ?)
+INSERT INTO investment_positions (merchant_id, investment_id, total_quantity, total_cost, updated_by)
+VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(investment_id)
 DO UPDATE SET
     total_quantity = total_quantity + excluded.total_quantity,
-    total_cost     = total_cost     + excluded.total_cost;
+    total_cost     = total_cost     + excluded.total_cost,
+    updated_by     = excluded.updated_by,
+    updated_at     = datetime('now');
 
 -- name: InsertInvestmentLot :execlastid
 INSERT INTO investment_lots
-    (merchant_id, investment_id, acquired_date, movement_id, quantity, unit_cost, total_cost, remaining_qty)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+    (merchant_id, investment_id, acquired_date, movement_id, quantity, unit_cost, total_cost, remaining_qty, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateInvestmentLotTxn :exec
 UPDATE investment_lots
-SET txn_id = ?
+SET txn_id     = ?,
+    updated_by = ?,
+    updated_at = datetime('now')
 WHERE lot_id = ?;
 
 -- name: UpdateLotUnrealizedUnit :exec
 UPDATE investment_lots
-SET unrealized_unit_twd = @unrealized_unit_twd
+SET unrealized_unit_twd = @unrealized_unit_twd,
+    updated_by          = @updated_by,
+    updated_at          = datetime('now')
 WHERE lot_id = @lot_id;
 
 -- name: InsertInvestmentLotDisposal :execlastid
@@ -133,23 +149,29 @@ INSERT INTO investment_movements
     (merchant_id, investment_id, movement_type, movement_date, event_id,
      quantity, unit_price, unit_price_twd, exchange_rate,
      fee, tax, realized_gain, cost_basis, split_ratio,
-     gross_amount, net_amount, withholding_tax)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+     gross_amount, net_amount, withholding_tax, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateInvestmentMovementTxn :exec
 UPDATE investment_movements
-SET txn_id = ?
+SET txn_id     = ?,
+    updated_by = ?,
+    updated_at = datetime('now')
 WHERE movement_id = ?;
 
 -- name: UpdateInvestmentPositionSplit :exec
 UPDATE investment_positions
-SET total_quantity = total_quantity * ?
+SET total_quantity = total_quantity * ?,
+    updated_by     = ?,
+    updated_at     = datetime('now')
 WHERE investment_id = ?;
 
 -- name: UpdateInvestmentPositionSold :exec
 UPDATE investment_positions
 SET total_quantity = total_quantity - @total_quantity,
-    total_cost = total_cost - @total_cost
+    total_cost     = total_cost - @total_cost,
+    updated_by     = @updated_by,
+    updated_at     = datetime('now')
 WHERE investment_id = @investment_id
     AND total_quantity - @total_quantity >= 0;
 
@@ -157,12 +179,16 @@ WHERE investment_id = @investment_id
 UPDATE investment_lots
 SET quantity      = quantity      * ?,
     remaining_qty = remaining_qty * ?,
-    unit_cost     = unit_cost     / ?
+    unit_cost     = unit_cost     / ?,
+    updated_by    = ?,
+    updated_at    = datetime('now')
 WHERE investment_id = ? AND status != 'CLOSED';
 
 -- name: UpdateInvestmentPositionFairValue :exec
 UPDATE investment_positions
-SET market_price_twd = ?
+SET market_price_twd = ?,
+    updated_by       = ?,
+    updated_at       = datetime('now')
 WHERE investment_id = ?;
 
 -- name: UpsertExchangeRate :exec

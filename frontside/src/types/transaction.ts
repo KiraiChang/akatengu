@@ -14,16 +14,21 @@ export interface Transaction {
   note: string | null;
   version: number;
   ref_txn_id: number | null;
+  updated_by: string | null;
+  updated_at: string | null;
 }
 
 export interface Entry {
-  entry_id: number;
-  txn_id: number;
-  ledger_id: number | null;
-  account_id: string;
-  debit: string;
-  credit: string;
-  note: string | null;
+  entry_id:           number;
+  txn_id:             number;
+  ledger_id:          number | null;
+  account_id:         string;
+  debit:              string;
+  credit:             string;
+  note:               string | null;
+  cash_flow_category: CashFlowCategory | null;
+  updated_by:         string | null;
+  updated_at:         string | null;
 }
 
 export interface TransactionEntryPayload {

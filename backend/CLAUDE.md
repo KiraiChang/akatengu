@@ -63,6 +63,7 @@
 - 瀏覽程式碼時**不重複閱讀**同一檔案，已讀過的內容直接引用記憶。
 - **Repository 層一律使用 sqlc 產生的型別安全查詢**；嚴禁直接撰寫 `sqlx` 查詢，除非該 SQL 動態性質（如欄位清單或 `WHERE` 條件在執行期才確定）確實無法以 sqlc 靜態產生，且**須在行內以註解說明為何不得不改用 `sqlx`**。如遇此情況，應先提出說明並取得明確許可，再動手實作。
 - **所有金額相關欄位必須使用 `decimal.Decimal` 型別**，禁止用 `float64` 儲存金額資料。在 `sqlc.yaml` 的 `overrides` 區段以 `column: "table.column"` 格式宣告型別覆寫（`github.com/shopspring/decimal` → `Decimal`）。若欄位來自計算式（如 `SUM`、`COALESCE` 等 aggregate 函數），sqlc 無法直接追蹤欄位來源，必須先建立 Database View（參考 `v_account_balances`、`v_parent_balance_agg`），再對 View 欄位加覆寫，不可在 Go 程式碼中使用 `decimal.NewFromFloat()` 轉型來規避。
+- **禁止**在任何非 `init()` / codegen 工具的程式碼中使用 `panic()`；所有錯誤一律以 `return err` 方式傳遞，由呼叫端決定處理方式。啟動期的初始化失敗可使用 `log.Fatal(err)` 代替 `panic`。
 
 ---
 

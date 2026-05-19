@@ -39,7 +39,9 @@ func (s *InstallmentProjectionService) applyCreated(ctx context.Context, tx even
 		return err
 	}
 
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Installment.MerchantID = ct.MerchantID
+	st.Installment.UpdatedBy = updatedBy
 	st.Installment.InstallmentId, err = tx.Projection.InstallmentRepo.InsertInstallment(ctx, st.Installment)
 	if err != nil {
 		return err
@@ -47,6 +49,7 @@ func (s *InstallmentProjectionService) applyCreated(ctx context.Context, tx even
 	for _, r := range st.InstallmentPayments {
 		r.MerchantID = ct.MerchantID
 		r.InstallmentId = st.Installment.InstallmentId
+		r.UpdatedBy = updatedBy
 		if _, err := tx.Projection.InstallmentRepo.InsertInstallmentPayment(ctx, r); err != nil {
 			return err
 		}
@@ -66,13 +69,14 @@ func (s *InstallmentProjectionService) applyPeriodPaid(ctx context.Context, tx e
 		return err
 	}
 
-	err = tx.Projection.InstallmentRepo.PaidInstallmentPayment(ctx, st.InstallmentPayments.PaymentId, p.PaidDate)
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	err = tx.Projection.InstallmentRepo.PaidInstallmentPayment(ctx, st.InstallmentPayments.PaymentId, p.PaidDate, updatedBy)
 	if err != nil {
 		return err
 	}
 
 	if st.InstallmentPayments.Period == st.Installment.PaidPeriods {
-		err := tx.Projection.InstallmentRepo.UpdateInstallmentStatus(ctx, st.Installment.InstallmentId, enums.InstallmentStatusCompleted.Enum())
+		err := tx.Projection.InstallmentRepo.UpdateInstallmentStatus(ctx, st.Installment.InstallmentId, enums.InstallmentStatusCompleted.Enum(), updatedBy)
 		if err != nil {
 			return err
 		}

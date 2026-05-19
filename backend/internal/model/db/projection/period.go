@@ -26,6 +26,8 @@ type PeriodClosing struct {
 	Note         *string                `db:"note" json:"note"`
 	ReopenAt     *string                `db:"reopen_at" json:"reopen_at"`
 	ReopenReason *string                `db:"reopen_reason" json:"reopen_reason"`
+	UpdatedBy    *string                `db:"updated_by" json:"updated_by"`
+	UpdatedAt    *string                `db:"updated_at" json:"updated_at"`
 }
 
 // SnapshotData 是存入 snapshot 欄位的 JSON 結構

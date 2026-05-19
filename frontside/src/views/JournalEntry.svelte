@@ -269,9 +269,12 @@
                   <div class="entry-header">
                     <span>會計科目</span>
                     <span>帳戶</span>
+                    <span>現金流量</span>
                     <span class="num">借方</span>
                     <span class="num">貸方</span>
                     <span class="entry-cell--note">備註</span>
+                    <span class="entry-cell--audit">更新者</span>
+                    <span class="entry-cell--audit">更新時間</span>
                   </div>
                   {#each rows as entry (entry.entry_id)}
                     {@const acct = allAccounts.find(a => a.account_id === entry.account_id)}
@@ -293,11 +296,20 @@
                           —
                         {/if}
                       </span>
+                      <span class="entry-cell">{entry.cash_flow_category ? CASH_FLOW_CATEGORY_LABELS[entry.cash_flow_category] : '—'}</span>
                       <span class="entry-cell num">{parseFloat(entry.debit) > 0 ? fmtAmount(entry.debit) : ''}</span>
                       <span class="entry-cell num">{parseFloat(entry.credit) > 0 ? fmtAmount(entry.credit) : ''}</span>
                       <span class="entry-cell entry-note entry-cell--note">{entry.note ?? ''}</span>
+                      <span class="entry-cell entry-cell--audit">{entry.updated_by ?? '—'}</span>
+                      <span class="entry-cell entry-cell--audit">{entry.updated_at ?? '—'}</span>
                     </div>
                   {/each}
+                  {@const txn = txns.find(t => t.txn_id === expandedId)}
+                  {#if txn?.updated_by || txn?.updated_at}
+                    <div style="padding:6px 24px;font-size:10px;color:#3d4258;letter-spacing:0.06em;border-top:1px solid rgba(255,255,255,0.03);">
+                      傳票最後更新：{txn.updated_by ?? '—'} · {txn.updated_at ?? '—'}
+                    </div>
+                  {/if}
                 {/if}
               {/if}
             </div>

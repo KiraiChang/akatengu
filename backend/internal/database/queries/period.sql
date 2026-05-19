@@ -1,7 +1,7 @@
 -- name: GetPeriodByPeriod :one
 SELECT closing_id, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
-       reopen_at, reopen_reason
+       reopen_at, reopen_reason, updated_by, updated_at
 FROM period_closings
 WHERE period_type = @period_type AND period_start = @period_start AND merchant_id = @merchant_id;
 
@@ -10,7 +10,7 @@ WITH total AS (SELECT COUNT(*) AS cnt FROM period_closings AS p2
                WHERE p2.period_type = @period_type AND p2.merchant_id = @merchant_id)
 SELECT closing_id, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
-       reopen_at, reopen_reason,
+       reopen_at, reopen_reason, updated_by, updated_at,
        total.cnt AS total
 FROM period_closings AS p, total
 WHERE p.period_type = @period_type AND p.merchant_id = @merchant_id
@@ -21,14 +21,14 @@ OFFSET @offset;
 -- name: GetPeriodByID :one
 SELECT closing_id, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
-       reopen_at, reopen_reason
+       reopen_at, reopen_reason, updated_by, updated_at
 FROM period_closings
 WHERE closing_id = @closing_id AND merchant_id = @merchant_id;
 
 -- name: GetLatestClosedPeriod :one
 SELECT closing_id, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
-       reopen_at, reopen_reason
+       reopen_at, reopen_reason, updated_by, updated_at
 FROM period_closings
 WHERE period_type = @period_type AND status = 'CLOSED' AND merchant_id = @merchant_id
 ORDER BY period_end DESC
@@ -67,14 +67,16 @@ WHERE ra.adjustment_type = 'UNRESOLVED'
 
 -- name: InsertPeriodClose :execlastid
 INSERT INTO period_closings
-    (merchant_id, period_type, period_start, period_end, status, note)
-VALUES (?, ?, ?, ?, ?, ?);
+    (merchant_id, period_type, period_start, period_end, status, note, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdatePeriodCloseSnapshot :exec
 UPDATE period_closings
-SET status    = ?,
-    closed_at = ?,
-    snapshot  = ?
+SET status     = ?,
+    closed_at  = ?,
+    snapshot   = ?,
+    updated_by = ?,
+    updated_at = datetime('now')
 WHERE closing_id = ?;
 
 -- name: ReopenPeriodClose :exec
@@ -82,11 +84,15 @@ UPDATE period_closings
 SET status        = ?,
     reopen_reason = ?,
     reopen_at     = ?,
-    snapshot      = NULL
+    snapshot      = NULL,
+    updated_by    = ?,
+    updated_at    = datetime('now')
 WHERE closing_id = ?;
 
 -- name: UpdatePeriodCloseTxnID :exec
 UPDATE period_closings
 SET closing_txn_id = ?,
-    opening_txn_id = ?
+    opening_txn_id = ?,
+    updated_by     = ?,
+    updated_at     = datetime('now')
 WHERE closing_id = ?;

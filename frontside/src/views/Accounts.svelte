@@ -232,6 +232,8 @@
         —
       {/if}
     </td>
+    <td class="hidden md:table-cell">{account.updated_by ?? '—'}</td>
+    <td class="hidden md:table-cell">{account.updated_at ?? '—'}</td>
     <td onclick={(e) => e.stopPropagation()}>
       <button class="btn-ghost" style="padding:2px 10px;font-size:11px;" onclick={() => openEditModal(account)}>編輯</button>
     </td>
@@ -280,14 +282,16 @@
           <th>狀態</th>
           <th class="hidden md:table-cell">備註</th>
           <th class="hidden md:table-cell" style="text-align:right">餘額</th>
+          <th class="hidden md:table-cell">更新者</th>
+          <th class="hidden md:table-cell">更新時間</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {#if isLoading && accounts.length === 0}
-          <tr><td colspan="11" class="table-empty">載入中...</td></tr>
+          <tr><td colspan="13" class="table-empty">載入中...</td></tr>
         {:else if accounts.length === 0}
-          <tr><td colspan="11" class="table-empty">無資料</td></tr>
+          <tr><td colspan="13" class="table-empty">無資料</td></tr>
         {:else}
           {#each rootAccounts as account (account.account_id)}
             {@render accountRow(account, 0)}
@@ -433,6 +437,22 @@
             placeholder="選填"
           />
         </div>
+
+        {#if mode === 'edit'}
+          {@const acct = accounts.find(a => a.account_id === form.account_id)}
+          {#if acct}
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="f-acct-updated-by">更新者</label>
+                <input id="f-acct-updated-by" class="form-input" type="text" value={acct.updated_by ?? '—'} readonly style="background:#f5f0e8;cursor:default;" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="f-acct-updated-at">更新時間</label>
+                <input id="f-acct-updated-at" class="form-input" type="text" value={acct.updated_at ?? '—'} readonly style="background:#f5f0e8;cursor:default;" />
+              </div>
+            </div>
+          {/if}
+        {/if}
 
         <div class="modal-footer" style="padding:0;margin-top:8px;">
           <button type="button" class="btn-ghost" onclick={closeModal} disabled={isSaving}>取消</button>

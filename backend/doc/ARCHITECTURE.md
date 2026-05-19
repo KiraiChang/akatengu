@@ -28,6 +28,7 @@
 | [ADR-006](#adr-006-股東權益變動表的本期淨利補入策略) | 股東權益變動表的本期淨利補入策略 | Accepted | 2026-05-15 |
 | [ADR-007](#adr-007-現金流量表分類來源改為-journal_entriesentry-based) | 現金流量表分類來源改為 journal_entries（entry-based） | Accepted | 2026-05-16 |
 | [ADR-008](#adr-008-直接法現金流量表direct-method架構設計) | 直接法現金流量表（Direct Method）架構設計 | Accepted | 2026-05-16 |
+| [ADR-009](#adr-009-審計欄位-updated_by--updated_at-架構設計) | 審計欄位（updated_by / updated_at）架構設計 | Accepted | 2026-05-19 |
 
 ---
 
@@ -202,6 +203,113 @@
   | 混合分類交易精準度 | 邊界行為（整筆歸入 OPERATING） | 精確（按 entry 分類） |
 
   **已知限制**：一筆交易同時含不同 CF 分類的分錄（如：CR INCOME 600 + CR INVESTING 400 = DR CASH 1000），`queryDirectOperatingCash` 會將整筆交易歸入 OPERATING，現金流入 1000 全算入 CashReceived 而非按比例拆分。個人財務情境中幾乎不會出現此類混合交易，視為可接受的邊界行為。
+
+---
+
+## ADR-009 審計欄位（updated_by / updated_at）架構設計
+
+- **狀態**：Accepted
+- **日期**：2026-05-19
+- **背景**：
+  所有 projection 表與 event_store 需記錄「誰觸發」（`updated_by`）與「何時寫入」（`updated_at`）。
+  JWT Claims 已帶有 `UserName` 欄位，Middleware 將 `*jwt.Claims` 注入 context，
+  需要一個統一的取用方式，並在整個寫入鏈路中傳遞。
+- **決策**：
+
+  **1. 來源**：`internal/pkg/ctxkey.GetUserName(ctx)` 統一讀取 context 中的 Claims。
+  回傳空字串代表無使用者（Replay 場景），呼叫端轉為 `nil *string` 寫入 DB NULL。
+
+  **2. 傳遞路徑**：
+  ```
+  JWT Claims（ctx）
+    └─► ctxkey.GetUserName(ctx)
+          └─► EventStoreService.Append → ct.UpdatedBy = username
+                └─► pipelines.Result.UpdatedBy（string，空字串表示無使用者）
+                      └─► 各 Projection Service Apply 方法
+                            └─► toUpdatedBy(ct.UpdatedBy) → *string（nil 或 &username）
+                                  └─► projection model struct 的 UpdatedBy 欄位
+                                        └─► projection_repo 方法 → sqlcdb INSERT/UPDATE
+  ```
+
+  **3. updated_at 策略**：應用層**不傳遞** `updated_at`，改由 SQLite 自動填入：
+  - INSERT：`DEFAULT (datetime('now'))` 自動填入
+  - UPDATE：SQL SET 子句顯式加入 `updated_at = datetime('now')`
+
+  **4. Replay 場景**：context 無 user → `GetUserName` 回傳 `""` → `toUpdatedBy("")` 回傳 `nil` → DB 存 NULL，此為預期行為。
+
+- **替代方案**：
+  - 直接在每個 Projection Service 讀取 context：需在所有 Apply 方法中重複讀取 context，且 Projection 介面的 context 參數需明確支援（目前已有）。此方案耦合度較高，被 `pipelines.Result` 集中傳遞的方式取代。
+  - 在 Pipeline 層計算後寫入事件 payload：侵入 payload 結構，且 Replay 時 payload 中的 username 是歷史值而非當下執行者，語義不正確。
+- **後果**：
+  - 正面：username 在 `Append` 入口點統一取得，各 Projection 只需讀取 `ct.UpdatedBy`，無需重複讀 context。Replay 場景安全，存 NULL 不影響功能。
+  - 負面：`pipelines.Result` 新增了一個與事件業務無關的欄位，輕度職責擴散。
+
+---
+
+## 寫入路徑修改指引（Modification Guide）
+
+> 本節記錄常見修改場景的**最小影響範圍**，避免每次需求都需全面瀏覽程式碼。
+
+---
+
+### 場景 A：新增 DB 欄位（含審計欄位）
+
+需同時修改以下檔案（順序重要）：
+
+| 步驟 | 檔案 | 說明 |
+|------|------|------|
+| 1 | `internal/database/schema.sql` | 在對應 `CREATE TABLE` 加入新欄位（**sqlc 的唯一源泉**） |
+| 2 | `internal/database/migrations/YYYYMMDDNNN_xxx.sql` | `ALTER TABLE` 加入欄位（goose 格式：`-- +goose Up` / `-- +goose Down`） |
+| 3 | `internal/database/queries/xxx.sql` | INSERT 加欄位與 `?`；UPDATE SET 加 `col = ?`；SELECT 加欄位 |
+| 4 | `go generate ./internal/database/...` | 重新產生 `internal/database/sqlcdb/` |
+| 5 | `internal/model/db/projection/xxx.go` | Projection Model struct 加欄位 + `//dbmap:sqlcdb=TypeName` 確認 |
+| 6 | `go generate ./...` | 重新產生 `dbmap_gen.go` |
+| 7 | `internal/repos/unit_of_work/event_store/projection_repo/interface.go` | 若方法簽名需新增參數，在此更新介面 |
+| 8 | `internal/repos/unit_of_work/event_store/projection_repo/xxx.go` | 實作更新，傳入新欄位至 sqlcdb Params |
+| 9 | `internal/services/projection/xxx.go` | Apply 方法中設定新欄位值後呼叫 repo |
+
+> ⚠️ **常見錯誤**：只改 migration 忘記改 `schema.sql`，導致 sqlc 產生的 Params struct 缺少欄位。
+
+---
+
+### 場景 B：新增 Event 寫入欄位（event_store 表）
+
+| 步驟 | 檔案 |
+|------|------|
+| 1 | `internal/database/schema.sql`（event_store 表） |
+| 2 | `internal/database/migrations/xxx.sql` |
+| 3 | `internal/database/queries/event_store.sql`（InsertEvent + 所有 SELECT） |
+| 4 | `go generate ./internal/database/...` |
+| 5 | `internal/model/db/event.go`（EventStore struct） |
+| 6 | `internal/repos/unit_of_work/event_store/interface.go`（InsertEventParams） |
+| 7 | `internal/repos/unit_of_work/event_store/event.go`（Insert 實作） |
+| 8 | `internal/services/event.go`（Append 方法中注入值） |
+
+---
+
+### 場景 C：新增 Projection Repo 方法（全新 UPDATE/INSERT）
+
+| 步驟 | 檔案 |
+|------|------|
+| 1 | `internal/database/queries/xxx.sql`（新增 named query） |
+| 2 | `go generate ./internal/database/...` |
+| 3 | `internal/repos/unit_of_work/event_store/projection_repo/interface.go`（新增方法簽名） |
+| 4 | `internal/repos/unit_of_work/event_store/projection_repo/xxx.go`（實作） |
+| 5 | `internal/services/projection/xxx.go`（在 Apply 中呼叫） |
+
+---
+
+### 場景 D：新增 EventType（全新事件）
+
+| 步驟 | 檔案 |
+|------|------|
+| 1 | `internal/enums/event_types/`（宣告新 EventType 常數） |
+| 2 | `go generate ./internal/enums/...` |
+| 3 | `internal/model/payload/`（新增 Payload struct） |
+| 4 | `internal/services/pipelines/`（新增 TypedPipeline） |
+| 5 | `internal/services/pipelines/factory/base.go`（註冊 Pipeline） |
+| 6 | 各相關 `internal/services/projection/xxx.go`（Apply switch case） |
+| 7 | `internal/handler/`（新增 HTTP handler，組裝 AppendCmd） |
 
 ---
 

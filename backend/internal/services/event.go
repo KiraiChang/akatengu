@@ -52,6 +52,7 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 		return nil, err
 	}
 	ct.MerchantID = merchantID
+	ct.UpdatedBy = ctxkey.GetUserName(ctx)
 
 	err = es.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
 
@@ -70,12 +71,17 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 		}
 
 		// 寫入事件
+		var updatedBy *string
+		if ct.UpdatedBy != "" {
+			updatedBy = &ct.UpdatedBy
+		}
 		eventID, err := tx.Event.Insert(ctx, event_store.InsertEventParams{
 			AggregateType:    cmd.AggregateType,
 			AggregateID:      cmd.AggregateID,
 			AggregateVersion: newVersion,
 			EventType:        cmd.EventType,
 			Payload:          cmd.Payload,
+			UpdatedBy:        updatedBy,
 		})
 		if err != nil {
 			return fmt.Errorf("insert event: %w", err)

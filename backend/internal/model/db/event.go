@@ -20,6 +20,7 @@ type EventStore struct {
 	EventType        event_types.EventType `db:"event_type"`
 	Payload          json.RawMessage       `db:"payload"`
 	Metadata         json.RawMessage       `db:"metadata"`
+	UpdatedBy        *string               `db:"updated_by" json:"updated_by"`
 }
 
 //dbmap:sqlcdb=AggregateVersion

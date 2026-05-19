@@ -17,6 +17,8 @@ export interface Installment {
   interest_type:     InterestType;
   status:            InstallmentStatus;
   note:              string;
+  updated_by:        string | null;
+  updated_at:        string | null;
 }
 
 export interface InstallmentPayment {
@@ -29,6 +31,8 @@ export interface InstallmentPayment {
   due_date:       string;
   paid_date:      string | null;
   status:         InstallmentPaymentStatus;
+  updated_by:     string | null;
+  updated_at:     string | null;
 }
 
 export interface InstallmentCreatedPayload {

@@ -20,19 +20,21 @@ func (r *sqlxTransactionRepo) InsertTxn(ctx context.Context, p projection.Transa
 	return r.q.InsertTransaction(ctx, p.ToInsertTransactionParams())
 }
 
-func (r *sqlxTransactionRepo) UpdateTxnStatus(ctx context.Context, txnId int64, status enums.TransactionStatus, version int64) error {
+func (r *sqlxTransactionRepo) UpdateTxnStatus(ctx context.Context, txnId int64, status enums.TransactionStatus, version int64, updatedBy *string) error {
 	return r.q.UpdateTransactionStatus(ctx, sqlcdb.UpdateTransactionStatusParams{
-		Status:  status,
-		Version: version,
-		TxnID:   txnId,
+		Status:    status,
+		UpdatedBy: updatedBy,
+		Version:   version,
+		TxnID:     txnId,
 	})
 }
 
-func (r *sqlxTransactionRepo) SysUpdateTxnStatus(ctx context.Context, txnId int64, refTxtId *int64, status enums.TransactionStatus) error {
+func (r *sqlxTransactionRepo) SysUpdateTxnStatus(ctx context.Context, txnId int64, refTxtId *int64, status enums.TransactionStatus, updatedBy *string) error {
 	return r.q.SysUpdateTransactionStatus(ctx, sqlcdb.SysUpdateTransactionStatusParams{
-		Status:   status,
-		RefTxnID: refTxtId,
-		TxnID:    txnId,
+		Status:    status,
+		RefTxnID:  refTxtId,
+		UpdatedBy: updatedBy,
+		TxnID:     txnId,
 	})
 }
 

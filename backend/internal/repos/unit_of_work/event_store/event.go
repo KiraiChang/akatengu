@@ -15,5 +15,6 @@ func (r *sqlcdbTxEventRepository) Insert(ctx context.Context, p InsertEventParam
 		EventType:        p.EventType,
 		Payload:          p.Payload,
 		Metadata:         p.Metadata,
+		UpdatedBy:        p.UpdatedBy, // *string, nil when no user (replay)
 	})
 }
