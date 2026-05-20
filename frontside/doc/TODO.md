@@ -35,6 +35,8 @@
 
 - [ ] ⬜ [Feature] 財務報表匯出 — 各報表頁加入「匯出 CSV / PDF」功能
 - [ ] ⬜ [Feature] 財務報表列印版面 — 加入 `@media print` CSS，隱藏 sidebar/header，讓報表可直接從瀏覽器列印
+- [ ] ⬜ [Feature] AssetTypeConfig 表格欄位優化 — 目前顯示 account_id 字串，可考慮改為顯示科目名稱（accountMap lookup）；但欄位多（7 欄），可能改用 tooltip 或點擊展開的方式顯示
+- [ ] ⬜ [Feature] 帳本建立限制套用至 Installment — 目前 `NewLedgerFormSection` 的 `accountsForParent` 限制只在 `Ledger.svelte` 傳入，`Installment.svelte` 的 `LedgerSelectSection` 尚未套用同樣限制
 ### 重構
 
 - [ ] ⬜ [Refactor] 報表查詢表單元件化 — 四份報表的查詢表單結構相似（日期輸入 + 查詢按鈕），可抽成 `ReportQueryBar.svelte` 共用元件
@@ -59,3 +61,4 @@
 - [x] [Feature] 會計科目列表新增「現金流量分類」欄位 — 完成日期：2026-05-15
 - [x] [Feature] 分錄展開列顯示 cash_flow_category — 完成日期：2026-05-19
 - [x] [Refactor] 所有 projection 模型補上 `updated_by` / `updated_at`（後端 + 前端 types + 頁面） — 完成日期：2026-05-19
+- [x] [Feature] Setting API 串接 — `LedgerTypeConfig` / `AssetTypeConfig` 頁面 + 帳本建立科目限制 — 完成日期：2026-05-20，關聯：ADR-009、ADR-010

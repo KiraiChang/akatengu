@@ -28,6 +28,8 @@
 | ADR-006 | Svelte 5 衍生 UI 狀態一律使用 `$derived` 而非 `$effect` | Accepted | 2026-05-15 |
 | ADR-007 | 後端 `decimal.Decimal` 對應前端 `string`，顯示層才轉數字 | Accepted | 2026-05-15 |
 | ADR-008 | 所有 Projection 模型一律加入 `updated_by` / `updated_at` 審計欄位 | Accepted | 2026-05-19 |
+| ADR-009 | Sidebar 可展開選單項以函式泛化展開邏輯 | Accepted | 2026-05-20 |
+| ADR-010 | 帳本建立科目限制透過 `filteredAccounts` prop 傳遞而非在子元件內載入 | Accepted | 2026-05-20 |
 
 ---
 
@@ -209,6 +211,75 @@
 
 ---
 
+
+## ADR-009 Sidebar 可展開選單項以函式泛化展開邏輯
+
+- **狀態**：Accepted
+- **日期**：2026-05-20
+- **背景**：
+  原 `Home.svelte` 的 sidebar 展開邏輯以 `isReportsExpanded` 這個 hardcoded `$derived` 實作，
+  只處理「財務報表」的展開狀態。當「系統設定」也需要子選單時，若繼續各自宣告一個 `$derived`，
+  每新增一個可展開選單項都要同時修改 script 區塊和 template，維護成本線性增長。
+- **決策**：
+  改為通用 `isExpanded(key: string): boolean` 函式搭配 `parentBasePaths` lookup table。
+  `MenuItem` 介面加入可選的 `key` 欄位，template 中用 `{@const key = item.key ?? item.path}` 取得 key，
+  展開邏輯一律走 `isExpanded(key)`。
+
+  ```typescript
+  const parentBasePaths: Record<string, string> = {
+    reports:  '/home/reports',
+    settings: '/home/settings',
+  };
+
+  function isExpanded(key: string): boolean {
+    return expandedParents.has(key) || currentPath.startsWith(parentBasePaths[key] ?? '');
+  }
+  ```
+
+  新增可展開選單項只需：① 在 `menuItems` 加 `key` 與 `children`；② 在 `parentBasePaths` 加對應路徑。
+
+  延伸 ADR-006 的原則：展開狀態仍為純計算（不寫入 state），讀取 `expandedParents` 與 `currentPath` 兩個來源。
+
+- **替代方案**：
+  - **每個可展開項各宣告一個 `$derived`**：最直觀，但每次新增子選單都要改 script 與 template 兩處，容易遺漏。
+  - **將展開邏輯移入 `MenuItem` struct，作為物件方法**：Svelte 5 reactive system 無法追蹤外部物件方法的依賴，難以正確更新。
+- **後果**：
+  - 正面：新增任意數量的可展開選單項，template 零改動；`parentBasePaths` 作為集中設定，一目瞭然。
+  - 負面：新增選單項若忘記在 `parentBasePaths` 登記，直接以 URL 導覽到子路由時不會自動展開父項（手動點擊仍正常）。
+
+---
+
+## ADR-010 帳本建立科目限制透過 `filteredAccounts` prop 傳遞而非在子元件內載入
+
+- **狀態**：Accepted
+- **日期**：2026-05-20
+- **背景**：
+  後端 `GET /api/setting/ledger-account-type` 回傳 `LedgerAccountTypeConfigResult`，其中 `descendants: Account[]`
+  是配置科目下所有子孫科目。帳本建立時需依帳戶類型（`BANK_ACCOUNT` / `CREDIT_CARD` / `LOAN`）
+  限制可選的關聯科目。
+- **決策**：
+  限制邏輯集中在頁面元件 `Ledger.svelte`，以 `$derived` 計算出 `filteredAccounts` 與 `filteredParentAccounts`，
+  再透過 prop 傳入 `NewLedgerFormSection`，最終傳給 `AccountSelect` 的 `accounts` prop。
+  子元件完全不感知「限制」這件事，只負責顯示傳入的 accounts 清單。
+
+  ```
+  Ledger.svelte ($derived filteredAccounts)
+    → NewLedgerFormSection (accounts / accountsForParent props)
+      → AccountSelect (accounts prop, 只顯示傳入清單)
+      → NewAccountFormSection (parentAccounts prop)
+  ```
+
+  帳戶類型切換時，透過 `$effect` 監測 type 變化，清空已選的 `newLedgerAccountId` 與 `newAccountForm.parent_id`，
+  避免殘留不符合限制的選擇值。
+
+- **替代方案**：
+  - **在 `AccountSelect` 加 `allowedIds?: string[]` prop 在元件內過濾**：讓 AccountSelect 感知限制邏輯，破壞其無狀態、可重用的特性；且需要在每個使用 AccountSelect 的地方判斷是否傳入 allowedIds。
+  - **在 `NewLedgerFormSection` 內部呼叫 API 載入 config**：元件自帶資料來源，但導致 API 每次開 modal 就重新呼叫；且不符合「子元件接收資料、頁面元件管理狀態」的分層原則。
+- **後果**：
+  - 正面：`AccountSelect` 保持無狀態，可在任何地方重用；限制邏輯集中在 Ledger.svelte，易於測試與修改。
+  - 負面：config 需要在 Ledger.svelte 的 `openModal()` 時額外呼叫 API；若日後其他頁面（如 Installment）也需要同樣限制，需要在各頁面重複相同的 `$derived` 邏輯。
+
+---
 
 <!-- 新增 ADR 時複製以下範本 -->
 

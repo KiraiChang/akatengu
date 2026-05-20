@@ -19,6 +19,65 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-20｜Setting Config 串接模式
+
+#### 唯讀顯示欄用 `<span>` 完全避免 a11y 警告
+
+`<label>` 元素需對應一個可互動控制項（`for` + `id`），否則 svelte-check 報 `a11y_label_has_associated_control`。
+若該欄只用來顯示文字（如 modal 中唯讀的「帳戶類型」），直接改用 `<span class="form-label">` 即可，不需要 `for`，也不產生警告。
+
+```svelte
+<!-- ✅ 唯讀顯示：改用 <span>，不需要 for/id -->
+<span class="form-label">帳戶類型</span>
+<p style="font-size:13px;color:#dedad3;margin:0;padding:8px 0;">{LABELS[type]}</p>
+
+<!-- ✅ 對應 AccountSelect 的 label：加 for 屬性（任意值即可） -->
+<label class="form-label" for="some-id">配置科目 *</label>
+<AccountSelect ... />
+
+<!-- ❌ 唯讀顯示用 <label> 但無 for → 觸發 a11y 警告 -->
+<label class="form-label">帳戶類型</label>
+<p>...</p>
+```
+
+> 見 ISSUE-004 的解決紀錄（補 `for` + `id` 的做法）與本次更乾淨的替代：唯讀欄改 `<span>`。
+
+#### Setting API 為非 Event Sourcing 的直接 REST 端點
+
+Setting 相關 API（`/api/setting/*`）是直接的 REST PUT/GET，不走 Event Sourcing 的 `appendEvent` 流程。
+與 Account、LedgerAccount 等必須用 `appendEvent` 的不同，這類「系統設定」通常只維護最新狀態，無版本號樂觀鎖。
+
+```typescript
+// ✅ Setting API：直接 PUT
+await apiFetch(`/api/setting/ledger-account-type/${type}`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ account_id: accountId }),
+});
+
+// ❌ 不走 appendEvent
+await appendEvent({ event_type: 'setting.updated', ... });
+```
+
+#### 以 Map 補全後端「可能不回傳所有 type」的顯示清單
+
+後端 setting API 只回傳已設定的 type（未設定的 type 根本不存在於資料庫），
+但前端需要顯示所有 type 的 row（未設定者顯示「—」）。
+標準做法：以固定陣列為基準，用 `configMap.get(type)` 取值，取不到就顯示「—」。
+
+```typescript
+const ALL_TYPES = ['BANK_ACCOUNT', 'CREDIT_CARD', 'LOAN'] as const;
+const configMap = $derived(new Map(configs.map(c => [c.type, c])));
+
+// template 中
+{#each ALL_TYPES as type}
+  {@const cfg = configMap.get(type)}
+  <td>{cfg?.account_id || '—'}</td>
+{/each}
+```
+
+---
+
 ### 2026-05-19｜Projection audit 欄位補充模式
 
 #### 唯讀審計欄（更新者 / 更新時間）顯示模式
@@ -173,11 +232,14 @@ fmt(item.amount)  // 已處理 NaN fallback
 #### 6. 新增 API 端點的標準流程
 
 1. 讀後端 model Go 檔案 → 確認回應結構
-2. 在 `src/types/report.ts`（或對應 types 檔）新增 interface
-3. 在 `src/api/report.ts`（或對應 api 檔）新增 async function
+2. 在 `src/types/<模組>.ts` 新增 interface
+3. 在 `src/api/<模組>.ts` 新增 async function
 4. 建立或更新 view 元件
-5. 在 `src/routes/Home.svelte` 加路由與選單項目
+5. 在 `src/routes/Home.svelte` 加路由與選單項目（可展開子選單需同時更新 `parentBasePaths`）
 6. `npm run check` → `npm run build` 驗證
+
+**注意：若後端 API 有「可能不回傳所有項目」的特性**（如 setting 類 API，只回傳已設定的 type），
+前端需以固定 ALL_TYPES 陣列為基準補全顯示，而非直接 `{#each configs}` 迭代（見 NOTES 2026-05-20）。
 
 ---
 

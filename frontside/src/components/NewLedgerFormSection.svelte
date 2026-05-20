@@ -40,16 +40,18 @@
   };
 
   interface Props {
-    accounts:         Account[];
-    form:             NewLedgerForm;
-    required?:        boolean;
-    createNewAccount: boolean;
-    newAccountForm:   NewAccountForm;
-    accountId:        string;
+    accounts:          Account[];
+    accountsForParent?: Account[];
+    form:              NewLedgerForm;
+    required?:         boolean;
+    createNewAccount:  boolean;
+    newAccountForm:    NewAccountForm;
+    accountId:         string;
   }
 
   let {
     accounts,
+    accountsForParent,
     form             = $bindable(),
     required         = true,
     createNewAccount = $bindable(),
@@ -195,6 +197,7 @@
   {:else}
     <NewAccountFormSection
       {accounts}
+      parentAccounts={accountsForParent}
       bind:form={newAccountForm}
       required={createNewAccount}
     />

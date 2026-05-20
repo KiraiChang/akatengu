@@ -1,11 +1,13 @@
 <script lang="ts">
   import { getLedgerAccountAll, getLedgerBalances, invalidateLedgerCache, createLedgerAccount, updateLedgerAccount } from '../api/ledger';
   import { getAccountAll, createAccount } from '../api/account';
+  import { getLedgerAccountTypeConfigs } from '../api/setting';
   import AccountSelect from '../components/AccountSelect.svelte';
   import { type NewAccountForm, emptyNewAccountForm } from '../components/NewAccountFormSection.svelte';
   import NewLedgerFormSection, { type NewLedgerForm, emptyNewLedgerForm } from '../components/NewLedgerFormSection.svelte';
   import type { Account, CreateAccountRequest } from '../types/account';
   import type { LedgerAccount, LedgerBalance, LedgerAccountCreatePayload, LedgerAccountUpdatePayload, LedgerAccountType } from '../types/ledger';
+  import type { LedgerAccountTypeConfigResult } from '../types/setting';
 
   const TYPE_LABELS: Record<LedgerAccountType, string> = {
     BANK_ACCOUNT: '銀行帳戶',
@@ -19,11 +21,12 @@
     LOAN:         'ledger-type-installment',
   };
 
-  let ledgers     = $state<LedgerAccount[]>([]);
-  let allAccounts = $state<Account[]>([]);
-  let balanceMap  = $state(new Map<number, string>());
-  let isLoading   = $state(false);
-  let error       = $state('');
+  let ledgers            = $state<LedgerAccount[]>([]);
+  let allAccounts        = $state<Account[]>([]);
+  let balanceMap         = $state(new Map<number, string>());
+  let isLoading          = $state(false);
+  let error              = $state('');
+  let ledgerTypeConfigMap = $state(new Map<string, LedgerAccountTypeConfigResult>());
 
   type LedgerForm = LedgerAccountCreatePayload & {
     creditLimitInput: string;
@@ -40,6 +43,31 @@
   let newLedgerAccountId = $state('');
   let createNewAccount   = $state(false);
   let newAccountForm     = $state<NewAccountForm>(emptyNewAccountForm());
+
+  const activeLedgerTypeConfig = $derived(ledgerTypeConfigMap.get(newLedgerForm.type) ?? null);
+  const filteredAccounts = $derived(
+    activeLedgerTypeConfig?.account_id && activeLedgerTypeConfig.descendants.length > 0
+      ? activeLedgerTypeConfig.descendants
+      : allAccounts
+  );
+  const filteredParentAccounts = $derived(
+    activeLedgerTypeConfig?.account_id && activeLedgerTypeConfig.descendants.length > 0
+      ? [
+          ...allAccounts.filter(a => a.account_id === activeLedgerTypeConfig.account_id),
+          ...activeLedgerTypeConfig.descendants,
+        ]
+      : allAccounts
+  );
+
+  let _prevLedgerType = $state<LedgerAccountType | ''>('');
+  $effect(() => {
+    const t = newLedgerForm.type;
+    if (_prevLedgerType !== '' && _prevLedgerType !== t) {
+      newLedgerAccountId       = '';
+      newAccountForm.parent_id = null;
+    }
+    _prevLedgerType = t;
+  });
 
   $effect(() => {
     void load();
@@ -77,9 +105,14 @@
     newLedgerAccountId = '';
     createNewAccount   = false;
     newAccountForm     = emptyNewAccountForm();
-    if (allAccounts.length === 0) {
-      allAccounts = await getAccountAll();
-    }
+    const [accounts, configs] = await Promise.all([
+      allAccounts.length === 0 ? getAccountAll() : Promise.resolve(allAccounts),
+      ledgerTypeConfigMap.size === 0
+        ? getLedgerAccountTypeConfigs().catch(() => [] as LedgerAccountTypeConfigResult[])
+        : Promise.resolve([...ledgerTypeConfigMap.values()]),
+    ]);
+    allAccounts         = accounts;
+    ledgerTypeConfigMap = new Map(configs.map(c => [c.type, c]));
     showModal = true;
   }
 
@@ -358,7 +391,8 @@
 
         {#if mode === 'create'}
           <NewLedgerFormSection
-            accounts={allAccounts}
+            accounts={filteredAccounts}
+            accountsForParent={filteredParentAccounts}
             bind:form={newLedgerForm}
             required={true}
             bind:createNewAccount={createNewAccount}

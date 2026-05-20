@@ -22,9 +22,11 @@
   import CashFlowStatement  from '../views/CashFlowStatement.svelte';
   import EquityStatement    from '../views/EquityStatement.svelte';
   import Settings           from '../views/Settings.svelte';
+  import LedgerTypeConfig   from '../views/LedgerTypeConfig.svelte';
+  import AssetTypeConfig    from '../views/AssetTypeConfig.svelte';
 
   interface SubMenuItem { label: string; path: string; }
-  interface MenuItem    { label: string; path: string; children?: SubMenuItem[]; }
+  interface MenuItem    { label: string; path: string; key?: string; children?: SubMenuItem[]; }
 
   const menuItems: MenuItem[] = [
     { label: '儀表板',   path: '/home/dashboard' },
@@ -32,7 +34,7 @@
     { label: '會計科目', path: '/home/accounts' },
     { label: '帳戶管理', path: '/home/ledger' },
     { label: '會計期間', path: '/home/period' },
-    { label: '財務報表', path: '/home/reports', children: [
+    { label: '財務報表', path: '/home/reports', key: 'reports', children: [
       { label: '資產負債表', path: '/home/reports/balance-sheet' },
       { label: '損益表',     path: '/home/reports/income-statement' },
       { label: '現金流量表', path: '/home/reports/cash-flow' },
@@ -40,33 +42,44 @@
     ]},
     { label: '投資管理', path: '/home/investment' },
     { label: '分期管理', path: '/home/installment' },
-    { label: '系統設定', path: '/home/settings' },
+    { label: '系統設定', path: '/home/settings', key: 'settings', children: [
+      { label: '系統科目對應', path: '/home/settings' },
+      { label: '帳戶類型設定', path: '/home/settings/ledger-type' },
+      { label: '資產類型設定', path: '/home/settings/asset-type' },
+    ]},
   ];
 
   const routes = {
-    '/home':                        Dashboard,
-    '/home/dashboard':              Dashboard,
-    '/home/journal-entry':          JournalEntry,
-    '/home/accounts':               Accounts,
-    '/home/ledger':                 Ledger,
-    '/home/period':                 Period,
-    '/home/reports':                BalanceSheet,
-    '/home/reports/balance-sheet':  BalanceSheet,
+    '/home':                          Dashboard,
+    '/home/dashboard':                Dashboard,
+    '/home/journal-entry':            JournalEntry,
+    '/home/accounts':                 Accounts,
+    '/home/ledger':                   Ledger,
+    '/home/period':                   Period,
+    '/home/reports':                  BalanceSheet,
+    '/home/reports/balance-sheet':    BalanceSheet,
     '/home/reports/income-statement': IncomeStatement,
     '/home/reports/cash-flow':        CashFlowStatement,
     '/home/reports/equity-statement': EquityStatement,
     '/home/investment':               Investment,
-    '/home/installment':            Installment,
-    '/home/settings':               Settings,
+    '/home/installment':              Installment,
+    '/home/settings':                 Settings,
+    '/home/settings/ledger-type':     LedgerTypeConfig,
+    '/home/settings/asset-type':      AssetTypeConfig,
   };
 
-  let currentPath  = $state(window.location.hash.replace(/^#/, '') || '/home');
-  let sidebarOpen  = $state(false);
+  let currentPath     = $state(window.location.hash.replace(/^#/, '') || '/home');
+  let sidebarOpen     = $state(false);
   let expandedParents = $state(new Set<string>());
 
-  const isReportsExpanded = $derived(
-    expandedParents.has('reports') || currentPath.startsWith('/home/reports')
-  );
+  const parentBasePaths: Record<string, string> = {
+    reports:  '/home/reports',
+    settings: '/home/settings',
+  };
+
+  function isExpanded(key: string): boolean {
+    return expandedParents.has(key) || currentPath.startsWith(parentBasePaths[key] ?? '');
+  }
 
   $effect(() => {
     const onHashChange = (): void => {
@@ -141,18 +154,20 @@
           {/if}
           <li>
             {#if item.children}
+              {@const key = item.key ?? item.path}
+              {@const expanded = isExpanded(key)}
               <button
                 class="sidebar-item sidebar-parent-btn"
                 class:active={isActive(item.path)}
-                aria-expanded={isReportsExpanded}
-                onclick={() => toggleParent('reports')}
+                aria-expanded={expanded}
+                onclick={() => toggleParent(key)}
               >
                 <span>{item.label}</span>
                 <span class="sidebar-expand-icon" aria-hidden="true">
-                  {isReportsExpanded ? '▾' : '▸'}
+                  {expanded ? '▾' : '▸'}
                 </span>
               </button>
-              {#if isReportsExpanded}
+              {#if expanded}
                 <ul class="sidebar-sub-nav">
                   {#each item.children as child}
                     <li>

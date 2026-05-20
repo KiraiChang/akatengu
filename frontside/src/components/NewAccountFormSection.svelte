@@ -40,16 +40,20 @@
   };
 
   interface Props {
-    accounts:  Account[];
-    form:      NewAccountForm;
-    required?: boolean;
+    accounts:        Account[];
+    parentAccounts?: Account[];
+    form:            NewAccountForm;
+    required?:       boolean;
   }
 
   let {
     accounts,
+    parentAccounts,
     form = $bindable(),
     required = true,
   }: Props = $props();
+
+  const selectableParents = $derived(parentAccounts ?? accounts);
 
   const accountParent = $derived(
     form.parent_id
@@ -67,7 +71,7 @@
   <div class="form-group">
     <label class="form-label" for="naf-parent-id">父類別科目</label>
     <AccountSelect
-      {accounts}
+      accounts={selectableParents}
       value={form.parent_id ?? ''}
       placeholder="無（頂層科目）"
       onselect={(id) => {
