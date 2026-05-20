@@ -10,16 +10,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type LedgerAccountTypeConfigResult struct {
-	sqlcdb.LedgerAccountTypeConfig
-	Descendants []projection.Account `json:"descendants"`
-}
-
 type SettingService interface {
-	GetLedgerAccountTypeConfigs(ctx context.Context) ([]LedgerAccountTypeConfigResult, error)
+	GetLedgerAccountTypeConfigs(ctx context.Context) ([]projection.LedgerAccountTypeConfigResult, error)
 	UpdateLedgerAccountTypeConfig(ctx context.Context, t enums.LedgerAccountType, accountID string, updatedBy *string) error
 
-	GetAssetTypeAccountConfigs(ctx context.Context) ([]sqlcdb.AssetTypeAccountConfig, error)
+	GetAssetTypeAccountConfigs(ctx context.Context) ([]projection.AssetTypeAccountConfig, error)
 	UpdateAssetTypeAccountConfig(ctx context.Context, params sqlcdb.UpsertAssetTypeAccountConfigParams) error
 }
 
@@ -33,18 +28,18 @@ type settingService struct {
 	r query.ConfigRepo
 }
 
-func (s *settingService) GetLedgerAccountTypeConfigs(ctx context.Context) ([]LedgerAccountTypeConfigResult, error) {
+func (s *settingService) GetLedgerAccountTypeConfigs(ctx context.Context) ([]projection.LedgerAccountTypeConfigResult, error) {
 	configs, err := s.r.GetLedgerAccountTypeConfigs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]LedgerAccountTypeConfigResult, len(configs))
+	result := make([]projection.LedgerAccountTypeConfigResult, len(configs))
 	for i, cfg := range configs {
 		descendants, err := s.r.GetAccountDescendants(ctx, cfg.AccountID)
 		if err != nil {
 			return nil, err
 		}
-		result[i] = LedgerAccountTypeConfigResult{
+		result[i] = projection.LedgerAccountTypeConfigResult{
 			LedgerAccountTypeConfig: cfg,
 			Descendants:             descendants,
 		}
@@ -56,7 +51,7 @@ func (s *settingService) UpdateLedgerAccountTypeConfig(ctx context.Context, t en
 	return s.r.UpsertLedgerAccountTypeConfig(ctx, t, accountID, updatedBy)
 }
 
-func (s *settingService) GetAssetTypeAccountConfigs(ctx context.Context) ([]sqlcdb.AssetTypeAccountConfig, error) {
+func (s *settingService) GetAssetTypeAccountConfigs(ctx context.Context) ([]projection.AssetTypeAccountConfig, error) {
 	return s.r.GetAssetTypeAccountConfigs(ctx)
 }
 
