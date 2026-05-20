@@ -2,3 +2,4 @@
 .DS_Store
 
 *_gen.go
+/internal/database/sqlcdb
