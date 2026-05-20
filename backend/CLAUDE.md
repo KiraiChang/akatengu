@@ -64,6 +64,9 @@
 - **Repository 層一律使用 sqlc 產生的型別安全查詢**；嚴禁直接撰寫 `sqlx` 查詢，除非該 SQL 動態性質（如欄位清單或 `WHERE` 條件在執行期才確定）確實無法以 sqlc 靜態產生，且**須在行內以註解說明為何不得不改用 `sqlx`**。如遇此情況，應先提出說明並取得明確許可，再動手實作。
 - **所有金額相關欄位必須使用 `decimal.Decimal` 型別**，禁止用 `float64` 儲存金額資料。在 `sqlc.yaml` 的 `overrides` 區段以 `column: "table.column"` 格式宣告型別覆寫（`github.com/shopspring/decimal` → `Decimal`）。若欄位來自計算式（如 `SUM`、`COALESCE` 等 aggregate 函數），sqlc 無法直接追蹤欄位來源，必須先建立 Database View（參考 `v_account_balances`、`v_parent_balance_agg`），再對 View 欄位加覆寫，不可在 Go 程式碼中使用 `decimal.NewFromFloat()` 轉型來規避。
 - **禁止**在任何非 `init()` / codegen 工具的程式碼中使用 `panic()`；所有錯誤一律以 `return err` 方式傳遞，由呼叫端決定處理方式。啟動期的初始化失敗可使用 `log.Fatal(err)` 代替 `panic`。
+- **SQL 查詢檔（`internal/database/queries/*.sql`）與 Seed 檔（`internal/database/seeds/*.sql`）只允許使用純 ASCII 的 `--` 注釋**，禁止使用 Unicode 裝飾字元（如 `──`、`│`、`┌` 等）。sqlc parser 無法解析這些字元，會在 `go generate` 時報 `mismatched input` 錯誤並中斷程式碼產生。
+- **修改 `//enumx:enum` 型別定義後（新增、刪除或重命名常數），必須在 `go build` 之前先執行 `go generate ./internal/enums/...`**，否則 `*_gen.go` 仍引用已刪除的常數，導致 `go build` 失敗。
+- **使用套件提供的函數或型別之前，必須先以 Grep 確認其確實存在**（函數名稱與 import path 均需核實）。錯誤範例：不存在的 `ctxkey.GetUpdatedBy`（正確為 `ctxkey.GetUserName`）、錯誤路徑 `akatengu/internal/model/db/dbmapconv`（正確為 `akatengu/internal/pkg/dbmapconv`）。
 
 ---
 

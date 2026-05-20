@@ -147,6 +147,14 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "MerchantStatusType"
+          - column: "ledger_account_type_config.type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "LedgerAccountType"
+          - column: "asset_type_account_config.asset_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "AssetType"
           - column: "user_merchants.role"
             go_type:
               import: "akatengu/internal/enums"

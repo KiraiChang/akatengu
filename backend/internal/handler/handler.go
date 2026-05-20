@@ -44,6 +44,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	period := newPeriodHandler(db, logger)
 	investment := newInvestmentHandler(db, logger)
 	sys := newSysHandler(db, logger)
+	setting := newSettingHandler(db, logger)
 	installment := newInstallmentHandler(db, logger)
 
 	mux := http.NewServeMux()
@@ -99,6 +100,11 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 
 	bizApi.HandleFunc("GET /sys/account", sys.GetSysAccount)
 	bizApi.HandleFunc("POST /sys/account", sys.UpdateSysAccount)
+
+	bizApi.HandleFunc("GET /setting/ledger-account-type", setting.GetLedgerAccountTypeConfigs)
+	bizApi.HandleFunc("PUT /setting/ledger-account-type/{type}", setting.UpdateLedgerAccountTypeConfig)
+	bizApi.HandleFunc("GET /setting/asset-type", setting.GetAssetTypeAccountConfigs)
+	bizApi.HandleFunc("PUT /setting/asset-type/{type}", setting.UpdateAssetTypeAccountConfig)
 
 	return mux
 }

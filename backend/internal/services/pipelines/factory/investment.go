@@ -2,7 +2,6 @@ package factory
 
 import (
 	"akatengu/internal/enums"
-	"akatengu/internal/enums/sys_codes"
 	"akatengu/internal/model/db/projection"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
@@ -109,32 +108,21 @@ func (e eventInvestmentBoughtProjector) Project(ctx context.Context, ct *pipelin
 }
 
 func (e eventInvestmentBoughtProjector) buyEntries(ctx context.Context, st *state.InvestmentBoughtState, p *payload.InvestmentBoughtPayload) ([]payload.TransactionEntryPayload, error) {
+	config, err := e.query.Config.GetAssetTypeAccountConfig(ctx, st.Investment.AssetType)
+	if err != nil {
+		return nil, fmt.Errorf("get asset type config: %w", err)
+	}
 	cost := p.Quantity.Mul(p.UnitPrice).Mul(p.ExchangeRate)
 	totalCost := cost.Add(p.Fee).Add(p.Tax)
 	entries := []payload.TransactionEntryPayload{
-		// 資產增加
 		{AccountId: st.Investment.AccountId, Debit: cost, Credit: decimal.Zero},
-		// 扣款帳戶
 		{AccountId: st.Ledger.AccountId, LedgerId: &p.LedgerId, Debit: decimal.Zero, Credit: totalCost},
 	}
 	if p.Fee.IsPositive() {
-		accountId, err := getAccountIdByFunc(ctx, e.query.Sys, st.Investment.AssetType, getAssetTypeFeeSysCode)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries,
-			payload.TransactionEntryPayload{AccountId: accountId, Debit: p.Fee, Credit: decimal.Zero},
-		)
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.FeeAccountID, Debit: p.Fee, Credit: decimal.Zero})
 	}
 	if p.Tax.IsPositive() {
-		accountId, err := getAccountIdByFunc(ctx, e.query.Sys, st.Investment.AssetType, getAssetTypeTaxSysCode)
-		if err != nil {
-			return nil, err
-		}
-
-		entries = append(entries,
-			payload.TransactionEntryPayload{AccountId: accountId, Debit: p.Tax, Credit: decimal.Zero},
-		)
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.TaxAccountID, Debit: p.Tax, Credit: decimal.Zero})
 	}
 	return entries, nil
 }
@@ -341,71 +329,43 @@ func (e *eventInvestmentSoldProjector) sellEntries(
 	ct *state.InvestmentSoldState,
 	p *payload.InvestmentSoldPayload,
 ) ([]payload.TransactionEntryPayload, error) {
+	config, err := e.query.Config.GetAssetTypeAccountConfig(ctx, ct.Investment.AssetType)
+	if err != nil {
+		return nil, fmt.Errorf("get asset type config: %w", err)
+	}
 	entries := []payload.TransactionEntryPayload{
-		// 入帳
 		{AccountId: ct.Ledger.AccountId, LedgerId: &p.LedgerId, Debit: ct.NetProceeds, Credit: decimal.Zero},
-		// 成本沖銷
 		{AccountId: ct.Investment.AccountId, Debit: decimal.Zero, Credit: ct.CostBasis},
 	}
 	if p.Fee.IsPositive() {
-		accountId, err := getAccountIdByFunc(ctx, e.query.Sys, ct.Investment.AssetType, getAssetTypeFeeSysCode)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: accountId, Debit: p.Fee, Credit: decimal.Zero})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.FeeAccountID, Debit: p.Fee, Credit: decimal.Zero})
 	}
 	if p.Tax.IsPositive() {
-		accountId, err := getAccountIdByFunc(ctx, e.query.Sys, ct.Investment.AssetType, getAssetTypeFeeSysCode)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: accountId, Debit: p.Tax, Credit: decimal.Zero})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.TaxAccountID, Debit: p.Tax, Credit: decimal.Zero})
 	}
-	// 已實現損益（vs 原始成本，正=利，負=損）
 	if ct.RealizedGain.IsPositive() {
-		accountId, err := getAccountIdByFunc(ctx, e.query.Sys, ct.Investment.AssetType, getAssetTypeGainSysCode)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: accountId, Debit: decimal.Zero, Credit: ct.RealizedGain})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.RealizedGainAccountID, Debit: decimal.Zero, Credit: ct.RealizedGain})
 	} else if ct.RealizedGain.IsNegative() {
-		accountId, err := getAccountIdByFunc(ctx, e.query.Sys, ct.Investment.AssetType, getAssetTypeLossSysCode)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: accountId, Debit: ct.RealizedGain.Abs(), Credit: decimal.Zero})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.RealizedLossAccountID, Debit: ct.RealizedGain.Abs(), Credit: decimal.Zero})
 	}
-	// 沖回累積未實現損益（FVTPL 反轉 4204/5402-21；FVOCI 反轉 OCI 3102-02）
+	// 沖回累積未實現損益
 	if !ct.AccumulatedUnrealizedTWD.IsZero() {
 		absAcc := ct.AccumulatedUnrealizedTWD.Abs()
 		switch ct.Investment.IFRSCategory.Val() {
 		case enums.IFRSCategoryFVTPL:
 			if ct.AccumulatedUnrealizedTWD.IsPositive() {
-				// 之前 Dr 投資/Cr 4204-xx，現在反轉 Dr 4204-xx
-				gainAccountId, err := getAccountIdByFunc(ctx, e.query.Sys, ct.Investment.AssetType, getFVTPLUnrealizedGainSysCode)
-				if err != nil {
-					return nil, err
-				}
-				entries = append(entries, payload.TransactionEntryPayload{AccountId: gainAccountId, Debit: absAcc, Credit: decimal.Zero})
+				entries = append(entries, payload.TransactionEntryPayload{AccountId: config.UnrealizedGainAccountID, Debit: absAcc, Credit: decimal.Zero})
 			} else {
-				// 之前 Dr 5402-21/Cr 投資，現在反轉 Cr 5402-21
-				lossAccountId, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountExpenseFVTPLUnrealizedLoss.Enum())
-				if err != nil {
-					return nil, err
-				}
-				entries = append(entries, payload.TransactionEntryPayload{AccountId: lossAccountId, Debit: decimal.Zero, Credit: absAcc})
+				entries = append(entries, payload.TransactionEntryPayload{AccountId: config.UnrealizedLossAccountID, Debit: decimal.Zero, Credit: absAcc})
 			}
 		case enums.IFRSCategoryFVOCI:
-			ociAccountId, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountEquityOCI.Enum())
-			if err != nil {
-				return nil, err
+			if config.OciAccountID == nil {
+				return nil, fmt.Errorf("oci_account_id not configured for asset type %s", ct.Investment.AssetType.String())
 			}
 			if ct.AccumulatedUnrealizedTWD.IsPositive() {
-				// 之前 Dr 投資/Cr OCI，現在反轉 Dr OCI
-				entries = append(entries, payload.TransactionEntryPayload{AccountId: ociAccountId, Debit: absAcc, Credit: decimal.Zero})
+				entries = append(entries, payload.TransactionEntryPayload{AccountId: *config.OciAccountID, Debit: absAcc, Credit: decimal.Zero})
 			} else {
-				// 之前 Dr OCI/Cr 投資，現在反轉 Cr OCI
-				entries = append(entries, payload.TransactionEntryPayload{AccountId: ociAccountId, Debit: decimal.Zero, Credit: absAcc})
+				entries = append(entries, payload.TransactionEntryPayload{AccountId: *config.OciAccountID, Debit: decimal.Zero, Credit: absAcc})
 			}
 		}
 	}
@@ -639,46 +599,37 @@ func (e *eventUnrealizedMarkedProjector) fvEntries(
 	inv *projection.Investment,
 	adjustment decimal.Decimal,
 ) ([]payload.TransactionEntryPayload, error) {
+	config, err := e.query.Config.GetAssetTypeAccountConfig(ctx, inv.AssetType)
+	if err != nil {
+		return nil, fmt.Errorf("get asset type config: %w", err)
+	}
 	absAdj := adjustment.Abs()
 
 	switch inv.IFRSCategory.Val() {
 	case enums.IFRSCategoryFVTPL:
 		if adjustment.IsPositive() {
-			// Dr 投資資產 / Cr 公允價值變動利益（4204-xx）
-			gainAccountId, err := getAccountIdByFunc(ctx, e.query.Sys, inv.AssetType, getFVTPLUnrealizedGainSysCode)
-			if err != nil {
-				return nil, err
-			}
 			return []payload.TransactionEntryPayload{
 				{AccountId: inv.AccountId, Debit: absAdj, Credit: decimal.Zero},
-				{AccountId: gainAccountId, Debit: decimal.Zero, Credit: absAdj},
+				{AccountId: config.UnrealizedGainAccountID, Debit: decimal.Zero, Credit: absAdj},
 			}, nil
 		}
-		// Dr 公允價值變動損失（5402-21）/ Cr 投資資產
-		lossAccountId, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountExpenseFVTPLUnrealizedLoss.Enum())
-		if err != nil {
-			return nil, err
-		}
 		return []payload.TransactionEntryPayload{
-			{AccountId: lossAccountId, Debit: absAdj, Credit: decimal.Zero},
+			{AccountId: config.UnrealizedLossAccountID, Debit: absAdj, Credit: decimal.Zero},
 			{AccountId: inv.AccountId, Debit: decimal.Zero, Credit: absAdj},
 		}, nil
 
 	case enums.IFRSCategoryFVOCI:
-		ociAccountId, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountEquityOCI.Enum())
-		if err != nil {
-			return nil, err
+		if config.OciAccountID == nil {
+			return nil, fmt.Errorf("oci_account_id not configured for asset type %s", inv.AssetType.String())
 		}
 		if adjustment.IsPositive() {
-			// Dr 投資資產 / Cr 其他綜合損益（3102-02）
 			return []payload.TransactionEntryPayload{
 				{AccountId: inv.AccountId, Debit: absAdj, Credit: decimal.Zero},
-				{AccountId: ociAccountId, Debit: decimal.Zero, Credit: absAdj},
+				{AccountId: *config.OciAccountID, Debit: decimal.Zero, Credit: absAdj},
 			}, nil
 		}
-		// Dr 其他綜合損益（3102-02）/ Cr 投資資產
 		return []payload.TransactionEntryPayload{
-			{AccountId: ociAccountId, Debit: absAdj, Credit: decimal.Zero},
+			{AccountId: *config.OciAccountID, Debit: absAdj, Credit: decimal.Zero},
 			{AccountId: inv.AccountId, Debit: decimal.Zero, Credit: absAdj},
 		}, nil
 
@@ -687,20 +638,6 @@ func (e *eventUnrealizedMarkedProjector) fvEntries(
 	}
 }
 
-func getFVTPLUnrealizedGainSysCode(assetType enums.AssetType) (string, error) {
-	switch assetType.Val() {
-	case enums.AssetTypeStock:
-		return sys_codes.SysAccountIncomeFVTPLStockUnrealized.String(), nil
-	case enums.AssetTypeFund:
-		return sys_codes.SysAccountIncomeFVTPLFundUnrealized.String(), nil
-	case enums.AssetTypeGold:
-		return sys_codes.SysAccountIncomeFVTPLGoldUnrealized.String(), nil
-	case enums.AssetTypeFX:
-		return sys_codes.SysAccountIncomeFVTPLFXUnrealized.String(), nil
-	default:
-		return "", fmt.Errorf("invalid investment asset type")
-	}
-}
 
 func NewEventUnrealizedMarkedPipeline(query *query.Repo) *pipelines.TypedPipeline[state.UnrealizedMarkedState, payload.UnrealizedMarkedPayload] {
 	return pipelines.NewType[state.UnrealizedMarkedState, payload.UnrealizedMarkedPayload](&eventUnrealizedMarkedProjector{query}, func() *state.UnrealizedMarkedState {

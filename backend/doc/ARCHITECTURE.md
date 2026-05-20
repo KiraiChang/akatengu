@@ -29,6 +29,7 @@
 | [ADR-007](#adr-007-現金流量表分類來源改為-journal_entriesentry-based) | 現金流量表分類來源改為 journal_entries（entry-based） | Accepted | 2026-05-16 |
 | [ADR-008](#adr-008-直接法現金流量表direct-method架構設計) | 直接法現金流量表（Direct Method）架構設計 | Accepted | 2026-05-16 |
 | [ADR-009](#adr-009-審計欄位-updated_by--updated_at-架構設計) | 審計欄位（updated_by / updated_at）架構設計 | Accepted | 2026-05-19 |
+| [ADR-010](#adr-010-投資-pipeline-科目來源改由-asset_type_account_config-查詢) | 投資 Pipeline 科目來源改由 asset_type_account_config 查詢 | Accepted | 2026-05-20 |
 
 ---
 
@@ -243,6 +244,38 @@
 - **後果**：
   - 正面：username 在 `Append` 入口點統一取得，各 Projection 只需讀取 `ct.UpdatedBy`，無需重複讀 context。Replay 場景安全，存 NULL 不影響功能。
   - 負面：`pipelines.Result` 新增了一個與事件業務無關的欄位，輕度職責擴散。
+
+---
+
+## ADR-010 投資 Pipeline 科目來源改由 asset_type_account_config 查詢
+
+- **狀態**：Accepted
+- **日期**：2026-05-20
+- **背景**：
+  投資 BUY / SELL / MARK pipeline 中，手續費、交易稅、已實現損益、未實現評價損益與 OCI 的科目 ID
+  原本透過 `sys_accounts`（一張系統設定表）以 sys_code 字串查詢取得。
+  此設計的問題是科目無法由前端調整：同一 sys_code 對所有 AssetType 共用同一筆 sys_accounts 記錄，
+  無法針對 STOCK / FUND / GOLD / FX 分別設定不同科目。
+- **決策**：
+  新增 `asset_type_account_config` 表，每個 (merchant_id, asset_type) 一筆記錄，
+  存放 7 個科目 ID（`realized_gain`、`realized_loss`、`unrealized_gain`、`unrealized_loss`、
+  `oci`（nullable）、`fee`、`tax`），提供前端 CRUD API（`/api/setting/asset-type`）供動態設定。
+
+  Pipeline 中 `buyEntries`、`sellEntries`、`fvEntries` 均改為：
+  ```go
+  config, err := e.query.Config.GetAssetTypeAccountConfig(ctx, assetType)
+  // 直接使用 config.FeeAccountID、config.TaxAccountID 等欄位
+  ```
+  若 `oci_account_id` 為 nil 而嘗試執行 FVOCI 評價，回傳明確錯誤，不使用 fallback。
+
+  舊的 helper 函數（`getAccountIdByFunc`、`getAssetTypeFeeSysCode`、`getAssetTypeTaxSysCode`、
+  `getAssetTypeGainSysCode`、`getAssetTypeLossSysCode`、`getFVTPLUnrealizedGainSysCode`）一律移除。
+- **替代方案**：
+  - 保留 sys_accounts，改在 sys_accounts 多一筆 per-AssetType 紀錄：修改量大，且 sys_accounts 的語義是「系統預設，不可前端修改」，混入投資設定會破壞此語義。
+  - 在 Pipeline 初始化時批次載入所有 config：可減少 DB 查詢次數，但目前 Pipeline 每次都是新 goroutine，無需快取，過早優化。
+- **後果**：
+  - 正面：每個 AssetType 可獨立設定科目，前端可動態調整；同時修正了 sellEntries 中稅金科目長期使用手續費 sys_code 的 bug（ISSUE-006）。
+  - 負面：merchant 若未設定 `asset_type_account_config`（Seeder 未執行或未覆蓋），投資操作會報錯。Seeder 需確保所有 AssetType 均有預設值。
 
 ---
 

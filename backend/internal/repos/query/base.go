@@ -19,6 +19,7 @@ type Repo struct {
 	Sys            SysRepo
 	User           UserRepo
 	Merchant       MerchantRepo
+	Config         ConfigRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -36,5 +37,6 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		Sys:            newSysRepo(q),
 		User:           newUserRepo(q),
 		Merchant:       newMerchantRepo(q),
+		Config:         newConfigRepo(q, db),
 	}
 }

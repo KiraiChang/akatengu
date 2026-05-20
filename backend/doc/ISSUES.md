@@ -103,6 +103,62 @@
   - `payload.TransactionEntryPayload.CashFlowCategory *enums.CashFlowCategory`（nil → 轉換為零值再寫入）
   在 `applyTransaction` 做 nil check 後解參考，確保 payload nil 正確轉為 DB NULL。
 
+### [ISSUE-007] SQL 查詢檔案使用 Unicode 注釋字元導致 sqlc 解析失敗
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-20
+- **嚴重程度**：Medium
+- **位置**：`internal/database/queries/*.sql`
+- **描述**：
+  在 `config.sql` 初稿中，為了視覺分隔使用了 Unicode 裝飾注釋（如 `── ledger_account_type_config ──────────────────`）。
+  執行 `go generate ./...`（sqlc generate）時，sqlc parser 對這些非 ASCII 字元報錯：
+  ```
+  mismatched input '─' expecting ...
+  ```
+  導致整個 sqlc 程式碼產生中斷，後續 `go build` 連鎖失敗。
+- **影響範圍**：
+  `go generate` 失敗 → sqlcdb 未更新 → `go build` 因引用不存在的 sqlc 型別而失敗。
+- **解決紀錄**：
+  將所有 Unicode 裝飾注釋改為純 ASCII `--` 注釋，問題解除。
+  **結論：`*.sql` 檔案中只允許使用純 ASCII 字元，包含注釋內容。**
+
+---
+
+### [ISSUE-008] 呼叫不存在的套件函數或錯誤 import path 導致 build 失敗
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-20
+- **嚴重程度**：Medium
+- **位置**：`internal/handler/setting.go`、`internal/repos/query/config.go`
+- **描述**：
+  實作過程中出現兩類因函數/套件名稱憑印象寫入而導致的 build 失敗：
+  1. `ctxkey.GetUpdatedBy(ctx)` — 此函數不存在，正確名稱為 `ctxkey.GetUserName(ctx)`
+  2. `akatengu/internal/model/db/dbmapconv` — 此路徑不存在，正確路徑為 `akatengu/internal/pkg/dbmapconv`
+- **影響範圍**：
+  `go build` 報 `undefined: ctxkey.GetUpdatedBy` / `cannot find package`，需回頭修正。
+- **解決紀錄**：
+  分別修正函數名稱與 import path。
+  **結論：使用任何套件函數前，必須先以 Grep 確認函數確實存在及 import path 正確。**
+
+---
+
+### [ISSUE-006] sellEntries 稅金科目錯誤使用手續費 sys_code（已在重構中修正）
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-20
+- **嚴重程度**：High
+- **位置**：`internal/services/pipelines/factory/investment.go`，原第 358 行
+- **描述**：
+  `sellEntries` 中稅金分錄的科目查詢呼叫了 `getAssetTypeFeeSysCode`（手續費），
+  應為 `getAssetTypeTaxSysCode`（交易稅）。此 bug 導致出售時手續費科目被重複使用兩次，
+  交易稅科目完全未被記錄。
+- **影響範圍**：
+  投資出售（SELL）交易分錄中，稅金（`p.Tax`）對應的科目錯誤；財務報表費用科目金額不正確。
+- **解決紀錄**：
+  在 asset_type_account_config 重構（Step 9）時一併修正：改為直接使用 `config.TaxAccountID`，bug 不復存在。
+
+---
+
 ### [ISSUE-005] sqlc 不讀取 migration 檔，新增欄位必須同步更新 schema.sql
 
 - **狀態**：🟢 Resolved
