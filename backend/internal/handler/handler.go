@@ -52,7 +52,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	mux.Handle("/", web.SPAHandler(web.FileSystem()))
 
 	mux.Handle("/health", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
+		w.Write([]byte("OK!"))
 	}))
 
 	mux.HandleFunc("POST /api/user/create", auth.CreateUser)
