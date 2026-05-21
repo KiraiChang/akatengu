@@ -5,6 +5,9 @@ FROM golang:1.26 AS builder
 
 WORKDIR /app
 
+# install sqlc
+RUN go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
 # 先 copy mod 提高 cache 效率
 COPY go.mod go.sum ./
 
