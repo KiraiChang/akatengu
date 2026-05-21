@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/enums"
 	"akatengu/internal/model/db"
+	"akatengu/internal/pkg/ctxkey"
 	"context"
 	"database/sql"
 
@@ -103,7 +104,15 @@ func (r *sqlcdbEventRepository) GetSnapshot(ctx context.Context, aggregateType e
 }
 
 func (r *sqlcdbEventRepository) GetCheckpoint(ctx context.Context, projectionName string) (int64, error) {
-	return r.q.GetCheckpoint(ctx, projectionName)
+	merchantId, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return r.q.GetCheckpoint(ctx, sqlcdb.GetCheckpointParams{
+		MerchantID:     merchantId,
+		ProjectionName: projectionName,
+	})
 }
 
 func (r *sqlcdbEventRepository) Replay(ctx context.Context, fromEventID int64, aggregateType *enums.AggregateType) ([]db.EventStore, error) {

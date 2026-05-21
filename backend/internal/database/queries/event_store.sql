@@ -76,17 +76,17 @@ DO UPDATE SET at_version = excluded.at_version, state = excluded.state;
 
 -- name: GetCheckpoint :one
 SELECT last_event_id FROM projection_checkpoints
-WHERE projection_name = ?;
+WHERE projection_name = ? AND merchant_id = ?;
 
 -- name: UpdateCheckpoint :exec
 UPDATE projection_checkpoints
 SET last_event_id = ?, updated_at = datetime('now')
-WHERE projection_name = ?;
+WHERE projection_name = ? AND merchant_id = ?;
 
 -- name: UpsertCheckpoint :exec
-INSERT INTO projection_checkpoints (projection_name, last_event_id, updated_at)
-VALUES (@projection_name, @last_event_id, datetime('now'))
-    ON CONFLICT(projection_name) DO UPDATE SET
+INSERT INTO projection_checkpoints (projection_name, merchant_id, last_event_id, updated_at)
+VALUES (@projection_name, @merchant_id, @last_event_id, datetime('now'))
+    ON CONFLICT(projection_name, merchant_id) DO UPDATE SET
     last_event_id = excluded.last_event_id,
     updated_at = excluded.updated_at;
 
