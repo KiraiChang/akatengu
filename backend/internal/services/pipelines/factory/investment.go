@@ -114,15 +114,16 @@ func (e eventInvestmentBoughtProjector) buyEntries(ctx context.Context, st *stat
 	}
 	cost := p.Quantity.Mul(p.UnitPrice).Mul(p.ExchangeRate)
 	totalCost := cost.Add(p.Fee).Add(p.Tax)
+	cfInv := enums.CashFlowCategoryInvesting.Enum()
 	entries := []payload.TransactionEntryPayload{
-		{AccountId: st.Investment.AccountId, Debit: cost, Credit: decimal.Zero},
+		{AccountId: st.Investment.AccountId, Debit: cost, Credit: decimal.Zero, CashFlowCategory: &cfInv},
 		{AccountId: st.Ledger.AccountId, LedgerId: &p.LedgerId, Debit: decimal.Zero, Credit: totalCost},
 	}
 	if p.Fee.IsPositive() {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.FeeAccountID, Debit: p.Fee, Credit: decimal.Zero})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.FeeAccountID, Debit: p.Fee, Credit: decimal.Zero, CashFlowCategory: &cfInv})
 	}
 	if p.Tax.IsPositive() {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.TaxAccountID, Debit: p.Tax, Credit: decimal.Zero})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.TaxAccountID, Debit: p.Tax, Credit: decimal.Zero, CashFlowCategory: &cfInv})
 	}
 	return entries, nil
 }
@@ -214,7 +215,7 @@ func (e eventInvestmentSoldProjector) Project(ctx context.Context, ct *pipelines
 		}
 	}
 
-	ct.State.RealizedGain = sellAmount.Sub(originalCostBasis).Sub(p.Fee).Sub(p.Tax)
+	ct.State.RealizedGain = sellAmount.Sub(originalCostBasis)
 	ct.State.NetProceeds = sellAmount.Sub(p.Fee).Sub(p.Tax)
 
 	ct.State.Movement = projection.InvestmentMovement{
@@ -333,20 +334,21 @@ func (e *eventInvestmentSoldProjector) sellEntries(
 	if err != nil {
 		return nil, fmt.Errorf("get asset type config: %w", err)
 	}
+	cfInv := enums.CashFlowCategoryInvesting.Enum()
 	entries := []payload.TransactionEntryPayload{
 		{AccountId: ct.Ledger.AccountId, LedgerId: &p.LedgerId, Debit: ct.NetProceeds, Credit: decimal.Zero},
-		{AccountId: ct.Investment.AccountId, Debit: decimal.Zero, Credit: ct.CostBasis},
+		{AccountId: ct.Investment.AccountId, Debit: decimal.Zero, Credit: ct.CostBasis, CashFlowCategory: &cfInv},
 	}
 	if p.Fee.IsPositive() {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.FeeAccountID, Debit: p.Fee, Credit: decimal.Zero})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.FeeAccountID, Debit: p.Fee, Credit: decimal.Zero, CashFlowCategory: &cfInv})
 	}
 	if p.Tax.IsPositive() {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.TaxAccountID, Debit: p.Tax, Credit: decimal.Zero})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.TaxAccountID, Debit: p.Tax, Credit: decimal.Zero, CashFlowCategory: &cfInv})
 	}
 	if ct.RealizedGain.IsPositive() {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.RealizedGainAccountID, Debit: decimal.Zero, Credit: ct.RealizedGain})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.RealizedGainAccountID, Debit: decimal.Zero, Credit: ct.RealizedGain, CashFlowCategory: &cfInv})
 	} else if ct.RealizedGain.IsNegative() {
-		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.RealizedLossAccountID, Debit: ct.RealizedGain.Abs(), Credit: decimal.Zero})
+		entries = append(entries, payload.TransactionEntryPayload{AccountId: config.RealizedLossAccountID, Debit: ct.RealizedGain.Abs(), Credit: decimal.Zero, CashFlowCategory: &cfInv})
 	}
 	// 沖回累積未實現損益
 	if !ct.AccumulatedUnrealizedTWD.IsZero() {
@@ -354,18 +356,18 @@ func (e *eventInvestmentSoldProjector) sellEntries(
 		switch ct.Investment.IFRSCategory.Val() {
 		case enums.IFRSCategoryFVTPL:
 			if ct.AccumulatedUnrealizedTWD.IsPositive() {
-				entries = append(entries, payload.TransactionEntryPayload{AccountId: config.UnrealizedGainAccountID, Debit: absAcc, Credit: decimal.Zero})
+				entries = append(entries, payload.TransactionEntryPayload{AccountId: config.UnrealizedGainAccountID, Debit: absAcc, Credit: decimal.Zero, CashFlowCategory: &cfInv})
 			} else {
-				entries = append(entries, payload.TransactionEntryPayload{AccountId: config.UnrealizedLossAccountID, Debit: decimal.Zero, Credit: absAcc})
+				entries = append(entries, payload.TransactionEntryPayload{AccountId: config.UnrealizedLossAccountID, Debit: decimal.Zero, Credit: absAcc, CashFlowCategory: &cfInv})
 			}
 		case enums.IFRSCategoryFVOCI:
 			if config.OciAccountID == nil {
 				return nil, fmt.Errorf("oci_account_id not configured for asset type %s", ct.Investment.AssetType.String())
 			}
 			if ct.AccumulatedUnrealizedTWD.IsPositive() {
-				entries = append(entries, payload.TransactionEntryPayload{AccountId: *config.OciAccountID, Debit: absAcc, Credit: decimal.Zero})
+				entries = append(entries, payload.TransactionEntryPayload{AccountId: *config.OciAccountID, Debit: absAcc, Credit: decimal.Zero, CashFlowCategory: &cfInv})
 			} else {
-				entries = append(entries, payload.TransactionEntryPayload{AccountId: *config.OciAccountID, Debit: decimal.Zero, Credit: absAcc})
+				entries = append(entries, payload.TransactionEntryPayload{AccountId: *config.OciAccountID, Debit: decimal.Zero, Credit: absAcc, CashFlowCategory: &cfInv})
 			}
 		}
 	}
@@ -604,24 +606,27 @@ func (e *eventUnrealizedMarkedProjector) fvEntries(
 		return nil, fmt.Errorf("get asset type config: %w", err)
 	}
 	absAdj := adjustment.Abs()
+	cfOp := enums.CashFlowCategoryOperating.Enum()
 
 	switch inv.IFRSCategory.Val() {
 	case enums.IFRSCategoryFVTPL:
+		// Non-cash FV adjustment: tag the investment asset entry OPERATING to reverse NI impact in CF.
 		if adjustment.IsPositive() {
 			return []payload.TransactionEntryPayload{
-				{AccountId: inv.AccountId, Debit: absAdj, Credit: decimal.Zero},
+				{AccountId: inv.AccountId, Debit: absAdj, Credit: decimal.Zero, CashFlowCategory: &cfOp},
 				{AccountId: config.UnrealizedGainAccountID, Debit: decimal.Zero, Credit: absAdj},
 			}, nil
 		}
 		return []payload.TransactionEntryPayload{
 			{AccountId: config.UnrealizedLossAccountID, Debit: absAdj, Credit: decimal.Zero},
-			{AccountId: inv.AccountId, Debit: decimal.Zero, Credit: absAdj},
+			{AccountId: inv.AccountId, Debit: decimal.Zero, Credit: absAdj, CashFlowCategory: &cfOp},
 		}, nil
 
 	case enums.IFRSCategoryFVOCI:
 		if config.OciAccountID == nil {
 			return nil, fmt.Errorf("oci_account_id not configured for asset type %s", inv.AssetType.String())
 		}
+		// FVOCI goes to equity (OCI), not through P&L — no CF adjustment needed.
 		if adjustment.IsPositive() {
 			return []payload.TransactionEntryPayload{
 				{AccountId: inv.AccountId, Debit: absAdj, Credit: decimal.Zero},

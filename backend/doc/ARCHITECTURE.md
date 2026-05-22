@@ -346,6 +346,59 @@
 
 ---
 
+## ADR-011 投資現金流量表：INVESTING/FINANCING 科目從 NI 重分類
+
+- **狀態**：Accepted
+- **日期**：2026-05-22
+- **背景**：
+  間接法現金流量表以淨利（NI）為起點，再調整非現金項目與營業外項目。
+  若投資活動相關損益（已實現損益、手續費、交易稅）標記為 INVESTING，
+  且這些科目已計入 NI，直接使用 `is.NetIncome` 會造成 INVESTING 與 OPERATING 雙重計算。
+- **決策**：
+  1. 在 `queryCashFlowChanges` 加入 `a.type AS account_type`，讓 Go 層識別科目類型。
+  2. 在 `GetCashFlowStatement` 計算 `niReclassification`：
+     加總所有標記 INVESTING 或 FINANCING 的 INCOME/EXPENSE 科目淨額（Credit - Debit）。
+  3. CF 報表使用 `is.NetIncome - niReclassification` 作為 Operating NI，確保已重分類項目不重複計入。
+  4. Direct Method（`GetDirectCashFlowStatement`）不受影響，Operating 以實際現金流計算，無需調整。
+- **替代方案**：
+  - **另建 queryOperatingNetIncome**：只查 `cash_flow_category IS NULL` 的損益科目計算 NI。
+    缺點：需新增查詢，且與現有 `GetIncomeStatement` 邏輯分離，難以維護一致性。
+  - **前端顯示時過濾**：前端自行減去 INVESTING 損益，不修改後端。
+    缺點：CF 報表數字在後端即不正確，違反單一責任。
+- **後果**：
+  - 正面：CF 報表在投資損益重分類後仍能正確平衡（Beginning + Operating + Investing + Financing = Ending）。
+  - 負面：`cfRawRow` 新增 `AccountType` 欄位，`queryCashFlowChanges` SQL 略微增長。
+
+---
+
+## ADR-012 投資 Pipeline CashFlowCategory 分錄標記策略
+
+- **狀態**：Accepted
+- **日期**：2026-05-22
+- **背景**：
+  投資買賣、公允價值評估的分錄預設無 CF 標記，現金流量表無法區分投資活動現金流。
+- **決策**：
+
+  | 事件 | 分錄 | CF 標籤 | 理由 |
+  |------|------|---------|------|
+  | BUY | DR 投資資產 | INVESTING | 非現金側：資產增加對應現金流出 |
+  | BUY | CR 銀行 | NULL | 現金帳，始末餘額已捕捉 |
+  | BUY | DR 手續費/交易稅費用 | INVESTING | 投資成本，重分類出 Operating NI |
+  | SELL | CR 投資資產 | INVESTING | 資產減少對應現金流入（成本部分） |
+  | SELL | CR/DR 已實現損益 | INVESTING | 損益重分類至投資活動 |
+  | SELL | DR 手續費/交易稅費用 | INVESTING | 投資成本，重分類出 Operating NI |
+  | SELL | DR/CR 累積未實現沖回（FVTPL/FVOCI） | INVESTING | 出售時一併沖回，屬投資活動 |
+  | MARK FVTPL | DR/CR 投資資產 | OPERATING | 非現金調整，沖回 NI 膨脹 |
+  | MARK FVTPL | CR/DR 未實現損益 | NULL | 留在 NI，由上方 OPERATING 抵銷 |
+  | MARK FVOCI | 所有分錄 | NULL | 過 OCI（權益），不影響 NI，非現金交易於附註揭露 |
+  | DIVIDEND | 所有分錄 | NULL | 股利收入屬於營業現金流入（IAS 7 允許） |
+
+- **後果**：
+  - 正面：CF 報表投資活動正確顯示完整收款（NetProceeds），MARK 非現金項目正確從 NI 沖銷。
+  - 負面：FVOCI 非現金增值不在 CF 報表呈現，需於財報附註揭露（符合 IAS 7 規定）。
+
+---
+
 <!-- 新增 ADR 時複製以下範本 -->
 
 <!--

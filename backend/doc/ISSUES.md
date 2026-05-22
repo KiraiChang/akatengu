@@ -182,6 +182,28 @@
 
 ---
 
+### [ISSUE-009] SELL 分錄借貸不平衡：RealizedGain 重複扣除手續費與交易稅
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-22
+- **嚴重程度**：High
+- **位置**：`internal/services/pipelines/factory/investment.go`
+- **描述**：
+  `sellEntries` 中 `ct.State.RealizedGain` 計算公式為 `sellAmount - originalCostBasis - Fee - Tax`，
+  同時銀行分錄使用 `NetProceeds = sellAmount - Fee - Tax`，且手續費/交易稅另以獨立 DR 分錄記錄。
+  導致手續費與交易稅被重複扣除，分錄借方合計比貸方多出 `Fee + Tax`，違反借貸平衡原則。
+  `applyTransaction` 的餘額驗證 `debit != credit` 在有手續費/稅的 SELL 交易時必然失敗。
+- **影響範圍**：
+  所有含手續費或交易稅的投資出售（SELL）交易均無法成功寫入。
+- **根本原因**：
+  `RealizedGain` 既從銀行淨收款中扣除，又從獲利計算中扣除，而手續費/稅已由獨立費用科目分錄覆蓋。
+- **解決紀錄**：
+  將 `ct.State.RealizedGain` 改為稅前毛利：`sellAmount.Sub(originalCostBasis)`（不扣費用）。
+  手續費與交易稅由各自的費用科目分錄承擔，Movement 記錄已有 `Fee` / `Tax` 個別欄位可計算淨利。
+  修正後借貸平衡：DR = NetProceeds + Fee + Tax + AccUnrealized = CR = InvestmentAsset + GrossGain。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open

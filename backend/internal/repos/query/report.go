@@ -324,6 +324,7 @@ type cfRawRow struct {
 	Name             string          `db:"name"`
 	CashFlowCategory string          `db:"cash_flow_category"`
 	IsSummary        bool            `db:"is_summary"`
+	AccountType      string          `db:"account_type"`
 	PeriodDebit      decimal.Decimal `db:"period_debit"`
 	PeriodCredit     decimal.Decimal `db:"period_credit"`
 }
@@ -353,13 +354,14 @@ WITH period_entries AS (
 ),
 leaf_cf AS (
     SELECT a.account_id, a.name, pe.cash_flow_category, 0 AS is_summary,
-           pe.period_debit, pe.period_credit
+           a.type AS account_type, pe.period_debit, pe.period_credit
     FROM period_entries pe
     JOIN accounts a ON a.account_id = pe.account_id
         AND a.is_active = 1 AND a.is_summary = 0 AND a.merchant_id = :merchant_id
 ),
 summary_cf AS (
     SELECT a.account_id, a.name, pe.cash_flow_category, 1 AS is_summary,
+           a.type AS account_type,
            COALESCE(SUM(pe.period_debit), 0)  AS period_debit,
            COALESCE(SUM(pe.period_credit), 0) AS period_credit
     FROM accounts a
@@ -370,10 +372,10 @@ summary_cf AS (
     WHERE a.is_active = 1 AND a.is_summary = 1 AND a.merchant_id = :merchant_id
     GROUP BY a.account_id, a.name, pe.cash_flow_category
 )
-SELECT account_id, name, cash_flow_category, is_summary, period_debit, period_credit FROM (
-    SELECT account_id, name, cash_flow_category, is_summary, period_debit, period_credit FROM leaf_cf
+SELECT account_id, name, cash_flow_category, is_summary, account_type, period_debit, period_credit FROM (
+    SELECT account_id, name, cash_flow_category, is_summary, account_type, period_debit, period_credit FROM leaf_cf
     UNION ALL
-    SELECT account_id, name, cash_flow_category, is_summary, period_debit, period_credit FROM summary_cf
+    SELECT account_id, name, cash_flow_category, is_summary, account_type, period_debit, period_credit FROM summary_cf
 ) ORDER BY cash_flow_category, account_id`
 
 // queryCashBefore fetches cumulative debit/credit for CASH accounts before a date (exclusive).
@@ -666,8 +668,10 @@ func (r *sqlcReportRepo) GetCashFlowStatement(ctx context.Context, startDate, en
 		BeginningCash: beginRow.DebitTotal.Sub(beginRow.CreditTotal),
 		EndingCash:    endRow.DebitTotal.Sub(endRow.CreditTotal),
 	}
-	cf.OperatingActivities.NetIncome = is.NetIncome
 
+	// niReclassification: net of INVESTING/FINANCING-tagged income/expense entries.
+	// These are reclassified out of operating NI into their respective sections.
+	niReclassification := decimal.Zero
 	for _, row := range cfRows {
 		amount := row.PeriodCredit.Sub(row.PeriodDebit)
 		item := report.CashFlowItem{AccountId: row.AccountId, Name: row.Name, IsSummary: row.IsSummary, Amount: amount}
@@ -681,15 +685,22 @@ func (r *sqlcReportRepo) GetCashFlowStatement(ctx context.Context, startDate, en
 			cf.InvestingActivities.Items = append(cf.InvestingActivities.Items, item)
 			if !row.IsSummary {
 				cf.InvestingActivities.Total = cf.InvestingActivities.Total.Add(amount)
+				if row.AccountType == "INCOME" || row.AccountType == "EXPENSE" {
+					niReclassification = niReclassification.Add(amount)
+				}
 			}
 		case "FINANCING":
 			cf.FinancingActivities.Items = append(cf.FinancingActivities.Items, item)
 			if !row.IsSummary {
 				cf.FinancingActivities.Total = cf.FinancingActivities.Total.Add(amount)
+				if row.AccountType == "INCOME" || row.AccountType == "EXPENSE" {
+					niReclassification = niReclassification.Add(amount)
+				}
 			}
 		}
 	}
-	cf.OperatingActivities.Total = cf.OperatingActivities.Total.Add(is.NetIncome)
+	cf.OperatingActivities.NetIncome = is.NetIncome.Sub(niReclassification)
+	cf.OperatingActivities.Total = cf.OperatingActivities.Total.Add(cf.OperatingActivities.NetIncome)
 	cf.NetChange = cf.OperatingActivities.Total.Add(cf.InvestingActivities.Total).Add(cf.FinancingActivities.Total)
 
 	return cf, nil
