@@ -421,7 +421,11 @@ operating_txns AS (
     JOIN accounts a ON je.account_id = a.account_id AND a.merchant_id = je.merchant_id
     WHERE je.txn_id IN (SELECT txn_id FROM period_txns)
       AND je.merchant_id = :merchant_id
-      AND (a.type IN ('INCOME', 'EXPENSE') OR je.cash_flow_category = 'OPERATING')
+      AND (
+          (a.type IN ('INCOME', 'EXPENSE')
+           AND (je.cash_flow_category IS NULL OR je.cash_flow_category = 'OPERATING'))
+          OR je.cash_flow_category = 'OPERATING'
+      )
 )
 SELECT
     COALESCE(SUM(je.debit),  0) AS debit_total,

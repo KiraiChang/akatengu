@@ -30,6 +30,9 @@
 | [ADR-008](#adr-008-直接法現金流量表direct-method架構設計) | 直接法現金流量表（Direct Method）架構設計 | Accepted | 2026-05-16 |
 | [ADR-009](#adr-009-審計欄位-updated_by--updated_at-架構設計) | 審計欄位（updated_by / updated_at）架構設計 | Accepted | 2026-05-19 |
 | [ADR-010](#adr-010-投資-pipeline-科目來源改由-asset_type_account_config-查詢) | 投資 Pipeline 科目來源改由 asset_type_account_config 查詢 | Accepted | 2026-05-20 |
+| [ADR-011](#adr-011-投資現金流量表investingfinancing-科目從-ni-重分類) | 投資現金流量表：INVESTING/FINANCING 科目從 NI 重分類 | Accepted | 2026-05-22 |
+| [ADR-012](#adr-012-投資-pipeline-cashflowcategory-分錄標記策略) | 投資 Pipeline CashFlowCategory 分錄標記策略 | Accepted | 2026-05-22 |
+| [ADR-013](#adr-013-直接法現金流量表固定利率分期還款已知限制) | 直接法現金流量表：固定利率分期還款已知限制 | Accepted | 2026-05-22 |
 
 ---
 
@@ -396,6 +399,33 @@
 - **後果**：
   - 正面：CF 報表投資活動正確顯示完整收款（NetProceeds），MARK 非現金項目正確從 NI 沖銷。
   - 負面：FVOCI 非現金增值不在 CF 報表呈現，需於財報附註揭露（符合 IAS 7 規定）。
+
+---
+
+## ADR-013 直接法現金流量表：固定利率分期還款已知限制
+
+- **狀態**：Accepted
+- **日期**：2026-05-22
+- **背景**：
+  分期還款（InterestTypeFixedRate）每期銀行付款包含本金（融資活動）與利息（留在 NI，屬營業活動）。
+  直接法透過識別「含 INCOME/EXPENSE 或 OPERATING 標記」的交易，取出其現金帳變動作為營業現金流。
+  間接法則以 NI 為起點，加減調整項。
+
+- **決策**：
+  接受直接法對 FixedRate 分期的已知限制，不做額外修正。原因如下：
+
+  1. **間接法正確**：利息費用已含於 NI，本金還款以 FINANCING 標籤正確歸類，CF 三大活動數字均正確。
+  2. **直接法侷限**：銀行付款為單一分錄（`totalAmount = 本金 + 利息`），而 `operating_txns` 以交易為單位識別，
+     利息費用為 EXPENSE 且未標 INVESTING/FINANCING，故整筆交易被納入 operating_txns。
+     直接法將全部銀行付款視為營業現金流出，同時 FINANCING 也顯示本金還款 → 本金被重複計算。
+
+- **替代方案**：
+  - 拆分交易：將本金與利息拆成兩筆獨立交易 → 破壞「一次銀行轉帳對應一筆交易」的業務語義，不採用。
+  - 以分錄層級識別 operating_txns：只取 INCOME/EXPENSE 的非投融資分錄金額，而非整筆交易銀行流動 → 需重構直接法查詢架構，範圍過大，非當前需求。
+
+- **後果**：
+  - 正面：間接法 CF 報表完整正確，適合作為主要財務報告工具。
+  - 負面：直接法 CF 報表在含固定利率分期還款的期間，營業活動現金流出與融資活動現金流出合計會高於實際現金減少額（本金被重複計算）。使用者應優先參考間接法報表。
 
 ---
 

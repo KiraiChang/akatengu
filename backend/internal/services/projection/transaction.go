@@ -364,25 +364,26 @@ func (s *TransactionProjectionService) applyInstallmentPeriodPaid(ctx context.Co
 		return err
 	}
 
+	cfFin := enums.CashFlowCategoryFinancing.Enum()
 	var entries []payload.TransactionEntryPayload
 	switch st.Installment.InterestType.Val() {
 	case enums.InterestTypeFree:
 		entries = []payload.TransactionEntryPayload{
-			// Dr. 應付帳款
-			{AccountId: st.Ledger.AccountId, LedgerId: &st.Ledger.LedgerId, Debit: st.InstallmentPayments.Amount, Credit: decimal.Zero},
-			// Cr. 銀行/信用卡帳單
+			// Dr. 應付帳款（融資活動：還款減少負債）
+			{AccountId: st.Ledger.AccountId, LedgerId: &st.Ledger.LedgerId, Debit: st.InstallmentPayments.Amount, Credit: decimal.Zero, CashFlowCategory: &cfFin},
+			// Cr. 銀行/信用卡帳單（bank，CF 以期初期末餘額差計算）
 			{AccountId: st.PaidLedger.AccountId, LedgerId: &st.PaidLedger.LedgerId, Debit: decimal.Zero, Credit: st.InstallmentPayments.Amount},
 		}
 	case enums.InterestTypeFixedRate:
 		totalAmount := st.InstallmentPayments.Amount.Add(st.InstallmentPayments.Interest)
 		entries = []payload.TransactionEntryPayload{
-			// Dr. 應付帳款本金
-			{AccountId: st.Ledger.AccountId, LedgerId: &st.Ledger.LedgerId, Debit: st.InstallmentPayments.Amount, Credit: decimal.Zero},
+			// Dr. 應付帳款本金（融資活動：還款減少負債）
+			{AccountId: st.Ledger.AccountId, LedgerId: &st.Ledger.LedgerId, Debit: st.InstallmentPayments.Amount, Credit: decimal.Zero, CashFlowCategory: &cfFin},
 			// Cr. 預付利息
 			{AccountId: st.SysAccountAssetPrepaidInterest, Debit: decimal.Zero, Credit: st.InstallmentPayments.Interest},
-			// Dr. 利息費用
+			// Dr. 利息費用（留在 NI，間接法中 NI 已含此費用）
 			{AccountId: st.SysAccountExpenseInterestExpense, Debit: st.InstallmentPayments.Interest, Credit: decimal.Zero},
-			// Cr. 銀行/信用卡帳單
+			// Cr. 銀行/信用卡帳單（bank，CF 以期初期末餘額差計算）
 			{AccountId: st.PaidLedger.AccountId, LedgerId: &st.PaidLedger.LedgerId, Debit: decimal.Zero, Credit: totalAmount},
 		}
 	default:
