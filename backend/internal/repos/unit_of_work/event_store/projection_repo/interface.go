@@ -1,6 +1,7 @@
 package projection_repo
 
 import (
+	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/enums"
 	"akatengu/internal/model/db/projection"
 	"context"
@@ -81,4 +82,20 @@ type AccountRunningBalanceRepo interface {
 
 type LedgerRunningBalanceRepo interface {
 	Upsert(ctx context.Context, ledgerId int64, merchantID int64, debit, credit decimal.Decimal) error
+}
+
+type PrepaidRepo interface {
+	InsertPrepaid(ctx context.Context, p sqlcdb.InsertPrepaidParams) (int64, error)
+	UpdatePrepaidTxn(ctx context.Context, id int64, merchantID int64, txnID int64) error
+	UpdatePrepaidAmortization(ctx context.Context, id int64, merchantID int64, deltaAmount decimal.Decimal, status enums.PrepaidStatus, updatedBy *string) error
+	UpdatePrepaidDisposed(ctx context.Context, id int64, merchantID int64, updatedBy *string) error
+	InsertPrepaidAmortization(ctx context.Context, p sqlcdb.InsertPrepaidAmortizationParams) error
+}
+
+type FixedAssetRepo interface {
+	InsertFixedAsset(ctx context.Context, p sqlcdb.InsertFixedAssetParams) (int64, error)
+	UpdateFixedAssetTxn(ctx context.Context, id int64, merchantID int64, txnID int64) error
+	UpdateFixedAssetDepreciation(ctx context.Context, id int64, merchantID int64, deltaAmount decimal.Decimal, updatedBy *string) error
+	UpdateFixedAssetDisposed(ctx context.Context, id int64, merchantID int64, disposalDate string, updatedBy *string) error
+	InsertFixedAssetDepreciation(ctx context.Context, p sqlcdb.InsertFixedAssetDepreciationParams) error
 }

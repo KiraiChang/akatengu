@@ -71,6 +71,16 @@ func (p *registry) register(query *query.Repo) {
 	// Installment
 	p.rules[event_types.EventInstallmentCreated.Enum()] = NewEventInstallmentCreatedPipeline(query)
 	p.rules[event_types.EventInstallmentPeriodPaid.Enum()] = NewEventInstallmentPeriodPaidPipeline(query)
+
+	// Prepaid
+	p.rules[event_types.EventPrepaidCreated.Enum()] = NewEventPrepaidCreatedPipeline(query)
+	p.rules[event_types.EventPrepaidAmortized.Enum()] = NewEventPrepaidAmortizedPipeline(query)
+	p.rules[event_types.EventPrepaidDisposed.Enum()] = NewEventPrepaidDisposedPipeline(query)
+
+	// Fixed Asset
+	p.rules[event_types.EventAssetPurchased.Enum()] = NewEventAssetPurchasedPipeline(query)
+	p.rules[event_types.EventAssetDepreciated.Enum()] = NewEventAssetDepreciatedPipeline(query)
+	p.rules[event_types.EventAssetDisposed.Enum()] = NewEventAssetDisposedPipeline(query)
 }
 
 func getSysAccountCode(ctx context.Context, sys query.SysRepo, enum sys_codes.SysAccount) (string, error) {

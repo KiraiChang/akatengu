@@ -57,6 +57,8 @@ func NewProjection() []Projection {
 	return []Projection{
 		&InvestmentProjectionService{},
 		&InstallmentProjectionService{},
+		&PrepaidProjectionService{},
+		&FixedAssetProjectionService{},
 		&AccountProjectionService{},
 		&PeriodProjectionService{},
 		&TransactionProjectionService{},

@@ -1511,3 +1511,359 @@ func TestGetCashFlowStatement_InvestmentAndIncome_DirectIndirectConsistency(t *t
 			indirect.NetChange.InexactFloat64(), direct.NetChange.InexactFloat64())
 	}
 }
+
+// ── 預付費用 CF 測試 ──────────────────────────────────────────────────────────
+
+// 預付費用帳號常數（來自 accounts.sql seeds）
+const (
+	rptAcctPrepaidAsset    = "1103-01" // 應收薪資款 (ASSET, DEBIT) — 作為預付科目的代替
+	rptAcctPrepaidExpense  = "5101-01" // 房租費用 (EXPENSE, DEBIT)
+	rptAcctAccumDepr       = "1103-02" // 應收租金 (ASSET, DEBIT) — 作為累計折舊的代替
+	rptAcctAsset           = "1102-01" // 投資 FVTPL (ASSET, DEBIT, INVESTING) — 作為固定資產的代替
+	rptAcctDisposalGain    = "4205" // 處分固定資產利得 (INCOME, CREDIT, INVESTING)
+	rptAcctDisposalLoss    = "5601" // 固定資產處分損失 (EXPENSE, DEBIT, INVESTING)
+)
+
+// TestGetCashFlowStatement_PrepaidCreated_OperatingOutflow
+// 預付費用付款：DR 預付科目 [OPERATING], CR 現金。
+// 間接法：NI=0，OPERATING 調整=-12000（預付資產增加）→ OperatingTotal=-12000。
+// 直接法：OPERATING-tagged entry 觸發 operating_txns，CR 現金→ CashPaid=12000 → OperatingTotal=-12000。
+// 兩法一致。
+func TestGetCashFlowStatement_PrepaidCreated_OperatingOutflow(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// DR 預付科目 [OPERATING] 12000, CR 現金 [NULL] 12000
+	sumInsertTxnWithCF(t, db, 1, "2025-01-15", rptAcctPrepaidAsset, rptAcctCash, 12000, cfPtr("OPERATING"), nil)
+
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	// 間接法：NI=0，OPERATING 調整：DR 預付 → credit-debit = 0-12000 = -12000
+	niVal, _ := indirect.OperatingActivities.NetIncome.Float64()
+	if niVal != 0 {
+		t.Errorf("indirect NetIncome: got %.2f, want 0", niVal)
+	}
+	assertCFItem(t, indirect.OperatingActivities.Adjustments, rptAcctPrepaidAsset, -12000)
+	opTotal, _ := indirect.OperatingActivities.Total.Float64()
+	if opTotal != -12000 {
+		t.Errorf("indirect OperatingTotal: got %.2f, want -12000", opTotal)
+	}
+
+	// 直接法：OPERATING 觸發 operating_txns，CR 現金 → CashPaid=12000
+	directPaid, _ := direct.OperatingActivities.CashPaid.Float64()
+	if directPaid != 12000 {
+		t.Errorf("direct CashPaid: got %.2f, want 12000", directPaid)
+	}
+
+	// 兩法 OperatingTotal 一致
+	if !indirect.OperatingActivities.Total.Equal(direct.OperatingActivities.Total) {
+		t.Errorf("OperatingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.OperatingActivities.Total.InexactFloat64(),
+			direct.OperatingActivities.Total.InexactFloat64())
+	}
+	if !indirect.NetChange.Equal(direct.NetChange) {
+		t.Errorf("NetChange mismatch: indirect=%.2f, direct=%.2f",
+			indirect.NetChange.InexactFloat64(), direct.NetChange.InexactFloat64())
+	}
+}
+
+// TestGetCashFlowStatement_PrepaidAmortized_NonCash
+// 預付費用攤提（非現金）：DR 費用, CR 預付 [OPERATING]。
+// 間接法：NI=-3000，OPERATING add-back=+3000 → OperatingTotal=0。
+// 直接法：費用科目→ operating_txns，但無現金科目 → CashPaid=0 → OperatingTotal=0。
+// 兩法一致（均為 0）。
+func TestGetCashFlowStatement_PrepaidAmortized_NonCash(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// DR 費用 [NULL] 3000, CR 預付科目 [OPERATING] 3000（攤提分錄）
+	sumInsertTxnWithCF(t, db, 1, "2025-01-31", rptAcctPrepaidExpense, rptAcctPrepaidAsset, 3000, nil, cfPtr("OPERATING"))
+
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	// 間接法：NI=-3000（費用），OPERATING CR 預付 → credit-debit=+3000（加回）→ Total=0
+	niVal, _ := indirect.OperatingActivities.NetIncome.Float64()
+	if niVal != -3000 {
+		t.Errorf("indirect NetIncome: got %.2f, want -3000", niVal)
+	}
+	assertCFItem(t, indirect.OperatingActivities.Adjustments, rptAcctPrepaidAsset, 3000)
+	opTotal, _ := indirect.OperatingActivities.Total.Float64()
+	if opTotal != 0 {
+		t.Errorf("indirect OperatingTotal: got %.2f, want 0 (non-cash amortization)", opTotal)
+	}
+
+	// 直接法：費用帳→ operating_txns，無現金科目 → OperatingTotal=0
+	directOpTotal, _ := direct.OperatingActivities.Total.Float64()
+	if directOpTotal != 0 {
+		t.Errorf("direct OperatingTotal: got %.2f, want 0", directOpTotal)
+	}
+
+	if !indirect.OperatingActivities.Total.Equal(direct.OperatingActivities.Total) {
+		t.Errorf("OperatingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.OperatingActivities.Total.InexactFloat64(),
+			direct.OperatingActivities.Total.InexactFloat64())
+	}
+	if !indirect.NetChange.Equal(direct.NetChange) {
+		t.Errorf("NetChange mismatch: indirect=%.2f, direct=%.2f",
+			indirect.NetChange.InexactFloat64(), direct.NetChange.InexactFloat64())
+	}
+}
+
+// ── 固定資產 CF 測試 ──────────────────────────────────────────────────────────
+
+// TestGetCashFlowStatement_AssetPurchase_InvestingOutflow
+// 現金購買固定資產：DR 資產 [INVESTING], CR 現金。
+// 間接法：NI=0，投資活動=-30000 → NetChange=-30000。
+// 直接法：無 INCOME/EXPENSE → 不進 operating；InvestingTotal=-30000。
+// 兩法 InvestingTotal、NetChange 一致。
+func TestGetCashFlowStatement_AssetPurchase_InvestingOutflow(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// DR 資產 [INVESTING] 30000, CR 現金 [NULL] 30000
+	sumInsertTxnWithCF(t, db, 1, "2025-01-10", rptAcctAsset, rptAcctCash, 30000, cfPtr("INVESTING"), nil)
+
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	// 無 NI、無 OPERATING 調整
+	opTotal, _ := indirect.OperatingActivities.Total.Float64()
+	if opTotal != 0 {
+		t.Errorf("indirect OperatingTotal: got %.2f, want 0", opTotal)
+	}
+
+	// 投資活動：DR 資產 30000 → amount = 0-30000 = -30000
+	assertCFItem(t, indirect.InvestingActivities.Items, rptAcctAsset, -30000)
+	invTotal, _ := indirect.InvestingActivities.Total.Float64()
+	if invTotal != -30000 {
+		t.Errorf("indirect InvestingTotal: got %.2f, want -30000", invTotal)
+	}
+
+	// 直接法一致
+	if !indirect.OperatingActivities.Total.Equal(direct.OperatingActivities.Total) {
+		t.Errorf("OperatingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.OperatingActivities.Total.InexactFloat64(),
+			direct.OperatingActivities.Total.InexactFloat64())
+	}
+	if !indirect.InvestingActivities.Total.Equal(direct.InvestingActivities.Total) {
+		t.Errorf("InvestingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.InvestingActivities.Total.InexactFloat64(),
+			direct.InvestingActivities.Total.InexactFloat64())
+	}
+	if !indirect.NetChange.Equal(direct.NetChange) {
+		t.Errorf("NetChange mismatch: indirect=%.2f, direct=%.2f",
+			indirect.NetChange.InexactFloat64(), direct.NetChange.InexactFloat64())
+	}
+}
+
+// TestGetCashFlowStatement_AssetDepreciation_NonCash
+// 固定資產折舊（非現金）：DR 折舊費用, CR 累計折舊 [OPERATING]。
+// 間接法：NI=-5000，OPERATING add-back=+5000 → OperatingTotal=0。
+// 直接法：費用科目→ operating_txns，無現金科目 → OperatingTotal=0。
+// 兩法均為 0，NetChange=0。
+func TestGetCashFlowStatement_AssetDepreciation_NonCash(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// DR 折舊費用 [NULL] 5000, CR 累計折舊 [OPERATING] 5000
+	sumInsertTxnWithCF(t, db, 1, "2025-01-31", rptAcctPrepaidExpense, rptAcctAccumDepr, 5000, nil, cfPtr("OPERATING"))
+
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	// 間接法：NI=-5000，OPERATING CR 累計折舊 → credit-debit=+5000 → Total=0
+	niVal, _ := indirect.OperatingActivities.NetIncome.Float64()
+	if niVal != -5000 {
+		t.Errorf("indirect NetIncome: got %.2f, want -5000", niVal)
+	}
+	assertCFItem(t, indirect.OperatingActivities.Adjustments, rptAcctAccumDepr, 5000)
+	opTotal, _ := indirect.OperatingActivities.Total.Float64()
+	if opTotal != 0 {
+		t.Errorf("indirect OperatingTotal: got %.2f, want 0 (non-cash depreciation)", opTotal)
+	}
+
+	// 直接法：費用帳→ operating_txns，無現金科目 → OperatingTotal=0
+	directOpTotal, _ := direct.OperatingActivities.Total.Float64()
+	if directOpTotal != 0 {
+		t.Errorf("direct OperatingTotal: got %.2f, want 0", directOpTotal)
+	}
+
+	if !indirect.OperatingActivities.Total.Equal(direct.OperatingActivities.Total) {
+		t.Errorf("OperatingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.OperatingActivities.Total.InexactFloat64(),
+			direct.OperatingActivities.Total.InexactFloat64())
+	}
+	netChange, _ := indirect.NetChange.Float64()
+	if netChange != 0 {
+		t.Errorf("indirect NetChange: got %.2f, want 0 (no cash movement)", netChange)
+	}
+}
+
+// TestGetCashFlowStatement_AssetDisposal_WithGain_DirectIndirectConsistency
+// 固定資產處分（有利得）：
+// DR 累計折舊 [INVESTING], CR 資產 [INVESTING], DR 現金 [NULL], CR 利得 [INVESTING]。
+// 間接法：NI=利得，重分類至 INVESTING → OperatingNI=0；InvestingTotal=收款金額。
+// 直接法：利得 [INVESTING] 排除 → 不進 operating；InvestingTotal 一致。
+func TestGetCashFlowStatement_AssetDisposal_WithGain_DirectIndirectConsistency(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// 資產資料：原價 50000，累計折舊 20000，帳面值 30000，售價 35000，利得 5000
+	// DR 累計折舊 [INVESTING] 20000, CR 資產 [INVESTING] 50000
+	// DR 現金 [NULL] 35000, CR 利得 [INVESTING] 5000
+	// 借：20000+35000=55000；貸：50000+5000=55000 ✓
+	sumInsertTxnMulti(t, db, 1, "2025-01-20", 35000, []cfEntry{
+		{accountID: rptAcctAccumDepr, debit: 20000, credit: 0, cf: cfPtr("INVESTING")},
+		{accountID: rptAcctAsset, debit: 0, credit: 50000, cf: cfPtr("INVESTING")},
+		{accountID: rptAcctCash, debit: 35000, credit: 0, cf: nil},
+		{accountID: rptAcctDisposalGain, debit: 0, credit: 5000, cf: cfPtr("INVESTING")},
+	})
+
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	// 間接法：IS NI = 5000（利得 INCOME），但利得 [INVESTING] → 重分類移出 NI
+	// OperatingNI = 5000 - 5000 = 0
+	opNI, _ := indirect.OperatingActivities.NetIncome.Float64()
+	if opNI != 0 {
+		t.Errorf("indirect OperatingNI: got %.2f, want 0 (gain reclassified to INVESTING)", opNI)
+	}
+	opTotal, _ := indirect.OperatingActivities.Total.Float64()
+	if opTotal != 0 {
+		t.Errorf("indirect OperatingTotal: got %.2f, want 0", opTotal)
+	}
+
+	// InvestingTotal = (-20000) + 50000 + 5000 = 35000（等於現金收款）
+	invTotal, _ := indirect.InvestingActivities.Total.Float64()
+	if invTotal != 35000 {
+		t.Errorf("indirect InvestingTotal: got %.2f, want 35000 (= cash proceeds)", invTotal)
+	}
+
+	// 直接法：利得 [INVESTING] 排除 → 整筆交易不進 operating；OperatingTotal=0
+	directOpTotal, _ := direct.OperatingActivities.Total.Float64()
+	if directOpTotal != 0 {
+		t.Errorf("direct OperatingTotal: got %.2f, want 0", directOpTotal)
+	}
+
+	// 兩法一致
+	if !indirect.OperatingActivities.Total.Equal(direct.OperatingActivities.Total) {
+		t.Errorf("OperatingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.OperatingActivities.Total.InexactFloat64(),
+			direct.OperatingActivities.Total.InexactFloat64())
+	}
+	if !indirect.InvestingActivities.Total.Equal(direct.InvestingActivities.Total) {
+		t.Errorf("InvestingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.InvestingActivities.Total.InexactFloat64(),
+			direct.InvestingActivities.Total.InexactFloat64())
+	}
+	if !indirect.NetChange.Equal(direct.NetChange) {
+		t.Errorf("NetChange mismatch: indirect=%.2f, direct=%.2f",
+			indirect.NetChange.InexactFloat64(), direct.NetChange.InexactFloat64())
+	}
+}
+
+// TestGetCashFlowStatement_AssetDisposal_WithLoss_DirectIndirectConsistency
+// 固定資產處分（有損失）：
+// DR 累計折舊 [INVESTING], CR 資產 [INVESTING], DR 現金 [NULL], DR 損失 [INVESTING]。
+// 間接法：NI=-損失，重分類至 INVESTING → OperatingNI=0；InvestingTotal=現金收款。
+func TestGetCashFlowStatement_AssetDisposal_WithLoss_DirectIndirectConsistency(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := query.NewReportRepo(db)
+	ctx := testCtx()
+
+	// 資產資料：原價 50000，累計折舊 20000，帳面值 30000，售價 25000，損失 5000
+	// DR 累計折舊 [INVESTING] 20000, CR 資產 [INVESTING] 50000
+	// DR 現金 [NULL] 25000, DR 損失 [INVESTING] 5000
+	// 借：20000+25000+5000=50000；貸：50000 ✓
+	sumInsertTxnMulti(t, db, 1, "2025-01-20", 25000, []cfEntry{
+		{accountID: rptAcctAccumDepr, debit: 20000, credit: 0, cf: cfPtr("INVESTING")},
+		{accountID: rptAcctAsset, debit: 0, credit: 50000, cf: cfPtr("INVESTING")},
+		{accountID: rptAcctCash, debit: 25000, credit: 0, cf: nil},
+		{accountID: rptAcctDisposalLoss, debit: 5000, credit: 0, cf: cfPtr("INVESTING")},
+	})
+
+	indirect, err := repo.GetCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetCashFlowStatement: %v", err)
+	}
+	direct, err := repo.GetDirectCashFlowStatement(ctx, "2025-01-01", "2025-01-31")
+	if err != nil {
+		t.Fatalf("GetDirectCashFlowStatement: %v", err)
+	}
+
+	// 間接法：IS NI = -5000（損失 EXPENSE），損失 [INVESTING] → 重分類移出 NI
+	// OperatingNI = -5000 - (-5000) = 0
+	opNI, _ := indirect.OperatingActivities.NetIncome.Float64()
+	if opNI != 0 {
+		t.Errorf("indirect OperatingNI: got %.2f, want 0 (loss reclassified to INVESTING)", opNI)
+	}
+	opTotal, _ := indirect.OperatingActivities.Total.Float64()
+	if opTotal != 0 {
+		t.Errorf("indirect OperatingTotal: got %.2f, want 0", opTotal)
+	}
+
+	// InvestingTotal = (-20000) + 50000 + (-5000) = 25000（等於現金收款）
+	invTotal, _ := indirect.InvestingActivities.Total.Float64()
+	if invTotal != 25000 {
+		t.Errorf("indirect InvestingTotal: got %.2f, want 25000 (= cash proceeds)", invTotal)
+	}
+
+	// 直接法：損失 [INVESTING] 排除 → 不進 operating；OperatingTotal=0
+	directOpTotal, _ := direct.OperatingActivities.Total.Float64()
+	if directOpTotal != 0 {
+		t.Errorf("direct OperatingTotal: got %.2f, want 0", directOpTotal)
+	}
+
+	// 兩法一致
+	if !indirect.OperatingActivities.Total.Equal(direct.OperatingActivities.Total) {
+		t.Errorf("OperatingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.OperatingActivities.Total.InexactFloat64(),
+			direct.OperatingActivities.Total.InexactFloat64())
+	}
+	if !indirect.InvestingActivities.Total.Equal(direct.InvestingActivities.Total) {
+		t.Errorf("InvestingTotal mismatch: indirect=%.2f, direct=%.2f",
+			indirect.InvestingActivities.Total.InexactFloat64(),
+			direct.InvestingActivities.Total.InexactFloat64())
+	}
+	if !indirect.NetChange.Equal(direct.NetChange) {
+		t.Errorf("NetChange mismatch: indirect=%.2f, direct=%.2f",
+			indirect.NetChange.InexactFloat64(), direct.NetChange.InexactFloat64())
+	}
+}

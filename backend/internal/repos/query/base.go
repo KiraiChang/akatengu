@@ -20,6 +20,8 @@ type Repo struct {
 	User           UserRepo
 	Merchant       MerchantRepo
 	Config         ConfigRepo
+	Prepaid        PrepaidQueryRepo
+	FixedAsset     FixedAssetQueryRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -38,5 +40,7 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		User:           newUserRepo(q),
 		Merchant:       newMerchantRepo(q),
 		Config:         newConfigRepo(q, db),
+		Prepaid:        newPrepaidQueryRepo(q),
+		FixedAsset:     newFixedAssetQueryRepo(q),
 	}
 }

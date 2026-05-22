@@ -33,6 +33,7 @@
 | [ADR-011](#adr-011-投資現金流量表investingfinancing-科目從-ni-重分類) | 投資現金流量表：INVESTING/FINANCING 科目從 NI 重分類 | Accepted | 2026-05-22 |
 | [ADR-012](#adr-012-投資-pipeline-cashflowcategory-分錄標記策略) | 投資 Pipeline CashFlowCategory 分錄標記策略 | Accepted | 2026-05-22 |
 | [ADR-013](#adr-013-直接法現金流量表固定利率分期還款已知限制) | 直接法現金流量表：固定利率分期還款已知限制 | Accepted | 2026-05-22 |
+| [ADR-014](#adr-014-所有會計帳務異動必須透過事件溯源寫入查詢透過-queryrepo) | 所有會計帳務異動必須透過事件溯源寫入，查詢透過 query.Repo | Accepted | 2026-05-22 |
 
 ---
 
@@ -426,6 +427,78 @@
 - **後果**：
   - 正面：間接法 CF 報表完整正確，適合作為主要財務報告工具。
   - 負面：直接法 CF 報表在含固定利率分期還款的期間，營業活動現金流出與融資活動現金流出合計會高於實際現金減少額（本金被重複計算）。使用者應優先參考間接法報表。
+
+---
+
+## ADR-014 所有會計帳務異動必須透過事件溯源寫入，查詢透過 query.Repo
+
+- **狀態**：Accepted
+- **日期**：2026-05-22
+- **背景**：
+  系統新增預付費用（Prepaid）與固定資產（Fixed Asset）模組，涉及分錄建立、攤提、折舊、處分等多個寫入操作。
+  這些操作直接影響會計科目餘額與財務報表，若各模組各自處理寫入，將面臨以下風險：
+  - 並發衝突導致帳務不一致（多個請求同時修改同一筆資產狀態）
+  - Projection 讀模型與事件流不同步（若跳過事件系統直寫）
+  - 欠缺完整稽核軌跡（無法重播事件以重建任意時間點狀態）
+
+- **決策**：
+  強制要求所有新模組的帳務寫入一律走事件溯源鏈路，不得例外：
+
+  ```
+  Handler → EventStoreService.Append
+    → Pipeline（驗證領域規則，建立分錄 entries）
+      → UnitOfWork.Do（單一 SQLite 交易）
+          ├─ VersionRepository.UpdateIfVersionMatch（樂觀鎖）
+          ├─ 事件持久化
+          └─ Projection.Apply（讀模型同步）
+  ```
+
+  查詢操作（GET 系列 API）透過 `query.Repo`（唯讀層）執行，不接觸 UnitOfWork，不受樂觀鎖約束。
+  具體對應關係：
+
+  | 操作 | 路徑 |
+  |------|------|
+  | PREPAID_CREATED / AMORTIZED / DISPOSED | EventStoreService.Append |
+  | ASSET_PURCHASED / DEPRECIATED / DISPOSED | EventStoreService.Append |
+  | GET /api/prepaid/ , GET /api/asset/ | query.Repo（無鎖） |
+
+- **替代方案**：
+  - 直接在 Service 層 INSERT/UPDATE：實作簡單，但無樂觀鎖保護、無稽核軌跡、Projection 需手動維護，不採用。
+  - 為查詢也加鎖：過度設計，SELECT 不修改狀態，加鎖只會降低吞吐量且無實際保護價值，不採用。
+
+- **後果**：
+  - 正面：帳務一致性由 UnitOfWork 樂觀鎖統一保護；完整事件軌跡供稽核與重播；Projection 自動同步。
+  - 負面：新模組必須實作完整的 Pipeline + Projection 鏈路，初始開發量較直寫多；每次新增事件類型需在 `factory/base.go` 與 `projection/base.go` 同步登記。
+
+---
+
+## ADR-015 預付費用與固定資產的現金流量分類設計
+
+- **狀態**：Accepted
+- **日期**：2026-05-22
+- **背景**：
+  預付費用攤提與固定資產折舊均為非現金認列，若分錄不帶 `cash_flow_category` 標籤，間接法 CF 報表的 OperatingTotal 會因 NI 下降而出現負數，但實際並無現金流出。資產處分的利得/損失若留在 NI，會使 OperatingTotal 包含投資活動金額，破壞分類一致性。
+
+- **決策**：
+  依以下原則設定 `journal_entries.cash_flow_category`：
+
+  | 事件 | 分錄 | CF 標籤 | 理由 |
+  |------|------|---------|------|
+  | 預付創建 | DR 預付科目 | `OPERATING` | 現金用於取得預付費用，屬營業活動現金流出；間接法：預付資產增加 → 負調整 |
+  | 預付攤提 | CR 預付科目 | `OPERATING` | 非現金認列，加回 NI 中已扣除的費用，使 OperatingTotal=0 |
+  | 預付提前終止 | CR 預付科目 | `OPERATING` | 同攤提，非現金一次認列 |
+  | 資產購入（現金） | DR 資產帳戶 | `INVESTING` | 現金用於購置資產，屬投資活動現金流出 |
+  | 資產購入（租賃） | 無標籤 | — | 非現金交易，NI=0 且無調整，NetChange=0 |
+  | 資產折舊 | CR 累計折舊 | `OPERATING` | 非現金認列，加回 NI 中已扣除的折舊費用，使 OperatingTotal=0 |
+  | 資產處分（利得/損失） | DR/CR 損益科目 | `INVESTING` | 將損益重分類至投資活動，從 NI 移出；InvestingTotal = 現金收款 |
+
+- **替代方案**：
+  - 依 `accounts.cash_flow_category` 自動推導：CF 報表 SQL 無法直接使用科目層級分類推導 `journal_entries` 標籤，需在查詢層做 JOIN 並附加條件，大幅增加查詢複雜度，不採用。
+  - 不標 OPERATING，讓 OperatingTotal 自然反映：攤提/折舊期間 OperatingTotal 為負，但無現金流出，間接法與直接法數字會不一致，不採用。
+
+- **後果**：
+  - 正面：間接法與直接法 OperatingTotal 保持一致；6 個 CF 測試驗證各情境均通過。
+  - 負面：每個 `applyXxx` 函式需要明確設定 CF 標籤，新增事件時不得遺漏。
 
 ---
 

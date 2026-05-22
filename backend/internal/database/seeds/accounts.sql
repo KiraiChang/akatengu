@@ -178,6 +178,7 @@ VALUES
 (1,'4202', '420', '股利收入',                 'INCOME', 'CREDIT', TRUE, 1, NULL),
 (1,'4203', '420', '處分投資利得',             'INCOME', 'CREDIT', TRUE, 1, NULL),
 (1,'4204', '420', '公允價值變動利益 (FVTPL)', 'INCOME', 'CREDIT', TRUE, 1, NULL),
+(1,'4205', '420', '處分固定資產利得',         'INCOME', 'CREDIT', FALSE, 1, 'INVESTING'),
 
 -- 孫科目 — 4201
 (1,'4201-01', '4201', '存款利息', 'INCOME', 'CREDIT', FALSE, 1, NULL),
@@ -329,7 +330,13 @@ VALUES
 
 -- 孫科目 — 5502
 (1,'5502-01', '5502', '使用權資產攤銷 (IFRS 16)', 'EXPENSE', 'DEBIT', FALSE, 1, NULL),
-(1,'5502-02', '5502', '無形資產攤銷',             'EXPENSE', 'DEBIT', FALSE, 1, NULL)
+(1,'5502-02', '5502', '無形資產攤銷',             'EXPENSE', 'DEBIT', FALSE, 1, NULL),
+
+-- 父科目 — 560
+(1,'560', NULL, '資產處分損失', 'EXPENSE', 'DEBIT', TRUE, 1, NULL),
+
+-- 子科目 — 560
+(1,'5601', '560', '固定資產處分損失', 'EXPENSE', 'DEBIT', FALSE, 1, 'INVESTING')
 
 ON CONFLICT (account_id, merchant_id) DO UPDATE SET
     cash_flow_category = excluded.cash_flow_category

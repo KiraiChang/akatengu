@@ -46,6 +46,8 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	sys := newSysHandler(db, logger)
 	setting := newSettingHandler(db, logger)
 	installment := newInstallmentHandler(db, logger)
+	prepaid := newPrepaidHandler(db, logger)
+	fixedAsset := newFixedAssetHandler(db, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -92,6 +94,14 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 
 	bizApi.HandleFunc("GET /installment/paged", installment.GetInstallmentPaged)
 	bizApi.HandleFunc("GET /installment/payment", installment.GetPaymentPaged)
+
+	bizApi.HandleFunc("GET /prepaid/all", prepaid.GetAllPrepaids)
+	bizApi.HandleFunc("GET /prepaid/active", prepaid.GetActivePrepaids)
+	bizApi.HandleFunc("GET /prepaid/{prepaid_id}/amortizations", prepaid.GetPrepaidAmortizations)
+
+	bizApi.HandleFunc("GET /fixed_asset/all", fixedAsset.GetAllFixedAssets)
+	bizApi.HandleFunc("GET /fixed_asset/active", fixedAsset.GetActiveFixedAssets)
+	bizApi.HandleFunc("GET /fixed_asset/{asset_id}/depreciations", fixedAsset.GetFixedAssetDepreciations)
 
 	bizApi.HandleFunc("GET /txn/paged", txn.GetTransactionPaged)
 	bizApi.HandleFunc("GET /txn/{txn_id}", txn.GetEntries)

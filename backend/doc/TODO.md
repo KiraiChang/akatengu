@@ -41,20 +41,28 @@
 
 > 影響核心功能正確性或穩定性，應在近期處理。
 
+**預付費用 & 固定資產（Prepaid & Fixed Asset）**
+
+- [x] [Feature] 設計確認 — 完成日期：2026-05-22（計畫書已確認，關聯：ADR-014）
+- [x] [Feature] 實作 Migration + Seeds（4 張資料表 + 處分損益科目）— 完成日期：2026-05-22
+- [x] [Feature] 實作 Enums（DepreciationMethod、AssetPaymentType、6 個 EventType）— 完成日期：2026-05-22
+- [x] [Feature] 實作 SQL Queries + sqlc.yaml overrides + go generate — 完成日期：2026-05-22
+- [x] [Feature] 實作 Payload、State（6 組）— 完成日期：2026-05-22
+- [x] [Feature] 實作 Pipeline（factory/prepaid.go、factory/asset.go，含 CF 標籤）— 完成日期：2026-05-22
+- [x] [Feature] 實作 UoW Projection Repos（PrepaidRepo、FixedAssetRepo）— 完成日期：2026-05-22
+- [x] [Feature] 實作 projection/transaction.go（6 個 apply 函式 + UpdatePrepaidTxn/UpdateFixedAssetTxn）+ base.go 登記 — 完成日期：2026-05-22
+- [x] [Feature] 實作 query/prepaid.go、query/asset.go + query/base.go 掛載 — 完成日期：2026-05-22
+- [x] [Feature] 實作 Service（PrepaidService、FixedAssetService）— 完成日期：2026-05-22
+- [x] [Feature] 實作 Handler（prepaid.go、asset.go）+ handler.go 路由 — 完成日期：2026-05-22
+- [x] [Test] 補充 CF 一致性測試（6 個測試：預付創建/攤提、折舊、資產購入/處分利得/處分損失）— 完成日期：2026-05-22
+
 ### 中優先（P2）
 
 > 提升系統品質或開發效率，可排入下一個迭代。
 
-### 低優先（P3）
-
-> Nice-to-have，不影響現有功能，有空再做。
-
 **現金流量表（Cash Flow Statement）**
 
-- [ ] [Feature] 系統自動分錄補上 `cash_flow_category` — 目前系統內部自動組裝的 `TransactionCreatedPayload` 未設定分類，以下事件需逐一評估：
-  - **分期付款（Installment）**：`applyInstallmentCreated` 資產側通常 INVESTING；`applyInstallmentPeriodPaid` 應付帳款側通常 FINANCING
-  - **投資買賣（Investment）**：`applyInvestmentBought` / `applyInvestmentSold` 投資科目側屬 INVESTING；`applyDevidendReceived` 股利依 IFRS 可歸 OPERATING 或 INVESTING
-  - **年度結帳（Period Annual Close / Reopen）**：結帳分錄為科目間內部軋轉，應保持 `cash_flow_category = NULL`
+- [ ] [Feature] 系統自動分錄補上 `cash_flow_category` — 年度結帳（Period Annual Close / Reopen）結帳分錄為科目間內部軋轉，應保持 `cash_flow_category = NULL`（投資買賣、分期付款已於 2026-05-22 完成）
 
 **直接法現金流量表（Direct Method）**
 
@@ -63,9 +71,11 @@
 
 **其他應評估科目類型**
 
-- [ ] [Feature] 折舊費用（Depreciation）— 折舊為非現金費用，對應「累計折舊」科目那一側應標記 `OPERATING`（加回調整項）
-- [ ] [Feature] 攤銷（Amortization）— 邏輯同折舊，無形資產攤銷亦屬 OPERATING 非現金調整項
 - [ ] [Feature] 應收 / 應付帳款變動 — 確認前端預設值規則是否與科目 `accounts.cash_flow_category` 對應正確
+
+### 低優先（P3）
+
+> Nice-to-have，不影響現有功能，有空再做。
 
 **技術優化**
 

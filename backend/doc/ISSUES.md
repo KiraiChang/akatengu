@@ -204,6 +204,51 @@
 
 ---
 
+### [ISSUE-010] 預付/資產 txn_id 雞生蛋問題：Projection 執行順序導致無法在 INSERT 時提供 txn_id
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-22
+- **嚴重程度**：Medium
+- **位置**：`internal/services/projection/prepaid.go`、`internal/services/projection/asset.go`、`internal/repos/unit_of_work/event_store/projection_repo/`
+- **描述**：
+  `prepaids` / `fixed_assets` 表中 `txn_id` 用於關聯對應的會計交易。但在事件處理流程中，
+  Projection 的執行順序為：PrepaidProjectionService（INSERT prepaid）→ TransactionProjectionService（INSERT transaction）。
+  PrepaidProjectionService 執行時 transaction 尚未建立，無法取得 txn_id，
+  若將 `txn_id NOT NULL`，則 INSERT 必然失敗。
+- **影響範圍**：
+  預付費用創建（PREPAID_CREATED）與固定資產購入（ASSET_PURCHASED）無法成功寫入。
+- **解決紀錄**：
+  將 `prepaids.txn_id` 與 `fixed_assets.txn_id` 定義為 nullable（`INTEGER` 無 `NOT NULL`）。
+  Projection 的 INSERT SQL 不包含 `txn_id`，改為在 TransactionProjectionService 建立交易後，
+  呼叫新增的 `UpdatePrepaidTxn` / `UpdateFixedAssetTxn` 將 txn_id 回寫。
+  此設計參照 installment 表的 `UpdateInstallmentTxn` 既有模式。
+  `prepaid_amortizations` / `fixed_asset_depreciations` 的 `txn_id` 則在 TransactionProjectionService
+  建立交易後直接以正確 txn_id 一次完成 INSERT，不需二次更新。
+
+---
+
+### [ISSUE-011] dbmap_gen.go 型別不一致導致 build 失敗（TxnID *int64 變更後未重新 generate）
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-22
+- **嚴重程度**：Medium
+- **位置**：`internal/model/db/projection/dbmap_gen.go`
+- **描述**：
+  將 projection model 的 `TxnID` 改為 `*int64`（nullable）後，未立即執行 `go generate ./...`。
+  舊版 `dbmap_gen.go` 根據修改前的型別（`int64` non-nullable）生成了 `dbmapconv.Ptr()` / `dbmapconv.Deref()` 轉換，
+  與新的 `*int64` 不相容，導致 `go build` 失敗：
+  ```
+  cannot use dbmapconv.Ptr(m.TxnID) (value of type **int64) as *int64
+  ```
+- **影響範圍**：
+  `go build` 失敗，阻斷所有後續開發。
+- **解決紀錄**：
+  執行 `go generate ./...` 重新產生 `dbmap_gen.go`，使轉換函式與最新型別一致，問題解除。
+  **結論：修改 projection struct 欄位型別後，必須立即執行 `go generate ./...`，
+  否則 `dbmap_gen.go` 與 `sqlcdb` 型別不一致，導致 build 失敗。**
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open

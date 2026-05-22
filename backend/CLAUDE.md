@@ -61,6 +61,7 @@
 - 執行指令時遇到**執行環境問題**（如 `command not found`、權限不足、路徑錯誤等），立即向使用者說明錯誤狀況並請求支援，**不得自行嘗試繞過**（如切換目錄、改用 npx、修改 PATH 等），等待使用者修正後再繼續。
 - **需要瀏覽專案時，必須先向使用者說明瀏覽目的並取得確認，禁止未獲許可主動瀏覽任何檔案或目錄。**
 - 瀏覽程式碼時**不重複閱讀**同一檔案，已讀過的內容直接引用記憶。
+- **所有涉及會計帳務的寫入操作**（分錄記錄、資產變動、預付費用攤提、折舊、處分等），**必須透過 `EventStoreService.Append` 寫入**，並由 UnitOfWork 的樂觀鎖（`VersionRepository.UpdateIfVersionMatch`）保護一致性。禁止在 Repository 層或 Service 層直接對會計相關資料表執行 INSERT / UPDATE / DELETE；所有異動一律走事件溯源鏈路（Handler → EventStoreService → Pipeline → UnitOfWork → Projection）。**查詢操作**則透過 `query.Repo`（唯讀層）執行，不受樂觀鎖約束，可由 API 直接呼叫。
 - **Repository 層一律使用 sqlc 產生的型別安全查詢**；嚴禁直接撰寫 `sqlx` 查詢，除非該 SQL 動態性質（如欄位清單或 `WHERE` 條件在執行期才確定）確實無法以 sqlc 靜態產生，且**須在行內以註解說明為何不得不改用 `sqlx`**。如遇此情況，應先提出說明並取得明確許可，再動手實作。
 - **API 回應（前端可見的 JSON）禁止直接使用 sqlc 生成的型別**（`sqlcdb.*`）。所有回應型別必須定義在 `internal/model/db/projection/` 下，並符合以下規範：
   1. 每個欄位同時宣告 `db:"snake_case"` 與 `json:"snake_case"` tag，JSON 命名一律採用 snake_case。

@@ -167,6 +167,50 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "NormalBalance"
+          - column: "prepaids.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "PrepaidStatus"
+          - column: "prepaids.total_amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "prepaids.amortized_amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "prepaid_amortizations.amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "fixed_assets.depreciation_method"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "DepreciationMethod"
+          - column: "fixed_assets.payment_type"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "AssetPaymentType"
+          - column: "fixed_assets.status"
+            go_type:
+              import: "akatengu/internal/enums"
+              type: "FixedAssetStatus"
+          - column: "fixed_assets.cost"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "fixed_assets.residual_value"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "fixed_assets.total_depreciated"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "fixed_asset_depreciations.amount"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
 
           # ── Boolean columns stored as INTEGER ────────────────────────────────
           - column: "accounts.is_summary"
