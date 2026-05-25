@@ -11,6 +11,7 @@ import './styles/views/installment.css'
 import './styles/views/prepaid.css'
 import './styles/views/fixed-asset.css'
 import './styles/views/reports.css'
+import './styles/views/template.css'
 import './styles/components/modal.css'
 import App from './App.svelte'
 

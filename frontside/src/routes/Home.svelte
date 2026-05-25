@@ -26,6 +26,7 @@
   import AssetTypeConfig    from '../views/AssetTypeConfig.svelte';
   import Prepaid            from '../views/Prepaid.svelte';
   import FixedAsset         from '../views/FixedAsset.svelte';
+  import Template           from '../views/Template.svelte';
 
   interface SubMenuItem { label: string; path: string; }
   interface MenuItem    { label: string; path: string; key?: string; children?: SubMenuItem[]; }
@@ -52,6 +53,7 @@
       { label: '系統科目對應', path: '/home/settings' },
       { label: '帳戶類型設定', path: '/home/settings/ledger-type' },
       { label: '資產類型設定', path: '/home/settings/asset-type' },
+      { label: '範本管理',     path: '/home/settings/template' },
     ]},
   ];
 
@@ -74,6 +76,7 @@
     '/home/settings':                 Settings,
     '/home/settings/ledger-type':     LedgerTypeConfig,
     '/home/settings/asset-type':      AssetTypeConfig,
+    '/home/settings/template':        Template,
   };
 
   let currentPath     = $state(window.location.hash.replace(/^#/, '') || '/home');

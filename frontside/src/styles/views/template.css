@@ -1,0 +1,11 @@
+/* ── Template tag badge ───────────────────── */
+
+.tpl-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  border: 1px solid rgba(106, 184, 138, 0.3);
+  color: #6ab88a;
+  border-radius: 2px;
+}
