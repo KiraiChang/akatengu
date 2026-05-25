@@ -7,22 +7,23 @@ import (
 )
 
 type Repo struct {
-	Account        AccountRepo
-	RunningBalance RunningBalanceRepo
-	Event          EventRepo
-	Investment     InvestmentRepo
-	Report         ReportRepo
-	Period         PeriodRepo
-	Entry          EntryRepo
-	Transaction    TransactionRepo
-	Installment    InstallmentRepo
-	Sys            SysRepo
-	User           UserRepo
-	Merchant       MerchantRepo
-	Config         ConfigRepo
-	Prepaid        PrepaidQueryRepo
-	FixedAsset     FixedAssetQueryRepo
-	Template       TemplateRepo
+	Account         AccountRepo
+	RunningBalance  RunningBalanceRepo
+	Event           EventRepo
+	Investment      InvestmentRepo
+	Report          ReportRepo
+	Period          PeriodRepo
+	Entry           EntryRepo
+	Transaction     TransactionRepo
+	Installment     InstallmentRepo
+	Sys             SysRepo
+	User            UserRepo
+	Merchant        MerchantRepo
+	Config          ConfigRepo
+	Prepaid         PrepaidQueryRepo
+	FixedAsset      FixedAssetQueryRepo
+	Template        TemplateRepo
+	AccountAnalysis AccountAnalysisRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -40,9 +41,10 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		Sys:            newSysRepo(q),
 		User:           newUserRepo(q),
 		Merchant:       newMerchantRepo(q),
-		Config:         newConfigRepo(q, db),
-		Prepaid:        newPrepaidQueryRepo(q),
-		FixedAsset:     newFixedAssetQueryRepo(q),
-		Template:       newTemplateRepo(q, db),
+		Config:          newConfigRepo(q, db),
+		Prepaid:         newPrepaidQueryRepo(q),
+		FixedAsset:      newFixedAssetQueryRepo(q),
+		Template:        newTemplateRepo(q, db),
+		AccountAnalysis: newAccountAnalysisRepo(q),
 	}
 }

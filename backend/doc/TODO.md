@@ -87,6 +87,17 @@
 - [x] [Feature] 實作 Service（TemplateService）— 完成日期：2026-05-25
 - [x] [Feature] 實作 Handler（5 個 API：GET /template、POST /template、GET /template/{id}、PUT /template/{id}、DELETE /template/{id}）— 完成日期：2026-05-25
 
+**科目鑽取分析（Account Analysis）**
+
+- [x] [Feature] 設計確認 — 完成日期：2026-05-25（三項 API：子科目餘額、分錄分頁、月度趨勢）
+- [x] [Feature] 實作 Migration（journal_entries 索引）— 完成日期：2026-05-25
+- [x] [Feature] 實作 SQL Queries（6 個查詢）+ go generate — 完成日期：2026-05-25
+- [x] [Feature] 實作 Projection Model（AccountChildBalance、AccountJournalEntryRow、AccountMonthlyBalance 等）— 完成日期：2026-05-25
+- [x] [Feature] 實作 Repository（AccountAnalysisRepo）— 完成日期：2026-05-25
+- [x] [Feature] 實作 Service（AccountAnalysisService）— 完成日期：2026-05-25
+- [x] [Feature] 實作 Handler（3 個 API：GET /account/{id}/children-balance、/entries、/monthly-balance）— 完成日期：2026-05-25
+- [x] [Test] 補充測試（5 個測試：子科目餘額含/無 running balance、分錄分頁日期篩選、月度趨勢含快照標記、格式錯誤）— 完成日期：2026-05-25
+
 **技術優化**
 
 - [ ] [DX] `sqlc.yaml` nullable enum override 自動化 — 每新增一個 nullable enum 欄位都需手動宣告 override，考慮以 go:generate 腳本輔助生成（關聯：ADR-005）

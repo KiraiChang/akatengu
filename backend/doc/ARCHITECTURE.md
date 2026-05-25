@@ -34,6 +34,7 @@
 | [ADR-012](#adr-012-投資-pipeline-cashflowcategory-分錄標記策略) | 投資 Pipeline CashFlowCategory 分錄標記策略 | Accepted | 2026-05-22 |
 | [ADR-013](#adr-013-直接法現金流量表固定利率分期還款已知限制) | 直接法現金流量表：固定利率分期還款已知限制 | Accepted | 2026-05-22 |
 | [ADR-014](#adr-014-所有會計帳務異動必須透過事件溯源寫入查詢透過-queryrepo) | 所有會計帳務異動必須透過事件溯源寫入，查詢透過 query.Repo | Accepted | 2026-05-22 |
+| [ADR-016](#adr-016-分頁-api-實作規範) | 分頁 API 實作規範 | Accepted | 2026-05-25 |
 
 ---
 
@@ -499,6 +500,65 @@
 - **後果**：
   - 正面：間接法與直接法 OperatingTotal 保持一致；6 個 CF 測試驗證各情境均通過。
   - 負面：每個 `applyXxx` 函式需要明確設定 CF 標籤，新增事件時不得遺漏。
+
+---
+
+## ADR-016 分頁 API 實作規範
+
+- **狀態**：Accepted
+- **日期**：2026-05-25
+- **背景**：
+  系統多個模組（投資、帳戶、分錄分析等）均需要分頁查詢 API。
+  早期部分端點使用自訂 `Page`/`Size` 結構與獨立 COUNT 查詢，與投資模組的慣例不一致，造成前端串接負擔與開發標準分歧。
+
+- **決策**：
+  所有分頁 API 一律遵循以下四層規範：
+
+  **1. SQL 查詢（`internal/database/queries/*.sql`）**
+  - 分頁查詢函式名稱以 `Paged` 為後綴（如 `GetAccountJournalEntriesPaged`）
+  - 使用 `WITH total AS (SELECT COUNT(*) AS cnt ...)` 將 total 嵌入主查詢，一次往返取得資料與總筆數，不另外發送獨立 COUNT 查詢
+  - 範例結構：
+    ```sql
+    -- name: GetXxxPaged :many
+    WITH total AS (
+        SELECT COUNT(*) AS cnt FROM ... WHERE ...
+    )
+    SELECT ..., total.cnt AS total
+    FROM ..., total
+    WHERE ...
+    ORDER BY ...
+    LIMIT @limit OFFSET @offset;
+    ```
+
+  **2. Repository 層（`internal/repos/query/*.go`）**
+  - 接受 `model.PaginationParams`（含 `Offset`、`Limit`，由 Handler 呼叫 `SetDefaults()` 後傳入）
+  - 從 `rows[0].Total` 取得總筆數（空結果時回傳 0）
+  - 函式簽章慣例：`GetXxxPaged(ctx, ...filterParams, req model.PaginationParams) ([]T, int64, error)`
+
+  **3. Service 層**
+  - 直接傳遞 `model.PaginationParams` 與篩選條件至 Repo，不做額外包裝
+
+  **4. Handler 層（`internal/handler/*.go`）**
+  - Query params 固定使用 `page`（頁碼，從 1 起）與 `page_size`（每頁筆數）
+  - 呼叫 `req.SetDefaults()`：預設 `PageSize=20`，最大 `PageSize=100`
+  - 回傳格式：`response.OK(w, model.PaginateWithTotal(result, req, total))`
+  - 範例：
+    ```go
+    page, _ := strconv.ParseInt(q.Get("page"), 10, 64)
+    pageSize, _ := strconv.ParseInt(q.Get("page_size"), 10, 64)
+    req := model.PaginationParams{Page: page, PageSize: pageSize}
+    req.SetDefaults()
+    result, total, err := h.s.GetXxxPaged(ctx, ..., req)
+    response.OK(w, model.PaginateWithTotal(result, req, total))
+    ```
+
+- **替代方案**：
+  - 自訂 `Page`/`Size` struct + 獨立 COUNT 查詢：多一次 DB 往返，且各端點行為不一致，不採用。
+  - 全量載入後在 Go 中切頁（`PaginateWithoutTotal`）：適用於小資料集，但分析類查詢資料量不定，不應依賴此方式，不採用。
+
+- **後果**：
+  - 正面：所有分頁 API 對外格式統一（`data` + `meta` 含 `total_count`、`total_pages`）；DB 只需一次查詢；前端接入規則固定。
+  - 負面：`SetDefaults()` 強制 `PageSize` 上限為 100，若特定場景需要更大批次，需另行評估替代方案（如游標分頁）。
 
 ---
 

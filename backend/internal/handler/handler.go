@@ -39,6 +39,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	merchant := newMerchantHandler(db, jwt, logger)
 
 	account := newAccountHandler(db, logger)
+	accountAnalysis := newAccountAnalysisHandler(db, logger)
 	aggerate := newAggerateHandler(db, logger)
 	txn := newTransactionHandler(db, logger)
 	period := newPeriodHandler(db, logger)
@@ -79,8 +80,11 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 
 	bizApi.HandleFunc("GET /account/paged", account.GetAccountPaged)
 	bizApi.HandleFunc("GET /account/all", account.GetAllAccount)
-	bizApi.HandleFunc("GET /account/{parent_id}", account.GetChildrenAccount)
 	bizApi.HandleFunc("GET /account/all_balance", account.GetAllAccountBalances)
+	bizApi.HandleFunc("GET /account/{account_id}/children-balance", accountAnalysis.GetChildrenBalance)
+	bizApi.HandleFunc("GET /account/{account_id}/entries", accountAnalysis.GetEntries)
+	bizApi.HandleFunc("GET /account/{account_id}/monthly-balance", accountAnalysis.GetMonthlyBalance)
+	bizApi.HandleFunc("GET /account/{parent_id}", account.GetChildrenAccount)
 	bizApi.HandleFunc("GET /ledger/paged", account.GetLedgerPaged)
 	bizApi.HandleFunc("GET /ledger/all", account.GetAllLedger)
 	bizApi.HandleFunc("GET /ledger/all_balance", account.GetAllLedgerBalances)
