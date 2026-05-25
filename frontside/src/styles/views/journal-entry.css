@@ -401,6 +401,80 @@
   align-self: center;
 }
 
+/* ── Template picker bar ─────────────────── */
+
+.je-tpl-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #1e2230;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.je-tpl-bar-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #5c6278;
+  white-space: nowrap;
+}
+
+.je-tpl-select {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #252836;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #c0bdb4;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.je-tpl-select option {
+  background: #131520;
+  color: #c0bdb4;
+}
+
+.je-tpl-select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.je-tpl-loading {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #3d4258;
+  white-space: nowrap;
+}
+
+/* ── Save template footer ─────────────────── */
+
+.entry-tpl-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 24px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.entry-tpl-btn {
+  background: none;
+  border: 1px solid #252836;
+  color: #5c6278;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.entry-tpl-btn:hover {
+  color: #c0bdb4;
+  border-color: #3d4258;
+}
+
 /* ── RWD: mobile (< 768px) ───────────────── */
 
 @media (max-width: 767px) {

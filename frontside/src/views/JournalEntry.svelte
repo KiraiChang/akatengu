@@ -2,12 +2,14 @@
   import { getTransactionPaged, getEntries, createTransaction } from '../api/transaction';
   import { getAccountAll } from '../api/account';
   import { getLedgerAccountAll } from '../api/ledger';
+  import { getTemplates, getTemplate, createTemplate } from '../api/template';
   import AccountSelect from '../components/AccountSelect.svelte';
   import LedgerSelect from '../components/LedgerSelect.svelte';
   import type { Transaction, Entry } from '../types/transaction';
   import { CASH_FLOW_CATEGORIES, CASH_FLOW_CATEGORY_LABELS } from '../types/account';
   import type { Account, CashFlowCategory } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
+  import type { TransactionTemplate } from '../types/template';
 
   const PAGE_SIZE = 20;
 
@@ -26,6 +28,19 @@
   let showModal = $state(false);
   let isSaving  = $state(false);
   let saveError = $state('');
+
+  let templates        = $state<TransactionTemplate[]>([]);
+  let tplPickValue     = $state('');
+  let tplApplying      = $state(false);
+
+  let showSaveTplModal = $state(false);
+  let saveTplTxnId     = $state<number | null>(null);
+  let saveTplName      = $state('');
+  let saveTplDesc      = $state('');
+  let saveTplTag       = $state('');
+  let saveTplSaving    = $state(false);
+  let saveTplError     = $state('');
+  let saveTplDone      = $state(false);
 
   type StringFormLineField = 'account_id' | 'ledger_id' | 'debit' | 'credit';
 
@@ -136,6 +151,75 @@
   const totalCredit = $derived(formLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0));
   const isBalanced  = $derived(Math.abs(totalDebit - totalCredit) < 0.001 && totalDebit > 0);
 
+  async function loadTemplates(): Promise<void> {
+    try { templates = await getTemplates(); } catch { templates = []; }
+  }
+
+  async function applyTemplate(idStr: string): Promise<void> {
+    tplPickValue = idStr;
+    if (!idStr) { formLines = [emptyLine(), emptyLine()]; return; }
+    tplApplying = true;
+    try {
+      const detail = await getTemplate(parseInt(idStr, 10));
+      formLines = detail.entries.length === 0
+        ? [emptyLine(), emptyLine()]
+        : detail.entries.map(e => ({
+            id:                 lineSeq++,
+            account_id:         e.account_id,
+            ledger_id:          e.ledger_id ? String(e.ledger_id) : '',
+            debit:              parseFloat(e.debit)  > 0 ? e.debit  : '',
+            credit:             parseFloat(e.credit) > 0 ? e.credit : '',
+            cash_flow_category: e.cash_flow_category ?? null,
+          }));
+    } catch { /* leave unchanged */ } finally { tplApplying = false; }
+  }
+
+  function openSaveTplModal(txnId: number): void {
+    saveTplTxnId     = txnId;
+    saveTplName      = '';
+    saveTplDesc      = '';
+    saveTplTag       = '';
+    saveTplError     = '';
+    saveTplDone      = false;
+    showSaveTplModal = true;
+  }
+
+  function closeSaveTplModal(): void {
+    showSaveTplModal = false;
+    saveTplTxnId = null;
+  }
+
+  async function handleSaveTemplate(e: Event): Promise<void> {
+    e.preventDefault();
+    if (!saveTplTxnId || !saveTplName.trim()) return;
+    const entries = entriesMap.get(saveTplTxnId) ?? [];
+    if (entries.length === 0) return;
+    saveTplSaving = true;
+    saveTplError  = '';
+    try {
+      await createTemplate({
+        name:        saveTplName.trim(),
+        description: saveTplDesc.trim() || null,
+        tag:         saveTplTag.trim()  || null,
+        entries: entries.map((entry, i) => ({
+          sort_order:         i + 1,
+          account_id:         entry.account_id,
+          ledger_id:          entry.ledger_id ?? null,
+          debit:              parseFloat(entry.debit)  || 0,
+          credit:             parseFloat(entry.credit) || 0,
+          note:               entry.note               || null,
+          cash_flow_category: entry.cash_flow_category ?? null,
+        })),
+      });
+      saveTplDone = true;
+      void loadTemplates();
+    } catch (err) {
+      saveTplError = err instanceof Error ? err.message : '儲存失敗';
+    } finally {
+      saveTplSaving = false;
+    }
+  }
+
   function openModal(): void {
     formDate        = today();
     formDescription = '';
@@ -144,7 +228,9 @@
     formNote        = '';
     formLines       = [emptyLine(), emptyLine()];
     saveError       = '';
+    tplPickValue    = '';
     showModal       = true;
+    void loadTemplates();
   }
 
   function closeModal(): void {
@@ -304,10 +390,17 @@
                       <span class="entry-cell entry-cell--audit">{entry.updated_at ?? '—'}</span>
                     </div>
                   {/each}
-                  {@const txn = txns.find(t => t.txn_id === expandedId)}
-                  {#if txn?.updated_by || txn?.updated_at}
+                  <div class="entry-tpl-footer">
+                    <button
+                      type="button"
+                      class="entry-tpl-btn"
+                      onclick={() => openSaveTplModal(txn.txn_id)}
+                    >儲存為範本</button>
+                  </div>
+                  {@const txnRecord = txns.find(t => t.txn_id === expandedId)}
+                  {#if txnRecord?.updated_by || txnRecord?.updated_at}
                     <div style="padding:6px 24px;font-size:10px;color:#3d4258;letter-spacing:0.06em;border-top:1px solid rgba(255,255,255,0.03);">
-                      傳票最後更新：{txn.updated_by ?? '—'} · {txn.updated_at ?? '—'}
+                      傳票最後更新：{txnRecord.updated_by ?? '—'} · {txnRecord.updated_at ?? '—'}
                     </div>
                   {/if}
                 {/if}
@@ -336,6 +429,73 @@
   {/if}
 </section>
 
+{#if showSaveTplModal}
+  <div class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-panel">
+      <header class="modal-header">
+        <h2 class="modal-title">儲存為範本</h2>
+        <button class="modal-close" onclick={closeSaveTplModal} aria-label="關閉">×</button>
+      </header>
+
+      {#if saveTplDone}
+        <div class="modal-body">
+          <p style="font-size:13px;color:#6ab88a;letter-spacing:0.06em;margin:0 0 20px;">範本已儲存成功。</p>
+          <div class="je-actions">
+            <button type="button" class="btn-primary" onclick={closeSaveTplModal}>關閉</button>
+          </div>
+        </div>
+      {:else}
+        <form class="modal-body" onsubmit={handleSaveTemplate}>
+          {#if saveTplError}
+            <p class="query-error" style="margin-bottom:16px;" role="alert">{saveTplError}</p>
+          {/if}
+          <div class="form-group">
+            <label class="form-label" for="tpl-name">範本名稱 *</label>
+            <input
+              id="tpl-name"
+              class="form-input"
+              type="text"
+              bind:value={saveTplName}
+              placeholder="例：月租費用"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="tpl-desc">說明</label>
+            <input
+              id="tpl-desc"
+              class="form-input"
+              type="text"
+              bind:value={saveTplDesc}
+              placeholder="選填"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="tpl-tag">標籤</label>
+            <input
+              id="tpl-tag"
+              class="form-input"
+              type="text"
+              bind:value={saveTplTag}
+              placeholder="選填，例：租金"
+            />
+          </div>
+          <div class="je-actions" style="margin-top:8px;">
+            <button type="button" class="btn-ghost" onclick={closeSaveTplModal} disabled={saveTplSaving}>取消</button>
+            <button
+              type="submit"
+              class="btn-primary"
+              disabled={saveTplSaving || !saveTplName.trim()}
+            >
+              {saveTplSaving ? '儲存中…' : '確認儲存'}
+            </button>
+          </div>
+        </form>
+      {/if}
+    </div>
+  </div>
+{/if}
+
 {#if showModal}
   <div class="modal-overlay" role="dialog" aria-modal="true">
     <div class="modal-panel modal-panel--wide">
@@ -347,6 +507,26 @@
       <form class="modal-body" onsubmit={handleSubmit}>
         {#if saveError}
           <p class="query-error" style="margin-bottom:16px;" role="alert">{saveError}</p>
+        {/if}
+
+        {#if templates.length > 0}
+          <div class="je-tpl-bar">
+            <span class="je-tpl-bar-label">從範本載入</span>
+            <select
+              class="je-tpl-select"
+              value={tplPickValue}
+              onchange={(e) => applyTemplate((e.target as HTMLSelectElement).value)}
+              disabled={tplApplying}
+            >
+              <option value="">— 不使用範本 —</option>
+              {#each templates as tpl (tpl.id)}
+                <option value={String(tpl.id)}>{tpl.name}{tpl.tag ? ` [${tpl.tag}]` : ''}</option>
+              {/each}
+            </select>
+            {#if tplApplying}
+              <span class="je-tpl-loading">載入中…</span>
+            {/if}
+          </div>
         {/if}
 
         <div class="je-form-header je-form-header--4col">
