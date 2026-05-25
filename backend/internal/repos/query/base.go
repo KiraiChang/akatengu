@@ -22,6 +22,7 @@ type Repo struct {
 	Config         ConfigRepo
 	Prepaid        PrepaidQueryRepo
 	FixedAsset     FixedAssetQueryRepo
+	Template       TemplateRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -42,5 +43,6 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		Config:         newConfigRepo(q, db),
 		Prepaid:        newPrepaidQueryRepo(q),
 		FixedAsset:     newFixedAssetQueryRepo(q),
+		Template:       newTemplateRepo(q, db),
 	}
 }

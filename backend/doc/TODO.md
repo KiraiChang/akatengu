@@ -77,6 +77,16 @@
 
 > Nice-to-have，不影響現有功能，有空再做。
 
+**會計分錄範本（Transaction Template）**
+
+- [x] [Feature] 設計確認 — 完成日期：2026-05-25（參考金額、LedgerAccount 關聯、分類標籤、模糊搜尋，後端 API）
+- [x] [Feature] 實作 Migration + Schema（2 張資料表）— 完成日期：2026-05-25
+- [x] [Feature] 實作 SQL Queries + sqlc.yaml overrides + go generate — 完成日期：2026-05-25
+- [x] [Feature] 實作 Projection Model（TransactionTemplate、TransactionTemplateEntry、TransactionTemplateDetail）— 完成日期：2026-05-25
+- [x] [Feature] 實作 Repository（TemplateRepo，含 Create/Update 的 DB 交易）— 完成日期：2026-05-25
+- [x] [Feature] 實作 Service（TemplateService）— 完成日期：2026-05-25
+- [x] [Feature] 實作 Handler（5 個 API：GET /template、POST /template、GET /template/{id}、PUT /template/{id}、DELETE /template/{id}）— 完成日期：2026-05-25
+
 **技術優化**
 
 - [ ] [DX] `sqlc.yaml` nullable enum override 自動化 — 每新增一個 nullable enum 欄位都需手動宣告 override，考慮以 go:generate 腳本輔助生成（關聯：ADR-005）

@@ -48,6 +48,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	installment := newInstallmentHandler(db, logger)
 	prepaid := newPrepaidHandler(db, logger)
 	fixedAsset := newFixedAssetHandler(db, logger)
+	template := newTemplateHandler(db, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -115,6 +116,12 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("PUT /setting/ledger-account-type/{type}", setting.UpdateLedgerAccountTypeConfig)
 	bizApi.HandleFunc("GET /setting/asset-type", setting.GetAssetTypeAccountConfigs)
 	bizApi.HandleFunc("PUT /setting/asset-type/{type}", setting.UpdateAssetTypeAccountConfig)
+
+	bizApi.HandleFunc("GET /template", template.GetTemplates)
+	bizApi.HandleFunc("POST /template", template.CreateTemplate)
+	bizApi.HandleFunc("GET /template/{template_id}", template.GetTemplate)
+	bizApi.HandleFunc("PUT /template/{template_id}", template.UpdateTemplate)
+	bizApi.HandleFunc("DELETE /template/{template_id}", template.DeleteTemplate)
 
 	return mux
 }
