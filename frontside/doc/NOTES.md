@@ -19,6 +19,43 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-25｜側邊欄父選單多路徑展開
+
+#### `parentChildPaths` 取代 `parentBasePaths`
+
+原本 `parentBasePaths: Record<string, string>` 使用 `currentPath.startsWith(singlePath)` 判斷是否自動展開父選單。
+當子項目路徑不共用同一前綴（例如 `/home/installment`、`/home/prepaid`、`/home/fixed-asset` 三者無公共前綴）時，必須改為支援陣列：
+
+```typescript
+const parentChildPaths: Record<string, string[]> = {
+  reports:      ['/home/reports'],
+  settings:     ['/home/settings'],
+  amortization: ['/home/installment', '/home/prepaid', '/home/fixed-asset'],
+};
+
+function isExpanded(key: string): boolean {
+  return expandedParents.has(key) || (parentChildPaths[key] ?? []).some(p => currentPath.startsWith(p));
+}
+```
+
+> 新增可展開父選單時，記得：(1) 在 `menuItems` 加 `key`；(2) 在 `parentChildPaths` 加入所有子路徑。
+
+#### `AccountSelect` 不接受 `id` prop
+
+`AccountSelect` 的 `Props` 介面未宣告 `id` 欄位，直接傳入會導致 `svelte-check` 型別錯誤。
+正確做法：`id` 只加在 `<label for="...">` 上（讓 a11y checker 滿足），不傳給元件。
+
+```svelte
+<!-- ✅ label 有 for，AccountSelect 不傳 id -->
+<label class="form-label" for="pp-account">科目 *</label>
+<AccountSelect {accounts} value={...} onselect={...} />
+
+<!-- ❌ 型別錯誤 -->
+<AccountSelect id="pp-account" {accounts} ... />
+```
+
+---
+
 ### 2026-05-20｜Setting Config 串接模式
 
 #### 唯讀顯示欄用 `<span>` 完全避免 a11y 警告

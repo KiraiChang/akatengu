@@ -1,0 +1,152 @@
+/* ── Fixed asset status badges ─────────────── */
+
+.fa-status-active   { color: #6ab88a; border-color: rgba(106,184,138,0.3); background: rgba(106,184,138,0.05); }
+.fa-status-disposed { color: #c07070; border-color: rgba(192,112,112,0.3); background: rgba(192,112,112,0.05); }
+
+/* ── Row expand ───────────────────────────── */
+
+.fa-expand-icon {
+  display: inline-block;
+  font-size: 8px;
+  color: #3d4258;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.data-table tr.fa-row-expanded > td {
+  background: rgba(106, 184, 138, 0.03);
+}
+
+/* ── Sub-panel ────────────────────────────── */
+
+.fa-sub-row > .fa-sub-cell {
+  padding: 0 !important;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid #1a1c28;
+}
+
+.fa-sub-msg {
+  display: block;
+  padding: 12px 24px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #3d4258;
+}
+
+.fa-sub-error { color: #c07070; }
+
+/* ── Depreciation table ───────────────────── */
+
+.fa-depr-table {
+  padding: 8px 24px 12px;
+  overflow-x: auto;
+}
+
+.fa-depr-header,
+.fa-depr-item {
+  display: grid;
+  grid-template-columns: 120px 1fr 100px 140px 72px;
+  gap: 0;
+  align-items: center;
+}
+
+.fa-depr-header {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 2px;
+}
+
+.fa-depr-header span {
+  padding: 4px 8px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+  min-width: 0;
+}
+
+.fa-depr-item {
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.fa-depr-item:last-child { border-bottom: none; }
+
+.fa-depr-item span {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #7a8096;
+  min-width: 0;
+}
+
+.fa-depr-item span.num { text-align: right; }
+
+/* ── Amount cell ──────────────────────────── */
+
+.fa-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Mobile card list ─────────────────────── */
+
+.fa-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+@media (min-width: 768px) {
+  .fa-card-list { display: none; }
+}
+
+@media (max-width: 767px) {
+  .fa-table-wrap { display: none; }
+}
+
+.fa-card {
+  border: 1px solid #1e2230;
+  background: rgba(13, 15, 24, 0.6);
+}
+
+.fa-card-expanded { border-color: rgba(106, 184, 138, 0.3); }
+
+.fa-card-main {
+  padding: 14px 16px;
+}
+
+.fa-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.fa-card-title {
+  font-size: 13px;
+  color: #e8e5dc;
+  letter-spacing: 0.03em;
+}
+
+.fa-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #5c6278;
+}
+
+.fa-card-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+}
+
+.fa-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}

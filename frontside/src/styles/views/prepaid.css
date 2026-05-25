@@ -1,0 +1,146 @@
+/* ── Prepaid status badges ─────────────────── */
+
+.pp-status-active    { color: #6ab88a; border-color: rgba(106,184,138,0.3); background: rgba(106,184,138,0.05); }
+.pp-status-completed { color: #5c6278; border-color: rgba(92,98,120,0.3);   background: rgba(92,98,120,0.05); }
+.pp-status-disposed  { color: #c07070; border-color: rgba(192,112,112,0.3); background: rgba(192,112,112,0.05); }
+
+/* ── Row expand ───────────────────────────── */
+
+.pp-expand-icon {
+  display: inline-block;
+  font-size: 8px;
+  color: #3d4258;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.data-table tr.pp-row-expanded > td {
+  background: rgba(106, 184, 138, 0.03);
+}
+
+/* ── Sub-panel ────────────────────────────── */
+
+.pp-sub-row > .pp-sub-cell {
+  padding: 0 !important;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid #1a1c28;
+}
+
+.pp-sub-msg {
+  display: block;
+  padding: 12px 24px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #3d4258;
+}
+
+.pp-sub-error { color: #c07070; }
+
+/* ── Amortization table ───────────────────── */
+
+.pp-amort-table {
+  padding: 8px 24px 12px;
+  overflow-x: auto;
+}
+
+.pp-amort-header,
+.pp-amort-item {
+  display: grid;
+  grid-template-columns: 120px 1fr 100px 140px 72px;
+  gap: 0;
+  align-items: center;
+}
+
+.pp-amort-header {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  margin-bottom: 2px;
+}
+
+.pp-amort-header span {
+  padding: 4px 8px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+  min-width: 0;
+}
+
+.pp-amort-item {
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.pp-amort-item:last-child { border-bottom: none; }
+
+.pp-amort-item span {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #7a8096;
+  min-width: 0;
+}
+
+.pp-amort-item span.num { text-align: right; }
+
+/* ── Amount cell ──────────────────────────── */
+
+.pp-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Mobile card list ─────────────────────── */
+
+.pp-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+@media (min-width: 768px) {
+  .pp-card-list { display: none; }
+}
+
+@media (max-width: 767px) {
+  .pp-table-wrap { display: none; }
+}
+
+.pp-card {
+  border: 1px solid #1e2230;
+  background: rgba(13, 15, 24, 0.6);
+}
+
+.pp-card-expanded { border-color: rgba(106, 184, 138, 0.3); }
+
+.pp-card-main {
+  padding: 14px 16px;
+}
+
+.pp-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.pp-card-title {
+  font-size: 13px;
+  color: #e8e5dc;
+  letter-spacing: 0.03em;
+}
+
+.pp-card-amounts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #c0bdb4;
+}
+
+.pp-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}

@@ -24,6 +24,8 @@
   import Settings           from '../views/Settings.svelte';
   import LedgerTypeConfig   from '../views/LedgerTypeConfig.svelte';
   import AssetTypeConfig    from '../views/AssetTypeConfig.svelte';
+  import Prepaid            from '../views/Prepaid.svelte';
+  import FixedAsset         from '../views/FixedAsset.svelte';
 
   interface SubMenuItem { label: string; path: string; }
   interface MenuItem    { label: string; path: string; key?: string; children?: SubMenuItem[]; }
@@ -41,7 +43,11 @@
       { label: '權益變動表', path: '/home/reports/equity-statement' },
     ]},
     { label: '投資管理', path: '/home/investment' },
-    { label: '分期管理', path: '/home/installment' },
+    { label: '分期管理', path: '/home/installment', key: 'amortization', children: [
+      { label: '分期付款', path: '/home/installment' },
+      { label: '預付費用', path: '/home/prepaid' },
+      { label: '固定資產', path: '/home/fixed-asset' },
+    ]},
     { label: '系統設定', path: '/home/settings', key: 'settings', children: [
       { label: '系統科目對應', path: '/home/settings' },
       { label: '帳戶類型設定', path: '/home/settings/ledger-type' },
@@ -63,6 +69,8 @@
     '/home/reports/equity-statement': EquityStatement,
     '/home/investment':               Investment,
     '/home/installment':              Installment,
+    '/home/prepaid':                  Prepaid,
+    '/home/fixed-asset':              FixedAsset,
     '/home/settings':                 Settings,
     '/home/settings/ledger-type':     LedgerTypeConfig,
     '/home/settings/asset-type':      AssetTypeConfig,
@@ -72,13 +80,14 @@
   let sidebarOpen     = $state(false);
   let expandedParents = $state(new Set<string>());
 
-  const parentBasePaths: Record<string, string> = {
-    reports:  '/home/reports',
-    settings: '/home/settings',
+  const parentChildPaths: Record<string, string[]> = {
+    reports:      ['/home/reports'],
+    settings:     ['/home/settings'],
+    amortization: ['/home/installment', '/home/prepaid', '/home/fixed-asset'],
   };
 
   function isExpanded(key: string): boolean {
-    return expandedParents.has(key) || currentPath.startsWith(parentBasePaths[key] ?? '');
+    return expandedParents.has(key) || (parentChildPaths[key] ?? []).some(p => currentPath.startsWith(p));
   }
 
   $effect(() => {

@@ -62,3 +62,6 @@
 - [x] [Feature] 分錄展開列顯示 cash_flow_category — 完成日期：2026-05-19
 - [x] [Refactor] 所有 projection 模型補上 `updated_by` / `updated_at`（後端 + 前端 types + 頁面） — 完成日期：2026-05-19
 - [x] [Feature] Setting API 串接 — `LedgerTypeConfig` / `AssetTypeConfig` 頁面 + 帳本建立科目限制 — 完成日期：2026-05-20，關聯：ADR-009、ADR-010
+- [x] [Feature] 預付費用（Prepaid）頁面 — 建立 / 攤提 / 提前終止，含攤提明細與分錄展開 — 完成日期：2026-05-25
+- [x] [Feature] 固定資產（FixedAsset）頁面 — 購入 / 折舊 / 處分，含折舊明細與分錄展開 — 完成日期：2026-05-25
+- [x] [Refactor] 分期管理 sidebar 改為父子選單（分期付款 / 預付費用 / 固定資產），`isExpanded` 改為多路徑陣列比對 — 完成日期：2026-05-25
