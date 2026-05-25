@@ -31,9 +31,6 @@
 </div>
 
 <section class="section">
-  <header class="section-header">
-    <h2 class="section-title">現金流量表</h2>
-  </header>
   <form class="query-bar" onsubmit={queryCashFlow}>
     <div class="form-group" style="margin:0">
       <label class="form-label" for="cf-begin">開始日期</label>

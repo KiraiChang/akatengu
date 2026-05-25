@@ -138,9 +138,6 @@
 </div>
 
 <section class="section">
-  <header class="section-header">
-    <h2 class="section-title">損益表</h2>
-  </header>
   <form class="query-bar" onsubmit={queryIncomeStatement}>
     <div class="form-group" style="margin:0">
       <label class="form-label" for="inc-begin">開始日期</label>

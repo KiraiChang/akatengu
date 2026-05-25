@@ -4,7 +4,7 @@
   display: flex;
   gap: 4px;
   margin-bottom: 16px;
-  border-bottom: 2px solid #e8e0d0;
+  border-bottom: 2px solid #1e2230;
 }
 
 .tab-btn {
@@ -14,18 +14,18 @@
   border: none;
   background: none;
   cursor: pointer;
-  color: #9a8a6a;
+  color: #3d4258;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
   letter-spacing: 0.06em;
   transition: color 0.15s, border-color 0.15s;
 }
 
-.tab-btn:hover { color: #6b5d3f; }
+.tab-btn:hover { color: #7a8096; }
 
 .tab-btn.active {
-  color: #6b5d3f;
-  border-bottom-color: #6b5d3f;
+  color: #c0bdb4;
+  border-bottom-color: #6ab88a;
   font-weight: 600;
 }
 
@@ -37,7 +37,8 @@
   gap: 12px;
   flex-wrap: wrap;
   padding: 16px;
-  background: #faf8f4;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid #1e2230;
   border-radius: 6px;
   margin-bottom: 20px;
 }
@@ -46,7 +47,7 @@
 
 .report-period {
   font-size: 12px;
-  color: #9a8a6a;
+  color: #5c6278;
   letter-spacing: 0.06em;
   margin: 0 0 16px;
 }
@@ -58,17 +59,17 @@
 .report-group-title {
   font-size: 13px;
   font-weight: 600;
-  color: #6b5d3f;
+  color: #b8b4ac;
   letter-spacing: 0.08em;
   padding: 0 0 6px;
-  border-bottom: 1px solid #e8e0d0;
+  border-bottom: 1px solid #1e2230;
   margin: 0 0 8px;
 }
 
 .tfoot-total {
   font-weight: 600;
-  background: #f5f0e8;
-  border-top: 1px solid #d4c9b0;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid #252838;
 }
 
 .tfoot-total td {
@@ -81,12 +82,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #f0ead8;
-  border: 1px solid #d4c9b0;
+  background: rgba(106, 184, 138, 0.06);
+  border: 1px solid #252838;
   border-radius: 6px;
   font-weight: 600;
   font-size: 14px;
-  color: #4a3f2a;
+  color: #e8e5dc;
   letter-spacing: 0.06em;
 }
 
@@ -109,8 +110,8 @@
 .chart-wrap {
   flex: 1;
   min-width: 0;
-  background: #faf8f4;
-  border: 1px solid #e8e0d0;
+  background: rgba(13, 15, 24, 0.6);
+  border: 1px solid #1e2230;
   border-radius: 6px;
   padding: 12px;
 }
@@ -118,7 +119,7 @@
 .chart-title {
   font-size: 12px;
   font-weight: 600;
-  color: #9a8a6a;
+  color: #5c6278;
   letter-spacing: 0.08em;
   text-align: center;
   margin: 0 0 8px;
@@ -130,20 +131,20 @@
 
 .donut-center-label {
   font-size: 10px;
-  fill: #9a8a6a;
+  fill: #5c6278;
   letter-spacing: 0.06em;
 }
 
 .donut-center-value {
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
-  fill: #4a3f2a;
+  fill: #e8e5dc;
   font-weight: 600;
 }
 
 .donut-empty {
   font-size: 13px;
-  fill: #9a8a6a;
+  fill: #5c6278;
 }
 
 .chart-tooltip {
@@ -156,9 +157,9 @@
   justify-content: center;
   gap: 6px;
   font-size: 11px;
-  color: #4a3f2a;
+  color: #e8e5dc;
   pointer-events: none;
-  background: rgba(250, 248, 244, 0.92);
+  background: rgba(13, 15, 24, 0.92);
   padding: 4px 8px;
   border-radius: 4px;
 }
@@ -184,14 +185,14 @@
 }
 
 .chart-tooltip-pct {
-  color: #9a8a6a;
+  color: #5c6278;
 }
 
 /* ── Horizontal bar chart ─────────────────── */
 
 .hbar-chart {
-  background: #faf8f4;
-  border: 1px solid #e8e0d0;
+  background: rgba(13, 15, 24, 0.6);
+  border: 1px solid #1e2230;
   border-radius: 6px;
   padding: 16px;
   margin-bottom: 24px;
@@ -216,7 +217,7 @@
   text-align: left;
 }
 
-.hbar-row--clickable:hover .hbar-label { color: #4a3f2a; }
+.hbar-row--clickable:hover .hbar-label { color: #e8e5dc; }
 .hbar-row--clickable:hover .hbar-bar { opacity: 0.8; }
 
 .hbar-row {
@@ -229,7 +230,7 @@
 
 .hbar-label {
   flex: 0 0 120px;
-  color: #6b5d3f;
+  color: #7a8096;
   letter-spacing: 0.03em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -239,7 +240,7 @@
 .hbar-track {
   flex: 1;
   height: 14px;
-  background: #ede8df;
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -250,7 +251,7 @@
   transition: width 0.3s ease;
 }
 
-.hbar-bar--income  { background: #7aaa7a; }
+.hbar-bar--income  { background: #6ab88a; }
 .hbar-bar--expense { background: #c07070; }
 
 .hbar-value {
@@ -258,11 +259,11 @@
   text-align: right;
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
-  color: #4a3f2a;
+  color: #c0bdb4;
 }
 
 .hbar-subtotal {
-  border-top: 1px solid #e8e0d0;
+  border-top: 1px solid #1e2230;
   padding-top: 4px;
   margin-top: 4px;
   font-weight: 600;
@@ -277,18 +278,18 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  border-top: 1px solid #e8e0d0;
+  border-top: 1px solid #1e2230;
   margin-top: 4px;
 }
 
 .hbar-net--pos {
-  color: #4a7a4a;
-  background: rgba(122, 170, 122, 0.1);
+  color: #6ab88a;
+  background: rgba(106, 184, 138, 0.08);
 }
 
 .hbar-net--neg {
-  color: #7a4a4a;
-  background: rgba(192, 112, 112, 0.1);
+  color: #c07070;
+  background: rgba(192, 112, 112, 0.08);
 }
 
 /* ── Asset chart drill-down ───────────────── */
@@ -309,7 +310,7 @@
 }
 
 .drill-breadcrumb-sep {
-  color: #c8bfa8;
+  color: #2e3348;
   user-select: none;
 }
 
@@ -317,7 +318,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #9a8a6a;
+  color: #5c6278;
   padding: 0;
   font-family: inherit;
   font-size: 11px;
@@ -325,12 +326,12 @@
 }
 
 .drill-breadcrumb-item--link:hover {
-  color: #6b5d3f;
+  color: #b8b4ac;
   text-decoration: underline;
 }
 
 .drill-breadcrumb-item--current {
-  color: #4a3f2a;
+  color: #e8e5dc;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -347,14 +348,14 @@
   border: none;
   cursor: pointer;
   font-size: 9px;
-  color: #9a8a6a;
+  color: #5c6278;
   padding: 0 4px 0 0;
   font-family: inherit;
   vertical-align: middle;
   line-height: 1;
 }
 
-.row-expand-btn:hover { color: #6b5d3f; }
+.row-expand-btn:hover { color: #b8b4ac; }
 
 /* ── Balance sheet two-column layout ─────── */
 
@@ -379,7 +380,7 @@
 /* ── Collapsible group ────────────────────── */
 
 .bs-group {
-  border: 1px solid #e8e0d0;
+  border: 1px solid #1e2230;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -390,23 +391,23 @@
   gap: 8px;
   width: 100%;
   padding: 10px 14px;
-  background: #faf8f4;
+  background: rgba(255, 255, 255, 0.02);
   border: none;
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  color: #6b5d3f;
+  color: #b8b4ac;
   letter-spacing: 0.06em;
   text-align: left;
   transition: background 0.15s;
 }
 
-.bs-group-header:hover { background: #f5f0e8; }
+.bs-group-header:hover { background: rgba(255, 255, 255, 0.04); }
 
 .bs-group-header.expanded {
-  border-bottom: 1px solid #e8e0d0;
-  background: #f0ead8;
+  border-bottom: 1px solid #1e2230;
+  background: rgba(106, 184, 138, 0.04);
 }
 
 .bs-group-name {
@@ -415,7 +416,7 @@
 
 .bs-group-total {
   font-size: 13px;
-  color: #4a3f2a;
+  color: #e8e5dc;
 }
 
 .bs-group-body .data-table {
@@ -431,8 +432,8 @@
 
 .eq-row--summary td {
   font-weight: 600;
-  color: #4a3f2a;
-  background: #faf8f4;
+  color: #e8e5dc;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .eq-row--virtual td {
@@ -444,7 +445,7 @@
 
 .cf-section {
   margin-bottom: 20px;
-  border: 1px solid #e8e0d0;
+  border: 1px solid #1e2230;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -452,21 +453,21 @@
 .cf-section-title {
   font-size: 13px;
   font-weight: 600;
-  color: #6b5d3f;
+  color: #b8b4ac;
   letter-spacing: 0.08em;
   padding: 10px 14px;
-  background: #faf8f4;
-  border-bottom: 1px solid #e8e0d0;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid #1e2230;
   margin: 0;
 }
 
 .cf-row--highlight td {
-  color: #4a3f2a;
+  color: #e8e5dc;
   font-weight: 600;
 }
 
 .cf-summary {
-  border: 1px solid #d4c9b0;
+  border: 1px solid #252838;
   border-radius: 6px;
   overflow: hidden;
   margin-top: 4px;
@@ -478,9 +479,9 @@
   align-items: center;
   padding: 10px 16px;
   font-size: 13px;
-  color: #6b5d3f;
+  color: #7a8096;
   letter-spacing: 0.06em;
-  border-bottom: 1px solid #e8e0d0;
+  border-bottom: 1px solid #1e2230;
 }
 
 .cf-summary-row:last-child {
@@ -489,7 +490,7 @@
 
 .cf-summary-row--total {
   font-weight: 700;
-  background: #f0ead8;
-  color: #4a3f2a;
+  background: rgba(106, 184, 138, 0.06);
+  color: #e8e5dc;
   font-size: 14px;
 }

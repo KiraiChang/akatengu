@@ -31,9 +31,6 @@
 </div>
 
 <section class="section">
-  <header class="section-header">
-    <h2 class="section-title">權益變動表</h2>
-  </header>
   <form class="query-bar" onsubmit={queryEquityStatement}>
     <div class="form-group" style="margin:0">
       <label class="form-label" for="eq-begin">開始日期</label>

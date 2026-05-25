@@ -285,9 +285,6 @@
 
 {#if activeTab === 'balance_sheet'}
   <section class="section">
-    <header class="section-header">
-      <h2 class="section-title">資產負債表</h2>
-    </header>
     <form class="query-bar" onsubmit={queryBalanceSheet}>
       <div class="form-group" style="margin:0">
         <label class="form-label" for="bs-date">報表日期</label>
@@ -340,9 +337,6 @@
   </section>
 {:else}
   <section class="section">
-    <header class="section-header">
-      <h2 class="section-title">損益表</h2>
-    </header>
     <form class="query-bar" onsubmit={queryIncomeStatement}>
       <div class="form-group" style="margin:0">
         <label class="form-label" for="inc-begin">開始日期</label>
