@@ -86,3 +86,20 @@ export interface CashFlowStatement {
   beginning_cash:       string;
   ending_cash:          string;
 }
+
+export interface DirectOperatingActivities {
+  cash_received: string;
+  cash_paid:     string;
+  total:         string;
+}
+
+export interface DirectCashFlowStatement {
+  start_date:           string;
+  end_date:             string;
+  operating_activities: DirectOperatingActivities;
+  investing_activities: CashFlowSection;
+  financing_activities: CashFlowSection;
+  net_change:           string;
+  beginning_cash:       string;
+  ending_cash:          string;
+}
