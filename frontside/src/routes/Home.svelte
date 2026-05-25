@@ -27,6 +27,7 @@
   import Prepaid            from '../views/Prepaid.svelte';
   import FixedAsset         from '../views/FixedAsset.svelte';
   import Template           from '../views/Template.svelte';
+  import AccountAnalysis    from '../views/AccountAnalysis.svelte';
 
   interface SubMenuItem { label: string; path: string; }
   interface MenuItem    { label: string; path: string; key?: string; children?: SubMenuItem[]; }
@@ -43,6 +44,7 @@
       { label: '現金流量表', path: '/home/reports/cash-flow' },
       { label: '權益變動表', path: '/home/reports/equity-statement' },
     ]},
+    { label: '科目分析', path: '/home/account-analysis' },
     { label: '投資管理', path: '/home/investment' },
     { label: '分期管理', path: '/home/installment', key: 'amortization', children: [
       { label: '分期付款', path: '/home/installment' },
@@ -69,6 +71,7 @@
     '/home/reports/income-statement': IncomeStatement,
     '/home/reports/cash-flow':        CashFlowStatement,
     '/home/reports/equity-statement': EquityStatement,
+    '/home/account-analysis':         AccountAnalysis,
     '/home/investment':               Investment,
     '/home/installment':              Installment,
     '/home/prepaid':                  Prepaid,
