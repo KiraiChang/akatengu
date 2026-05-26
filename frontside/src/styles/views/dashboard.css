@@ -1,0 +1,67 @@
+/* ── Two-column layout ─────────────────────── */
+
+.dash-two-col {
+  display: grid;
+  grid-template-columns: 1fr minmax(240px, 300px);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* ── Ledger type tags ──────────────────────── */
+
+.dash-ledger-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.dash-ledger-tag--bank { border: 1px solid rgba(91,143,232,0.3); color: #5b8fe8; }
+.dash-ledger-tag--card { border: 1px solid rgba(192,112,112,0.3); color: #c07070; }
+.dash-ledger-tag--loan { border: 1px solid rgba(192,160,96,0.3);  color: #c0a060; }
+
+/* ── Balance coloring ──────────────────────── */
+
+.dash-bal--neg { color: #c07070; }
+
+/* ── Monthly trend bars ────────────────────── */
+
+.dash-bar-cell {
+  width: 140px;
+  padding-right: 12px;
+}
+
+.dash-bar-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.dash-bar--income {
+  height: 100%;
+  background: #6ab88a;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.dash-bar--expense {
+  height: 100%;
+  background: #c07070;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── Net value coloring ────────────────────── */
+
+.dash-net--pos { color: #6ab88a; }
+.dash-net--neg { color: #c07070; }
+
+/* ── RWD ───────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .dash-two-col { grid-template-columns: 1fr; }
+  .dash-bar-cell { display: none; }
+}

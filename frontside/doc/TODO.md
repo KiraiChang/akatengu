@@ -33,12 +33,6 @@
 
 ### 功能
 
-- [ ] 🔵 [Feature] 儀表板串接真實資料 — 目前全為假資料；待後端完成 `/api/dashboard/summary`、`/api/dashboard/monthly-trend`、`/api/ledger/balances` 後，依下列結構實作：
-  - **Stat Cards（4 張）**：本月收入、本月支出、淨資產（Total Equity）、現金餘額（CASH 科目加總）← 來自 `/api/dashboard/summary`
-  - **近期傳票（10 筆）**：已有 `/api/transaction?page=0&page_size=10`，套用真實資料即可
-  - **帳戶餘額列表**：各銀行/信用卡/貸款帳戶餘額 ← 來自 `/api/ledger/balances`
-  - **月度損益趨勢（12 個月）**：每月收入 vs 支出折線或長條圖 ← 來自 `/api/dashboard/monthly-trend?months=12`
-  - **投資部位摘要**：持倉數、未實現損益加總 ← 來自現有 `/api/investment`（前端自行彙總）
 - [ ] ⬜ [Feature] 財務報表匯出 — 各報表頁加入「匯出 CSV / PDF」功能
 - [ ] ⬜ [Feature] 財務報表列印版面 — 加入 `@media print` CSS，隱藏 sidebar/header，讓報表可直接從瀏覽器列印
 - [ ] ⬜ [Feature] AssetTypeConfig 表格欄位優化 — 目前顯示 account_id 字串，可考慮改為顯示科目名稱（accountMap lookup）；但欄位多（7 欄），可能改用 tooltip 或點擊展開的方式顯示
@@ -76,3 +70,4 @@
 - [x] [Feature] 範本管理頁面（列表 / 編輯 / 刪除），加入「系統設定」子選單 — 完成日期：2026-05-26
 - [x] [Feature] 科目分析（AccountAnalysis）頁面 — 子科目餘額（含鑽取）/ 分錄明細（含分頁）/ 月別趨勢（含長條圖） — 完成日期：2026-05-26
 - [x] [Feature] 科目名稱點擊導航至科目分析，並支援「← 返回」回上一頁 — 完成日期：2026-05-26，關聯：ADR-011
+- [x] [Feature] 儀表板串接真實資料 — 4 張 stat card + 近期傳票 + 帳戶餘額列表 + 月度損益趨勢（含內嵌長條圖）— 完成日期：2026-05-26
