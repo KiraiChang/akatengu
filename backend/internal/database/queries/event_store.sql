@@ -1,77 +1,78 @@
 -- name: InsertEvent :execlastid
 INSERT INTO event_store
-    (aggregate_type, aggregate_id, aggregate_version, event_type, payload, metadata, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+    (merchant_id, aggregate_type, aggregate_id, aggregate_version, event_type, payload, metadata, updated_by)
+VALUES (@merchant_id, @aggregate_type, @aggregate_id, @aggregate_version, @event_type, @payload, @metadata, @updated_by);
 
 -- name: GetEventsByAggregate :many
-SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
-WHERE aggregate_type = ? AND aggregate_id = ?
+WHERE aggregate_type = @aggregate_type AND aggregate_id = @aggregate_id AND merchant_id = @merchant_id
 ORDER BY aggregate_version;
 
 -- name: GetEventsAfterVersion :many
-SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
-WHERE aggregate_type    = ?
-  AND aggregate_id      = ?
-  AND aggregate_version > ?
+WHERE aggregate_type     = @aggregate_type
+  AND aggregate_id       = @aggregate_id
+  AND merchant_id        = @merchant_id
+  AND aggregate_version  > @aggregate_version
 ORDER BY aggregate_version;
 
 -- name: GetEventsAfterEventID :many
-SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
-WHERE event_id > ?
+WHERE event_id > @event_id AND merchant_id = @merchant_id
 ORDER BY event_id;
 
 -- name: GetEventsAfterEventIDByType :many
-SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
-WHERE event_id > ? AND aggregate_type = ?
+WHERE event_id > @event_id AND aggregate_type = @aggregate_type AND merchant_id = @merchant_id
 ORDER BY event_id;
 
 -- name: GetEventsAfterEventIDLimited :many
-SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
-WHERE event_id > ?
+WHERE event_id > @event_id AND merchant_id = @merchant_id
 ORDER BY event_id
-LIMIT ?;
+LIMIT @limit;
 
 -- name: GetEventsAfterEventIDByTypeLimited :many
-SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
-WHERE event_id > ? AND aggregate_type = ?
+WHERE event_id > @event_id AND aggregate_type = @aggregate_type AND merchant_id = @merchant_id
 ORDER BY event_id
-LIMIT ?;
+LIMIT @limit;
 
 -- name: ReplayAllAggregates :many
-SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
-WHERE event_id > ?
+WHERE event_id > @event_id AND merchant_id = @merchant_id
 ORDER BY event_id;
 
 -- name: ReplayByAggregate :many
-SELECT event_id, event_uuid, occurred_at, aggregate_type, aggregate_id,
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by
 FROM event_store
-WHERE event_id > ? AND aggregate_type = ?
+WHERE event_id > @event_id AND aggregate_type = @aggregate_type AND merchant_id = @merchant_id
 ORDER BY event_id;
 
 -- name: GetSnapshot :one
-SELECT snapshot_id, aggregate_type, aggregate_id, at_version, state, created_at
+SELECT snapshot_id, merchant_id, aggregate_type, aggregate_id, at_version, state, created_at
 FROM snapshots
-WHERE aggregate_type = ? AND aggregate_id = ?;
+WHERE aggregate_type = @aggregate_type AND aggregate_id = @aggregate_id AND merchant_id = @merchant_id;
 
 -- name: UpsertSnapshot :exec
-INSERT INTO snapshots (aggregate_type, aggregate_id, at_version, state)
-VALUES (?, ?, ?, ?)
-ON CONFLICT(aggregate_type, aggregate_id)
+INSERT INTO snapshots (merchant_id, aggregate_type, aggregate_id, at_version, state)
+VALUES (@merchant_id, @aggregate_type, @aggregate_id, @at_version, @state)
+ON CONFLICT(aggregate_type, aggregate_id, merchant_id)
 DO UPDATE SET at_version = excluded.at_version, state = excluded.state;
 
 -- name: GetCheckpoint :one
@@ -92,16 +93,17 @@ VALUES (@projection_name, @merchant_id, @last_event_id, datetime('now'))
 
 -- name: GetAggregateVersion :one
 SELECT current_version FROM aggregate_versions
-WHERE aggregate_type = ? AND aggregate_id = ?;
+WHERE aggregate_type = @aggregate_type AND aggregate_id = @aggregate_id AND merchant_id = @merchant_id;
 
 -- name: InsertAggregateVersion :exec
-INSERT INTO aggregate_versions (aggregate_type, aggregate_id, current_version)
-VALUES (?, ?, ?);
+INSERT INTO aggregate_versions (aggregate_type, aggregate_id, merchant_id, current_version)
+VALUES (@aggregate_type, @aggregate_id, @merchant_id, @current_version);
 
 -- name: UpdateVersionIfMatch :one
 UPDATE aggregate_versions
 SET current_version = current_version + 1
-WHERE aggregate_type    = ?
-  AND aggregate_id      = ?
-  AND current_version   = ?
-RETURNING aggregate_type, aggregate_id, current_version;
+WHERE aggregate_type  = @aggregate_type
+  AND aggregate_id    = @aggregate_id
+  AND merchant_id     = @merchant_id
+  AND current_version = @current_version
+RETURNING aggregate_type, aggregate_id, merchant_id, current_version;

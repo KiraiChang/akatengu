@@ -33,9 +33,14 @@ func NewEventRepo(db *sqlx.DB) EventRepo {
 }
 
 func (r *sqlcdbEventRepository) GetByAggregate(ctx context.Context, aggregateType enums.AggregateType, aggregateID string) ([]db.EventStore, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := r.q.GetEventsByAggregate(ctx, sqlcdb.GetEventsByAggregateParams{
 		AggregateType: aggregateType,
 		AggregateID:   aggregateID,
+		MerchantID:    merchantID,
 	})
 	if err != nil {
 		return nil, err
@@ -44,9 +49,14 @@ func (r *sqlcdbEventRepository) GetByAggregate(ctx context.Context, aggregateTyp
 }
 
 func (r *sqlcdbEventRepository) GetAfterVersion(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, afterVersion int64) ([]db.EventStore, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := r.q.GetEventsAfterVersion(ctx, sqlcdb.GetEventsAfterVersionParams{
 		AggregateType:    aggregateType,
 		AggregateID:      aggregateID,
+		MerchantID:       merchantID,
 		AggregateVersion: afterVersion,
 	})
 	if err != nil {
@@ -56,43 +66,58 @@ func (r *sqlcdbEventRepository) GetAfterVersion(ctx context.Context, aggregateTy
 }
 
 func (r *sqlcdbEventRepository) GetAfterEventID(ctx context.Context, aggregateType enums.AggregateType, afterEventID int64, limit int) ([]db.EventStore, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	hasType := aggregateType.String() != ""
 	hasLimit := limit > 0
 
 	var rows []sqlcdb.EventStore
-	var err error
+	var queryErr error
 
 	switch {
 	case hasType && hasLimit:
-		rows, err = r.q.GetEventsAfterEventIDByTypeLimited(ctx, sqlcdb.GetEventsAfterEventIDByTypeLimitedParams{
+		rows, queryErr = r.q.GetEventsAfterEventIDByTypeLimited(ctx, sqlcdb.GetEventsAfterEventIDByTypeLimitedParams{
 			EventID:       afterEventID,
 			AggregateType: aggregateType,
+			MerchantID:    merchantID,
 			Limit:         int64(limit),
 		})
 	case hasType:
-		rows, err = r.q.GetEventsAfterEventIDByType(ctx, sqlcdb.GetEventsAfterEventIDByTypeParams{
+		rows, queryErr = r.q.GetEventsAfterEventIDByType(ctx, sqlcdb.GetEventsAfterEventIDByTypeParams{
 			EventID:       afterEventID,
 			AggregateType: aggregateType,
+			MerchantID:    merchantID,
 		})
 	case hasLimit:
-		rows, err = r.q.GetEventsAfterEventIDLimited(ctx, sqlcdb.GetEventsAfterEventIDLimitedParams{
-			EventID: afterEventID,
-			Limit:   int64(limit),
+		rows, queryErr = r.q.GetEventsAfterEventIDLimited(ctx, sqlcdb.GetEventsAfterEventIDLimitedParams{
+			EventID:    afterEventID,
+			MerchantID: merchantID,
+			Limit:      int64(limit),
 		})
 	default:
-		rows, err = r.q.GetEventsAfterEventID(ctx, afterEventID)
+		rows, queryErr = r.q.GetEventsAfterEventID(ctx, sqlcdb.GetEventsAfterEventIDParams{
+			EventID:    afterEventID,
+			MerchantID: merchantID,
+		})
 	}
 
-	if err != nil {
-		return nil, err
+	if queryErr != nil {
+		return nil, queryErr
 	}
 	return toDBEvents(rows), nil
 }
 
 func (r *sqlcdbEventRepository) GetSnapshot(ctx context.Context, aggregateType enums.AggregateType, aggregateID string) (*db.Snapshot, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
 	row, err := r.q.GetSnapshot(ctx, sqlcdb.GetSnapshotParams{
 		AggregateType: aggregateType,
 		AggregateID:   aggregateID,
+		MerchantID:    merchantID,
 	})
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -116,20 +141,29 @@ func (r *sqlcdbEventRepository) GetCheckpoint(ctx context.Context, projectionNam
 }
 
 func (r *sqlcdbEventRepository) Replay(ctx context.Context, fromEventID int64, aggregateType *enums.AggregateType) ([]db.EventStore, error) {
-	var rows []sqlcdb.EventStore
-	var err error
-
-	if aggregateType != nil {
-		rows, err = r.q.ReplayByAggregate(ctx, sqlcdb.ReplayByAggregateParams{
-			EventID:       fromEventID,
-			AggregateType: *aggregateType,
-		})
-	} else {
-		rows, err = r.q.ReplayAllAggregates(ctx, fromEventID)
-	}
-
+	merchantID, err := ctxkey.GetMerchantID(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	var rows []sqlcdb.EventStore
+	var queryErr error
+
+	if aggregateType != nil {
+		rows, queryErr = r.q.ReplayByAggregate(ctx, sqlcdb.ReplayByAggregateParams{
+			EventID:       fromEventID,
+			AggregateType: *aggregateType,
+			MerchantID:    merchantID,
+		})
+	} else {
+		rows, queryErr = r.q.ReplayAllAggregates(ctx, sqlcdb.ReplayAllAggregatesParams{
+			EventID:    fromEventID,
+			MerchantID: merchantID,
+		})
+	}
+
+	if queryErr != nil {
+		return nil, queryErr
 	}
 	return toDBEvents(rows), nil
 }

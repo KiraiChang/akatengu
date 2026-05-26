@@ -19,6 +19,21 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### [DEBUG] 2026-05-26 SQLite RENAME TABLE 觸發全視圖驗證
+
+SQLite 3.26+ 在執行 `ALTER TABLE X RENAME TO Y` 時，會驗證所有視圖的欄位有效性，
+不只是引用被重命名表格的視圖。`v_installments_active` 因引用不存在的 `i.paid_periods`，
+在任何 RENAME 操作時都會觸發 `no such column` 錯誤。
+
+解法：`PRAGMA legacy_alter_table = ON` 告知 SQLite 使用舊版行為，跳過視圖驗證。
+記得在 RENAME 後恢復 `PRAGMA legacy_alter_table = OFF`。
+
+### [DRAFT] 2026-05-26 多商戶事件核心隔離模式
+
+`event_store` / `aggregate_versions` / `snapshots` 三表加入 `merchant_id` 後，
+所有 UoW repo 改為從 `ctxkey.GetMerchantID(ctx)` 取值（與 checkpoint.go 同一模式），
+不在介面參數中傳遞。這樣 Service 層呼叫時不需感知 merchantID，由 HTTP middleware 注入到 ctx。
+
 ### 2026-05-26｜儀表板 API 設計草案
 
 #### 三支新 API 的職責分工

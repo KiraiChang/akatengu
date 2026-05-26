@@ -249,6 +249,50 @@
 
 ---
 
+### [ISSUE-012] v_installments_active 引用不存在欄位，RENAME TABLE 時觸發驗證失敗
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-26
+- **嚴重程度**：Medium
+- **位置**：`internal/database/migrations/20260310001_init_table.sql`（view 定義）、`20260526002_add_merchant_id_to_event_core.sql`（觸發點）
+- **描述**：
+  `v_installments_active` 視圖定義中參照 `i.paid_periods`，但 `installments` 表從未有此欄位。
+  SQLite 不在 CREATE VIEW 時驗證欄位存在性（延遲驗證），因此視圖建立成功。
+  但 SQLite 3.26+ 在執行 `ALTER TABLE ... RENAME TO ...` 時，強制驗證所有視圖（含不相關視圖），
+  導致 migration 20260526002 的 RENAME 操作因此報錯失敗。
+- **影響範圍**：
+  所有使用完整 migration 序列的測試均因 migration 失敗而無法執行。
+- **解決紀錄**：
+  在 migration 20260526002 的所有 RENAME 操作前後加入：
+  ```sql
+  PRAGMA legacy_alter_table = ON;
+  PRAGMA legacy_alter_table = OFF;
+  ```
+  `PRAGMA legacy_alter_table = ON` 告知 SQLite 跳過視圖完整性檢查，migration 成功執行。
+  **注意**：`v_installments_active` 本身仍為無效視圖（`paid_periods` 欄位不存在），查詢時會報錯。
+
+---
+
+### [ISSUE-013] TruncateProjections 未隔離商戶，全量重播清除所有商戶資料
+
+- **狀態**：🔴 Open
+- **日期**：2026-05-26
+- **嚴重程度**：High（多租戶環境）
+- **位置**：`internal/repos/unit_of_work/event_store/`（TruncateRepository 實作）
+- **描述**：
+  `TruncateProjections` 在全量重播（`fromEventID == 0`）時清除所有 projection 資料，
+  但清除操作未加入 `merchant_id` 過濾條件。在多商戶環境下，
+  重播單一商戶的事件會清除所有商戶的 projection 資料，造成其他商戶資料遺失。
+- **影響範圍**：
+  多商戶環境中，任一商戶執行全量重播均會破壞其他商戶的讀模型。
+- **根本原因**：
+  `TruncateProjections` 在引入商戶隔離（`merchant_id`）之前設計，未考慮多租戶場景。
+- **解決方向**：
+  修改 `TruncateProjections` 實作，從 ctx 取得 merchantID 並加入 WHERE 過濾；
+  全量重播的 checkpoint 重置也需要限定商戶。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open

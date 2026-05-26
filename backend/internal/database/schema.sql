@@ -2,29 +2,34 @@ CREATE TABLE event_store (
     event_id          INTEGER PRIMARY KEY AUTOINCREMENT,
     event_uuid        TEXT    NOT NULL UNIQUE,
     occurred_at       TEXT    NOT NULL,
+    merchant_id       INTEGER NOT NULL DEFAULT 0,
     aggregate_type    TEXT    NOT NULL,
     aggregate_id      TEXT    NOT NULL,
     aggregate_version INTEGER NOT NULL,
     event_type        TEXT    NOT NULL,
     payload           TEXT    NOT NULL,
     metadata          TEXT,
-    updated_by        TEXT
+    updated_by        TEXT,
+    UNIQUE(aggregate_type, aggregate_id, aggregate_version, merchant_id)
 );
 
 CREATE TABLE aggregate_versions (
     aggregate_type  TEXT    NOT NULL,
     aggregate_id    TEXT    NOT NULL,
+    merchant_id     INTEGER NOT NULL DEFAULT 0,
     current_version INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (aggregate_type, aggregate_id)
+    PRIMARY KEY (aggregate_type, aggregate_id, merchant_id)
 );
 
 CREATE TABLE snapshots (
     snapshot_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    merchant_id    INTEGER NOT NULL DEFAULT 0,
     aggregate_type TEXT    NOT NULL,
     aggregate_id   TEXT    NOT NULL,
     at_version     INTEGER NOT NULL,
     state          TEXT    NOT NULL,
-    created_at     TEXT    NOT NULL
+    created_at     TEXT    NOT NULL,
+    UNIQUE(aggregate_type, aggregate_id, merchant_id)
 );
 
 CREATE TABLE projection_checkpoints (
