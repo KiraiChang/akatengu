@@ -19,6 +19,60 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-26｜跨頁面導航至科目分析的實作模式
+
+#### URL hash query param 作為跨頁面參數
+
+SPA 用 hash routing 時，跨頁面傳遞「預選值」的最簡方式：在 hash 後直接接 `?param=value`。
+
+```typescript
+// src/lib/navigate.ts
+export function goToAccountAnalysis(accountId: string): void {
+  window.location.hash = `#/home/account-analysis?account=${encodeURIComponent(accountId)}`;
+}
+```
+
+目標頁面在資料載入完成後（需先有 accounts 陣列）才解析 param，確保 `selectAccount()` 有資料可找：
+
+```typescript
+$effect(() => {
+  void Promise.all([getAccountAll(), getLedgerAccountAll()])
+    .then(([accts, ldgrs]) => {
+      allAccounts = accts;
+      allLedgers  = ldgrs;
+      const hash   = window.location.hash;
+      const qIndex = hash.indexOf('?');
+      if (qIndex !== -1) {
+        const params    = new URLSearchParams(hash.slice(qIndex + 1));
+        const preselect = params.get('account');
+        if (preselect && accts.some(a => a.account_id === preselect)) {
+          hasBack = true;
+          selectAccount(preselect);
+        }
+      }
+    });
+});
+```
+
+注意：`hash.indexOf('?')` 手動切割，因為 `new URL(hash)` 在 hash-only 字串會拋例外。
+
+#### `hasBack` 狀態 + `history.back()` 回上一頁
+
+只有從其他頁面點連結進來（解析到 `?account=`）才顯示返回按鈕；直接從 sidebar 進入則不顯示。
+`history.back()` 在 SPA hash routing 下等同於瀏覽器上一步，自然還原來源頁。
+
+#### 可點擊科目名稱的 CSS 模式
+
+全域 `.account-link` class（`src/styles/home.css`）：`::after` 插入 `' ↗'`，預設 `opacity:0`，hover 才顯示，避免文字一直有圖示。各頁面只需在科目名稱外包 `<button class="account-link">` 即可。
+
+```svelte
+<button class="account-link" onclick={() => goToAccountAnalysis(row.account_id)}>{row.name}</button>
+```
+
+在有 `<tr onclick>` 的頁面（如 Accounts.svelte），需加 `e.stopPropagation()` 阻止觸發 row 展開。
+
+---
+
 ### 2026-05-25｜側邊欄父選單多路徑展開
 
 #### `parentChildPaths` 取代 `parentBasePaths`

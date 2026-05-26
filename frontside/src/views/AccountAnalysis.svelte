@@ -24,6 +24,7 @@
   let allLedgers  = $state<LedgerAccount[]>([]);
   let selectedId  = $state('');
   let activeTab   = $state<Tab>('children');
+  let hasBack     = $state(false);
 
   // Children tab — drill state
   let drillStack       = $state<{ id: string; name: string }[]>([]);
@@ -67,7 +68,20 @@
 
   $effect(() => {
     void Promise.all([getAccountAll(), getLedgerAccountAll()])
-      .then(([accts, ldgrs]) => { allAccounts = accts; allLedgers = ldgrs; })
+      .then(([accts, ldgrs]) => {
+        allAccounts = accts;
+        allLedgers  = ldgrs;
+        const hash   = window.location.hash;
+        const qIndex = hash.indexOf('?');
+        if (qIndex !== -1) {
+          const params    = new URLSearchParams(hash.slice(qIndex + 1));
+          const preselect = params.get('account');
+          if (preselect && accts.some(a => a.account_id === preselect)) {
+            hasBack = true;
+            selectAccount(preselect);
+          }
+        }
+      })
       .catch(() => {});
   });
 
@@ -178,6 +192,9 @@
 
 <div class="content-header">
   <h1 class="content-title">科目分析</h1>
+  {#if hasBack}
+    <button class="aa-back-btn" onclick={() => history.back()}>← 返回</button>
+  {/if}
 </div>
 
 <section class="section">

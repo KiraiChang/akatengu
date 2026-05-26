@@ -4,6 +4,7 @@
   import { visibleRows, fmt } from '../lib/reportUtils.svelte';
   import type { Row } from '../lib/reportUtils.svelte';
   import DonutChart from '../components/DonutChart.svelte';
+  import { goToAccountAnalysis } from '../lib/navigate';
 
   const ASSET_COLORS = ['#c4a86e', '#a07040', '#d4bc8a', '#b8944e', '#e0cfa0', '#887040', '#f0e0b0'];
   const LEQT_COLORS  = ['#a07890', '#7090b0', '#80a090', '#c09070', '#9080a0', '#70a080', '#b0a070'];
@@ -120,7 +121,7 @@
                       onclick={() => toggleBsRow(row.account_id)}
                     >{expandedBsRows.has(row.account_id) ? '▼' : '▶'}</button>
                   {/if}
-                  {row.name}
+                  <button class="account-link" onclick={() => goToAccountAnalysis(row.account_id)}>{row.name}</button>
                 </td>
                 <td class="mono" style="text-align:right">{fmt(row.value)}</td>
               </tr>

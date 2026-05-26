@@ -3,6 +3,7 @@
   import { getAccountAll } from '../api/account';
   import { getLedgerAccountAll } from '../api/ledger';
   import { getTemplates, getTemplate, createTemplate } from '../api/template';
+  import { goToAccountAnalysis } from '../lib/navigate';
   import AccountSelect from '../components/AccountSelect.svelte';
   import LedgerSelect from '../components/LedgerSelect.svelte';
   import type { Transaction, Entry } from '../types/transaction';
@@ -367,10 +368,13 @@
                     {@const ldgr = allLedgers.find(l => l.ledger_id === entry.ledger_id)}
                     <div class="entry-row">
                       <span class="entry-cell">
-                        <span class="entry-stack">
+                        <button
+                          class="entry-stack account-link"
+                          onclick={() => goToAccountAnalysis(entry.account_id)}
+                        >
                           <span class="entry-stack-id">{entry.account_id}</span>
                           <span class="entry-stack-name">{acct?.name ?? ''}</span>
-                        </span>
+                        </button>
                       </span>
                       <span class="entry-cell entry-ledger">
                         {#if ldgr}

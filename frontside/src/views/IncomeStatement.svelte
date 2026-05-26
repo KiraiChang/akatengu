@@ -4,6 +4,7 @@
   import { visibleRows, fmt } from '../lib/reportUtils.svelte';
   import type { Row } from '../lib/reportUtils.svelte';
   import HBarChart from '../components/HBarChart.svelte';
+  import { goToAccountAnalysis } from '../lib/navigate';
 
   interface ChartItem { label: string; value: number; id: string; has_child: boolean; }
   interface BreadcrumbItem { label: string; isCurrent: boolean; onclick: () => void; }
@@ -114,7 +115,7 @@
                     onclick={() => toggleIsRow(row.account_id)}
                   >{expandedIsRows.has(row.account_id) ? '▼' : '▶'}</button>
                 {/if}
-                {row.name}
+                <button class="account-link" onclick={() => goToAccountAnalysis(row.account_id)}>{row.name}</button>
               </td>
               <td class="mono" style="text-align:right">{fmt(row.value)}</td>
             </tr>

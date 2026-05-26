@@ -679,3 +679,36 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ── Account link (clickable account name → AccountAnalysis) ── */
+
+.account-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  text-decoration: none;
+  position: relative;
+}
+
+.account-link:hover {
+  color: #e8e5dc;
+  text-decoration: underline;
+  text-decoration-color: #3d4258;
+}
+
+.account-link::after {
+  content: ' ↗';
+  opacity: 0;
+  color: #6ab88a;
+  font-size: 0.85em;
+  transition: opacity 0.15s;
+}
+
+.account-link:hover::after {
+  opacity: 1;
+}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getAccountAll, getAccountBalances, createAccount, updateAccount } from '../api/account';
   import AccountSelect from '../components/AccountSelect.svelte';
+  import { goToAccountAnalysis } from '../lib/navigate';
   import { CASH_FLOW_CATEGORIES, CASH_FLOW_CATEGORY_LABELS } from '../types/account';
   import type { Account, AccountBalance, UpdateAccountRequest } from '../types/account';
 
@@ -203,7 +204,12 @@
         {account.account_id}
       </span>
     </td>
-    <td>{account.name}</td>
+    <td>
+      <button
+        class="account-link"
+        onclick={(e) => { e.stopPropagation(); goToAccountAnalysis(account.account_id); }}
+      >{account.name}</button>
+    </td>
     <td>{labelOf(ACCOUNT_TYPE_LABELS, account.type)}</td>
     <td class="hidden md:table-cell">
       {account.cash_flow_category ? CASH_FLOW_CATEGORY_LABELS[account.cash_flow_category] : '—'}

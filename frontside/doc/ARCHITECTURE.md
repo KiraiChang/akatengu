@@ -30,6 +30,7 @@
 | ADR-008 | 所有 Projection 模型一律加入 `updated_by` / `updated_at` 審計欄位 | Accepted | 2026-05-19 |
 | ADR-009 | Sidebar 可展開選單項以函式泛化展開邏輯 | Accepted | 2026-05-20 |
 | ADR-010 | 帳本建立科目限制透過 `filteredAccounts` prop 傳遞而非在子元件內載入 | Accepted | 2026-05-20 |
+| ADR-011 | 跨頁面科目導航使用 URL hash query param 傳遞預選科目 | Accepted | 2026-05-26 |
 
 ---
 
@@ -236,9 +237,11 @@
   }
   ```
 
-  新增可展開選單項只需：① 在 `menuItems` 加 `key` 與 `children`；② 在 `parentBasePaths` 加對應路徑。
+  新增可展開選單項只需：① 在 `menuItems` 加 `key` 與 `children`；② 在 `parentChildPaths` 加對應路徑陣列。
 
   延伸 ADR-006 的原則：展開狀態仍為純計算（不寫入 state），讀取 `expandedParents` 與 `currentPath` 兩個來源。
+
+  **後續延伸（2026-05-25）**：當「分期管理」子路徑（`/home/installment`、`/home/prepaid`、`/home/fixed-asset`）無公共前綴時，`parentBasePaths: Record<string, string>` 的單一字串無法涵蓋所有路徑。改為 `parentChildPaths: Record<string, string[]>` 搭配 `some(p => currentPath.startsWith(p))` 判斷，支援任意數量的子路徑。
 
 - **替代方案**：
   - **每個可展開項各宣告一個 `$derived`**：最直觀，但每次新增子選單都要改 script 與 template 兩處，容易遺漏。
@@ -278,6 +281,38 @@
 - **後果**：
   - 正面：`AccountSelect` 保持無狀態，可在任何地方重用；限制邏輯集中在 Ledger.svelte，易於測試與修改。
   - 負面：config 需要在 Ledger.svelte 的 `openModal()` 時額外呼叫 API；若日後其他頁面（如 Installment）也需要同樣限制，需要在各頁面重複相同的 `$derived` 邏輯。
+
+---
+
+## ADR-011 跨頁面科目導航使用 URL hash query param 傳遞預選科目
+
+- **狀態**：Accepted
+- **日期**：2026-05-26
+- **背景**：
+  多個頁面（JournalEntry、BalanceSheet、IncomeStatement、Accounts）顯示科目名稱，
+  使用者希望點擊科目名稱直接跳轉至科目分析（AccountAnalysis）並自動載入該科目的資料，
+  無需在目標頁面重新手動選擇。需要決定「跳轉時傳遞預選科目 ID」的機制。
+- **決策**：
+  - `src/lib/navigate.ts` 封裝 `goToAccountAnalysis(accountId: string)` helper，
+    設定 hash 為 `#/home/account-analysis?account=<encodeURIComponent(accountId)>`。
+  - `AccountAnalysis.svelte` 在初始資料載入完成後（accounts 陣列已取得），解析 `window.location.hash`，
+    讀取 `?account=` 參數，若對應科目存在則呼叫 `selectAccount()`。
+  - 同時設定 `hasBack = true`，在頁面頂部顯示「← 返回」按鈕，呼叫 `history.back()`。
+
+  ```typescript
+  // src/lib/navigate.ts
+  export function goToAccountAnalysis(accountId: string): void {
+    window.location.hash = `#/home/account-analysis?account=${encodeURIComponent(accountId)}`;
+  }
+  ```
+
+- **替代方案**：
+  - **Svelte writable store 傳遞預選值**：需要在兩個路由元件之間共享 store 狀態，且 store 內容在重新整理後消失，無法從 URL 直接存取特定科目。
+  - **僅導航不傳參數、讓使用者手動選擇**：降低摩擦感，但違背「點一下直達」的使用者期望。
+  - **在 AccountAnalysis 元件接收 prop**：SPA hash routing 不支援直接對路由元件傳 prop，且需要修改 router 設定。
+- **後果**：
+  - 正面：URL 可書籤與分享；SPA hash 每次變更產生 history entry，`history.back()` 自然還原前一頁；`navigate.ts` 集中管理，各頁面只需 import 一個函式。
+  - 負面：`AccountAnalysis` 的 query param 解析只在初始 mount 的 `$effect` 執行，若使用者在同一頁面多次點不同科目連結（hash 相同路徑但 param 不同），不會觸發重新選取，需要手動切換 AccountSelect（可接受，因這屬於邊緣情境）。
 
 ---
 

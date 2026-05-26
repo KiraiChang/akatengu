@@ -1,3 +1,23 @@
+/* ── Back button ──────────────────────────── */
+
+.aa-back-btn {
+  background: none;
+  border: 1px solid #252836;
+  color: #5c6278;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 5px 14px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.aa-back-btn:hover {
+  color: #c0bdb4;
+  border-color: #3d4258;
+}
+
 /* ── Selector bar ─────────────────────────── */
 
 .aa-selector {
