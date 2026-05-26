@@ -175,21 +175,21 @@
 /* ── 5-column lines ──────────────────────── */
 
 .je-lines-header--5col {
-  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) 110px 110px 32px;
+  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) 32px;
 }
 
 .je-line--5col {
-  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) 110px 110px 32px;
+  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) 32px;
 }
 
 /* ── 6-column lines ──────────────────────── */
 
 .je-lines-header--6col {
-  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(100px, 0.7fr) 110px 110px 32px;
+  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(100px, 0.7fr) minmax(120px, 1fr) minmax(120px, 1fr) 32px;
 }
 
 .je-line--6col {
-  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(100px, 0.7fr) 110px 110px 32px;
+  grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) minmax(100px, 0.7fr) minmax(120px, 1fr) minmax(120px, 1fr) 32px;
 }
 
 .je-cf-select {
@@ -297,9 +297,12 @@
   outline: none;
   transition: border-color 0.2s;
   box-sizing: border-box;
+  -moz-appearance: textfield;
 }
 .je-amount-input:focus { border-bottom-color: #c44040; }
 .je-amount-input::placeholder { color: #2e3348; }
+.je-amount-input::-webkit-outer-spin-button,
+.je-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 .je-note-input {
   width: 100%;

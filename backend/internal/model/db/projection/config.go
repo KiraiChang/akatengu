@@ -30,7 +30,13 @@ type AssetTypeAccountConfig struct {
 	OciAccountID            *string         `db:"oci_account_id"              json:"oci_account_id"`
 	FeeAccountID            string          `db:"fee_account_id"              json:"fee_account_id"`
 	TaxAccountID            string          `db:"tax_account_id"              json:"tax_account_id"`
+	AccountID               *string         `db:"account_id"                  json:"account_id"`
 	UpdatedBy               *string         `db:"updated_by"                  json:"updated_by"`
 	UpdatedAt               *string         `db:"updated_at"                  json:"updated_at"`
 	Version                 int64           `db:"version"                     json:"version"`
+}
+
+type AssetTypeAccountConfigResult struct {
+	AssetTypeAccountConfig
+	Descendants []Account `json:"descendants"`
 }

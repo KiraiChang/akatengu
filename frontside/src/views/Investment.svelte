@@ -13,6 +13,8 @@
   import type { Account, CreateAccountRequest } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
   import type { PaginatedMeta } from '../types/pagination';
+  import { getLedgerAccountTypeConfigs } from '../api/setting';
+  import type { LedgerAccountTypeConfigResult } from '../types/setting';
 
   const PAGE_SIZE = 20;
 
@@ -333,6 +335,7 @@
   let txnNewLedgerAccountId = $state('');
   let txnCreateNewAccount   = $state(false);
   let txnNewAccountForm     = $state<NewAccountForm>(emptyNewAccountForm());
+  let ledgerTypeConfigMap   = $state(new Map<string, LedgerAccountTypeConfigResult>());
 
   const isTxnValid = $derived(
     (txnCreateNewLedger
@@ -348,6 +351,32 @@
   );
 
   const activeLedgers = $derived(ledgers.filter(l => l.is_active));
+
+  const activeTxnLedgerTypeConfig = $derived(ledgerTypeConfigMap.get(txnNewLedgerForm.type) ?? null);
+  const filteredTxnAccounts = $derived((() => {
+    if (!activeTxnLedgerTypeConfig?.account_id || activeTxnLedgerTypeConfig.descendants.length === 0) {
+      return accounts;
+    }
+    const path: Account[] = [];
+    let cur: string | null = activeTxnLedgerTypeConfig.account_id;
+    while (cur) {
+      const a = accounts.find(x => x.account_id === cur);
+      if (!a) break;
+      path.push(a);
+      cur = a.parent_id ?? null;
+    }
+    return [...path.reverse(), ...activeTxnLedgerTypeConfig.descendants];
+  })());
+
+  let _prevTxnLedgerType = $state('');
+  $effect(() => {
+    const t = txnNewLedgerForm.type as string;
+    if (_prevTxnLedgerType !== '' && _prevTxnLedgerType !== t) {
+      txnNewLedgerAccountId       = '';
+      txnNewAccountForm.parent_id = null;
+    }
+    _prevTxnLedgerType = t;
+  });
 
   $effect(() => {
     void load(page);
@@ -408,7 +437,7 @@
   }
 
   async function openTxnModal(inv: Investment, m: 'buy' | 'sell'): Promise<void> {
-    await Promise.all([ensureLedgers(), ensureAccounts()]);
+    await Promise.all([ensureLedgers(), ensureAccounts(), ensureConfigs()]);
     txnMode  = m;
     txnInvId = inv.investment_id;
     txnForm  = {
@@ -438,6 +467,15 @@
   async function ensureLedgers(): Promise<void> {
     if (ledgers.length === 0) {
       try { ledgers = await getLedgerAccountAll(); } catch { /* 非致命 */ }
+    }
+  }
+
+  async function ensureConfigs(): Promise<void> {
+    if (ledgerTypeConfigMap.size === 0) {
+      try {
+        const configs = await getLedgerAccountTypeConfigs();
+        ledgerTypeConfigMap = new Map(configs.map(c => [c.type, c]));
+      } catch { /* 非致命 */ }
     }
   }
 
@@ -1166,7 +1204,8 @@
 
         <LedgerSelectSection
           ledgers={activeLedgers}
-          accounts={accounts}
+          accounts={filteredTxnAccounts}
+          accountsForParent={filteredTxnAccounts}
           bind:ledgerId={txnForm.ledger_id}
           bind:createNew={txnCreateNewLedger}
           bind:newLedgerForm={txnNewLedgerForm}

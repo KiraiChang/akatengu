@@ -125,6 +125,7 @@ func (h *settingHandler) UpdateAssetTypeAccountConfig(w http.ResponseWriter, r *
 		OciAccountID:            req.OCIAccountID,
 		FeeAccountID:            req.FeeAccountID,
 		TaxAccountID:            req.TaxAccountID,
+		AccountID:               req.AccountID,
 		UpdatedBy:               updatedBy,
 	}
 	if err := h.s.UpdateAssetTypeAccountConfig(ctx, params); err != nil {

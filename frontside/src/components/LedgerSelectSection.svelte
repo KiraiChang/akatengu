@@ -6,20 +6,22 @@
   import { type NewAccountForm, emptyNewAccountForm } from './NewAccountFormSection.svelte';
 
   interface Props {
-    ledgers:          LedgerAccount[];
-    accounts:         Account[];
-    ledgerId:         string;
-    createNew:        boolean;
-    newLedgerForm:    NewLedgerForm;
-    createNewAccount: boolean;
-    newAccountForm:   NewAccountForm;
-    accountId:        string;
-    label?:           string;
+    ledgers:           LedgerAccount[];
+    accounts:          Account[];
+    accountsForParent?: Account[];
+    ledgerId:          string;
+    createNew:         boolean;
+    newLedgerForm:     NewLedgerForm;
+    createNewAccount:  boolean;
+    newAccountForm:    NewAccountForm;
+    accountId:         string;
+    label?:            string;
   }
 
   let {
     ledgers,
     accounts,
+    accountsForParent,
     ledgerId         = $bindable(),
     createNew        = $bindable(),
     newLedgerForm    = $bindable(),
@@ -61,6 +63,7 @@
 {:else}
   <NewLedgerFormSection
     {accounts}
+    accountsForParent={accountsForParent}
     bind:form={newLedgerForm}
     required={true}
     bind:createNewAccount

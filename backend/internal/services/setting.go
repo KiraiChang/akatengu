@@ -14,7 +14,7 @@ type SettingService interface {
 	GetLedgerAccountTypeConfigs(ctx context.Context) ([]projection.LedgerAccountTypeConfigResult, error)
 	UpdateLedgerAccountTypeConfig(ctx context.Context, t enums.LedgerAccountType, accountID string, updatedBy *string) error
 
-	GetAssetTypeAccountConfigs(ctx context.Context) ([]projection.AssetTypeAccountConfig, error)
+	GetAssetTypeAccountConfigs(ctx context.Context) ([]projection.AssetTypeAccountConfigResult, error)
 	UpdateAssetTypeAccountConfig(ctx context.Context, params sqlcdb.UpsertAssetTypeAccountConfigParams) error
 }
 
@@ -51,8 +51,28 @@ func (s *settingService) UpdateLedgerAccountTypeConfig(ctx context.Context, t en
 	return s.r.UpsertLedgerAccountTypeConfig(ctx, t, accountID, updatedBy)
 }
 
-func (s *settingService) GetAssetTypeAccountConfigs(ctx context.Context) ([]projection.AssetTypeAccountConfig, error) {
-	return s.r.GetAssetTypeAccountConfigs(ctx)
+func (s *settingService) GetAssetTypeAccountConfigs(ctx context.Context) ([]projection.AssetTypeAccountConfigResult, error) {
+	configs, err := s.r.GetAssetTypeAccountConfigs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]projection.AssetTypeAccountConfigResult, len(configs))
+	for i, cfg := range configs {
+		var descendants []projection.Account
+		if cfg.AccountID != nil {
+			descendants, err = s.r.GetAccountDescendants(ctx, *cfg.AccountID)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			descendants = []projection.Account{}
+		}
+		result[i] = projection.AssetTypeAccountConfigResult{
+			AssetTypeAccountConfig: cfg,
+			Descendants:            descendants,
+		}
+	}
+	return result, nil
 }
 
 func (s *settingService) UpdateAssetTypeAccountConfig(ctx context.Context, params sqlcdb.UpsertAssetTypeAccountConfigParams) error {

@@ -444,6 +444,7 @@ CREATE TABLE asset_type_account_config (
     oci_account_id             TEXT,
     fee_account_id             TEXT    NOT NULL,
     tax_account_id             TEXT    NOT NULL,
+    account_id                 TEXT,
     updated_by                 TEXT,
     updated_at                 TEXT    DEFAULT (datetime('now')),
     version                    INTEGER NOT NULL DEFAULT 1,

@@ -26,12 +26,14 @@ INSERT INTO asset_type_account_config(
     merchant_id, asset_type,
     realized_gain_account_id, realized_loss_account_id,
     unrealized_gain_account_id, unrealized_loss_account_id,
-    oci_account_id, fee_account_id, tax_account_id, updated_by
+    oci_account_id, fee_account_id, tax_account_id,
+    account_id, updated_by
 ) VALUES(
     @merchant_id, @asset_type,
     @realized_gain_account_id, @realized_loss_account_id,
     @unrealized_gain_account_id, @unrealized_loss_account_id,
-    @oci_account_id, @fee_account_id, @tax_account_id, @updated_by
+    @oci_account_id, @fee_account_id, @tax_account_id,
+    @account_id, @updated_by
 )
 ON CONFLICT(merchant_id, asset_type) DO UPDATE SET
     realized_gain_account_id   = excluded.realized_gain_account_id,
@@ -41,6 +43,7 @@ ON CONFLICT(merchant_id, asset_type) DO UPDATE SET
     oci_account_id             = excluded.oci_account_id,
     fee_account_id             = excluded.fee_account_id,
     tax_account_id             = excluded.tax_account_id,
+    account_id                 = excluded.account_id,
     updated_by                 = excluded.updated_by,
     updated_at                 = datetime('now'),
     version                    = version + 1;

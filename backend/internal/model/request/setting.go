@@ -21,6 +21,7 @@ type UpdateAssetTypeAccountConfig struct {
 	OCIAccountID            *string `json:"oci_account_id"`
 	FeeAccountID            string  `json:"fee_account_id"`
 	TaxAccountID            string  `json:"tax_account_id"`
+	AccountID               *string `json:"account_id"`
 }
 
 func (r *UpdateAssetTypeAccountConfig) Validate() error {
