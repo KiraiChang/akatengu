@@ -46,7 +46,7 @@
 - [x] [Feature] Migration：event_store、aggregate_versions、snapshots 新增 `merchant_id` 欄位（含 Migration 20260526002）— 完成日期：2026-05-26
 - [x] [Feature] UoW repos（event.go、version.go、snapshot.go）改從 ctx 取得 merchantID 並傳入 sqlcdb 查詢 — 完成日期：2026-05-26
 - [x] [Feature] query/event.go 的所有 sqlcdb 呼叫加入 MerchantID 參數 — 完成日期：2026-05-26
-- [ ] [Security] ISSUE-013：TruncateProjections 全量重播未隔離商戶，需加入 merchant_id WHERE 過濾 — 關聯：ISSUE-013
+- [x] [Security] ISSUE-013：TruncateProjections 加入 merchant_id 隔離，補入遺漏表並移除 sqlite_sequence 重置 — 完成日期：2026-05-26，關聯：ISSUE-013
 
 **預付費用 & 固定資產（Prepaid & Fixed Asset）**
 

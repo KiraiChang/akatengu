@@ -275,10 +275,10 @@
 
 ### [ISSUE-013] TruncateProjections 未隔離商戶，全量重播清除所有商戶資料
 
-- **狀態**：🔴 Open
+- **狀態**：🟢 Resolved
 - **日期**：2026-05-26
 - **嚴重程度**：High（多租戶環境）
-- **位置**：`internal/repos/unit_of_work/event_store/`（TruncateRepository 實作）
+- **位置**：`internal/repos/unit_of_work/event_store/truncate.go`
 - **描述**：
   `TruncateProjections` 在全量重播（`fromEventID == 0`）時清除所有 projection 資料，
   但清除操作未加入 `merchant_id` 過濾條件。在多商戶環境下，
@@ -287,9 +287,13 @@
   多商戶環境中，任一商戶執行全量重播均會破壞其他商戶的讀模型。
 - **根本原因**：
   `TruncateProjections` 在引入商戶隔離（`merchant_id`）之前設計，未考慮多租戶場景。
-- **解決方向**：
-  修改 `TruncateProjections` 實作，從 ctx 取得 merchantID 並加入 WHERE 過濾；
-  全量重播的 checkpoint 重置也需要限定商戶。
+- **解決紀錄**：
+  在 `TruncateProjections` 開頭以 `ctxkey.GetMerchantID(ctx)` 取得 merchantID，
+  所有 DELETE 語句加入 `WHERE merchant_id = ?`。
+  同時補入後加功能遺漏的表（`prepaids`、`prepaid_amortizations`、`fixed_assets`、`fixed_asset_depreciations`、`account_closure`）、
+  移除無 merchant_id 的全域資料 `exchange_rates`（replay 時 UPSERT 補回），
+  以及移除多租戶下不適用的 `sqlite_sequence` 重置。
+  `deleteUserAccounts` CTE 的起點（sys_accounts）、遞迴 JOIN 與外層 DELETE 均加入 merchant_id 過濾。
 
 ---
 
