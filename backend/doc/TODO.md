@@ -41,6 +41,13 @@
 
 > 影響核心功能正確性或穩定性，應在近期處理。
 
+**多租戶事件核心隔離（Merchant ID in Event Core）**
+
+- [x] [Feature] Migration：event_store、aggregate_versions、snapshots 新增 `merchant_id` 欄位（含 Migration 20260526002）— 完成日期：2026-05-26
+- [x] [Feature] UoW repos（event.go、version.go、snapshot.go）改從 ctx 取得 merchantID 並傳入 sqlcdb 查詢 — 完成日期：2026-05-26
+- [x] [Feature] query/event.go 的所有 sqlcdb 呼叫加入 MerchantID 參數 — 完成日期：2026-05-26
+- [ ] [Security] ISSUE-013：TruncateProjections 全量重播未隔離商戶，需加入 merchant_id WHERE 過濾 — 關聯：ISSUE-013
+
 **預付費用 & 固定資產（Prepaid & Fixed Asset）**
 
 - [x] [Feature] 設計確認 — 完成日期：2026-05-22（計畫書已確認，關聯：ADR-014）
@@ -64,6 +71,14 @@
 - [x] [Feature] `GET /api/dashboard/monthly-trend?months=12` — 過去 N 個月每月收入 / 支出 / 淨額，完成日期：2026-05-26
 - [x] [Feature] `GET /api/ledger/balances` — 各 LedgerAccount 目前餘額含 name/institution/type，完成日期：2026-05-26
 - [x] [Test] dashboard API 整合測試 — 完成日期：2026-05-26（`dashboard_test.go`，涵蓋 summary 資產/現金餘額、monthly-trend 月份邊界、ledger balance 借貸淨額計算）
+
+**稽核查詢 API（Audit）**
+
+- [x] [Feature] `GET /api/audit/aggregate-version` — 查詢當前商戶所有 aggregate 版本，完成日期：2026-05-26
+- [x] [Feature] `GET /api/audit/event?page=&page_size=` — 事件日誌分頁查詢（依 event_id 降冪），完成日期：2026-05-26
+- [x] [Feature] `GET /api/audit/checkpoint` — 查詢所有投影機 checkpoint，完成日期：2026-05-26
+- [x] [Feature] `GET /api/audit/snapshot` — 查詢所有快照，完成日期：2026-05-26
+- [x] [Feature] `GET /api/exchange-rate?currency=` — 查詢匯率（全域資料，無商戶過濾），完成日期：2026-05-26
 
 > 提升系統品質或開發效率，可排入下一個迭代。
 
