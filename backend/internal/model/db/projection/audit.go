@@ -26,7 +26,7 @@ type EventStoreAudit struct {
 	AggregateVersion int64                 `json:"aggregate_version"`
 	EventType        event_types.EventType `json:"event_type"`
 	Payload          json.RawMessage       `json:"payload"`
-	Metadata         json.RawMessage       `json:"metadata"`
+	Metadata         *json.RawMessage      `json:"metadata"`
 	UpdatedBy        *string               `json:"updated_by"`
 }
 
@@ -46,4 +46,3 @@ type SnapshotAudit struct {
 	State         json.RawMessage     `json:"state"`
 	CreatedAt     string              `json:"created_at"`
 }
-

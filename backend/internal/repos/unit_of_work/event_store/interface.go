@@ -15,7 +15,7 @@ type InsertEventParams struct {
 	AggregateVersion int64
 	EventType        event_types.EventType
 	Payload          json.RawMessage
-	Metadata         json.RawMessage
+	Metadata         *json.RawMessage
 	UpdatedBy        *string
 }
 
