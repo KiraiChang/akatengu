@@ -58,6 +58,13 @@
 
 ### 中優先（P2）
 
+**儀表板 API（Dashboard）**
+
+- [x] [Feature] `GET /api/dashboard/summary` — 回傳本月收入/支出、淨資產、現金餘額（四個 stat card 數字），完成日期：2026-05-26
+- [x] [Feature] `GET /api/dashboard/monthly-trend?months=12` — 過去 N 個月每月收入 / 支出 / 淨額，完成日期：2026-05-26
+- [x] [Feature] `GET /api/ledger/balances` — 各 LedgerAccount 目前餘額含 name/institution/type，完成日期：2026-05-26
+- [x] [Test] dashboard API 整合測試 — 完成日期：2026-05-26（`dashboard_test.go`，涵蓋 summary 資產/現金餘額、monthly-trend 月份邊界、ledger balance 借貸淨額計算）
+
 > 提升系統品質或開發效率，可排入下一個迭代。
 
 **現金流量表（Cash Flow Statement）**

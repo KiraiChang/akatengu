@@ -19,6 +19,91 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-26｜儀表板 API 設計草案
+
+#### 三支新 API 的職責分工
+
+| API | 說明 | 實作複雜度 |
+|-----|------|-----------|
+| `GET /api/dashboard/summary` | Stat Card 四個數字（本月損益 + 淨資產 + 現金） | Medium — 並行呼叫現有 income_statement / balance_sheet 內部 query |
+| `GET /api/dashboard/monthly-trend?months=12` | 過去 N 個月每月收入 / 支出 / 淨額 | Medium — journal_entries + accounts 依月分組加總 |
+| `GET /api/ledger/balances` | 各 LedgerAccount 目前餘額 | Low — ledger_accounts LEFT JOIN journal_entries 依 ledger_id 加總 |
+
+#### `DashboardSummary` struct 草案
+
+```go
+type DashboardSummary struct {
+    AsOfDate          string          `json:"as_of_date"`
+    Month             string          `json:"month"`           // "YYYY-MM"
+    MonthIncome       decimal.Decimal `json:"month_income"`
+    MonthExpense      decimal.Decimal `json:"month_expense"`
+    TotalAssets       decimal.Decimal `json:"total_assets"`
+    TotalLiabilities  decimal.Decimal `json:"total_liabilities"`
+    TotalEquity       decimal.Decimal `json:"total_equity"`
+    CashBalance       decimal.Decimal `json:"cash_balance"`
+}
+```
+
+實作策略：handler 用 `errgroup` 並行執行三個 query：
+1. `queryIncomeStatementAccounts`（本月日期範圍）→ sum INCOME / EXPENSE
+2. `queryBalanceSheetAccounts`（today）→ sum ASSET / LIABILITY
+3. `queryCashBefore` + `queryCashUpTo`（今天）→ 現金餘額
+
+#### `MonthlyTrendItem` struct 草案
+
+```go
+type MonthlyTrendItem struct {
+    Month   string          `json:"month"`   // "YYYY-MM"
+    Income  decimal.Decimal `json:"income"`
+    Expense decimal.Decimal `json:"expense"`
+    Net     decimal.Decimal `json:"net"`
+}
+```
+
+SQL 要點：
+- 以 `strftime('%Y-%m', txn_date)` 分組
+- JOIN `accounts` 過濾 `type IN ('INCOME','EXPENSE')`
+- 注意與 `queryIncomeStatement` 相同：只取葉節點 (`NOT is_summary`)，避免彙總科目重複計算
+- 起始月份：`date('now', '-N months')` 的月份第一天
+
+#### `LedgerBalance` struct 草案
+
+```go
+type LedgerBalance struct {
+    LedgerID    int64           `json:"ledger_id"`
+    Name        string          `json:"name"`
+    Institution string          `json:"institution"`
+    Type        string          `json:"type"`        // BANK_ACCOUNT / CREDIT_CARD / LOAN
+    Balance     decimal.Decimal `json:"balance"`     // 依 normal_balance 調整正負
+}
+```
+
+SQL 要點：
+- `FROM ledger_accounts la LEFT JOIN journal_entries je ON la.ledger_id = je.ledger_id`
+- `SUM(je.debit) - SUM(je.credit)` 得到借方淨額
+- 依 `la.account.normal_balance` 決定餘額符號（DEBIT normal → debit-credit；CREDIT normal → credit-debit）
+- 排除已關閉的帳戶（若有 `is_active` 欄位）
+
+#### 新增路由規劃
+
+```
+GET /api/dashboard/summary          → handler.GetDashboardSummary
+GET /api/dashboard/monthly-trend    → handler.GetMonthlyTrend  (query: months int, default 12)
+GET /api/ledger/balances            → handler.GetLedgerBalances
+```
+
+`/api/ledger/balances` 掛在現有 `ledger.go` handler 下，與 `GET /api/ledger`（取得帳戶列表）並列。`/api/dashboard/*` 新建 `dashboard.go` handler。
+
+#### 實作偏差（2026-05-26 完成後更新）
+
+原草案計畫並行呼叫 income_statement / balance_sheet query，實際實作改用以下方式：
+
+- **Summary**：`account_running_balances`（已含累計借貸總額）+ `v_monthly_income_expense`（當月），在 Go 合併計算，效能更佳，不需要掃描全量 journal_entries。
+- **Monthly Trend**：新增 `v_monthly_income_expense` View（groupby merchant+month），由 sqlc 追蹤 SUM 欄位型別以產生 `decimal.Decimal`（符合 CLAUDE.md 約束，避免使用 `decimal.NewFromFloat()`）。
+- **Ledger Balances**：`ledger_running_balances` + `ledger_accounts` 在 Go 合併（而非 LEFT JOIN journal_entries）。
+
+---
+
 ---
 
 ## 現金流量表重構（entry-based category）

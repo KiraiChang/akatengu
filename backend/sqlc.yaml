@@ -411,3 +411,11 @@ sql:
             go_type:
               import: "akatengu/internal/enums"
               type: "CashFlowCategory"
+          - column: "v_monthly_income_expense.income"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "v_monthly_income_expense.expense"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"

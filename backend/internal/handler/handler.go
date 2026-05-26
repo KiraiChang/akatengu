@@ -50,6 +50,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	prepaid := newPrepaidHandler(db, logger)
 	fixedAsset := newFixedAssetHandler(db, logger)
 	template := newTemplateHandler(db, logger)
+	dashboard := newDashboardHandler(db, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -126,6 +127,10 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("GET /template/{template_id}", template.GetTemplate)
 	bizApi.HandleFunc("PUT /template/{template_id}", template.UpdateTemplate)
 	bizApi.HandleFunc("DELETE /template/{template_id}", template.DeleteTemplate)
+
+	bizApi.HandleFunc("GET /dashboard/summary", dashboard.GetSummary)
+	bizApi.HandleFunc("GET /dashboard/monthly-trend", dashboard.GetMonthlyTrend)
+	bizApi.HandleFunc("GET /ledger/balances", dashboard.GetLedgerBalances)
 
 	return mux
 }

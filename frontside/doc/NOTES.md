@@ -19,6 +19,61 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-26｜儀表板設計規劃
+
+#### 資料來源對應
+
+| UI 區塊 | 資料 | 後端 API |
+|---------|------|---------|
+| Stat Card：本月收入 / 本月支出 | 當月 income / expense 合計 | `GET /api/dashboard/summary`（新） |
+| Stat Card：淨資產 | Total equity（資產 − 負債） | 同上 |
+| Stat Card：現金餘額 | CASH 類科目借貸淨額 | 同上 |
+| 近期傳票（10 筆） | 最新 10 筆交易 | `GET /api/transaction?page=0&page_size=10`（現有） |
+| 帳戶餘額列表 | 各金融帳戶（銀行/信用卡/貸款）目前餘額 | `GET /api/ledger/balances`（新） |
+| 月度損益趨勢（12 個月） | 每月 income / expense / net | `GET /api/dashboard/monthly-trend?months=12`（新） |
+| 投資部位摘要 | 持倉數、未實現損益加總 | `GET /api/investment`（現有，前端彙總） |
+
+#### `GET /api/dashboard/summary` 回應結構（草案）
+
+```json
+{
+  "month_income":   "1240800",
+  "month_expense":  "873250",
+  "total_assets":   "15000000",
+  "total_liabilities": "2451680",
+  "total_equity":   "12548320",
+  "cash_balance":   "3000000",
+  "as_of_date":     "2026-05-26",
+  "month":          "2026-05"
+}
+```
+
+實作方式：在單一 handler 內並行（goroutine）呼叫 income statement 與 balance sheet 的內部 query，回傳彙總數字，避免前端需要分別呼叫多支完整報表 API。
+
+#### `GET /api/dashboard/monthly-trend?months=12` 回應結構（草案）
+
+```json
+[
+  { "month": "2025-06", "income": "1100000", "expense": "900000", "net": "200000" },
+  { "month": "2025-07", "income": "1200000", "expense": "950000", "net": "250000" }
+]
+```
+
+實作方式：對 `journal_entries` 依月份分組，JOIN `accounts` 過濾 `type IN ('INCOME','EXPENSE')`，分別加總借貸差額。
+
+#### `GET /api/ledger/balances` 回應結構（草案）
+
+```json
+[
+  { "ledger_id": 1, "name": "台新銀行活存", "institution": "台新銀行", "type": "BANK_ACCOUNT", "balance": "580000" },
+  { "ledger_id": 2, "name": "玉山信用卡",   "institution": "玉山銀行", "type": "CREDIT_CARD",  "balance": "-42000" }
+]
+```
+
+實作方式：`ledger_accounts LEFT JOIN journal_entries` 依 `ledger_id` 加總 `debit - credit`，搭配 `ledger_account.account` 的 `normal_balance` 決定正負號顯示方向。
+
+---
+
 ### 2026-05-26｜跨頁面導航至科目分析的實作模式
 
 #### URL hash query param 作為跨頁面參數

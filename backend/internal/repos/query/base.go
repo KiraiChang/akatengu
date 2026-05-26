@@ -24,6 +24,7 @@ type Repo struct {
 	FixedAsset      FixedAssetQueryRepo
 	Template        TemplateRepo
 	AccountAnalysis AccountAnalysisRepo
+	Dashboard       DashboardRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -46,5 +47,6 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		FixedAsset:      newFixedAssetQueryRepo(q),
 		Template:        newTemplateRepo(q, db),
 		AccountAnalysis: newAccountAnalysisRepo(q),
+		Dashboard:       newDashboardRepo(q, db),
 	}
 }
