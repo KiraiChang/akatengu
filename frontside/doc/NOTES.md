@@ -19,6 +19,43 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-26｜稽核查詢與匯率管理實作
+
+#### 匯率手動輸入透過 EventRateUpdated 事件
+
+手動輸入匯率不走新的 REST endpoint，改用既有事件系統：
+
+```typescript
+// src/api/exchangeRate.ts
+await appendEvent({
+  aggregate_type:   'TRANSACTION',
+  aggregate_id:     '',
+  expected_version: version,
+  event_type:       'investment.fx_rate_updated',
+  payload: { currency, date, rate_twd },
+});
+```
+
+- `aggregate_type = 'TRANSACTION'`、`aggregate_id = ''` — 與所有其他 TRANSACTION 類事件（installment、prepaid、fixed_asset 等）相同慣例，共用同一個全域版本計數器
+- 後端 `EventRateUpdated` pipeline 使用 `NoState`（不需載入聚合狀態），驗證 payload 後由 `applyRateUpdated` 呼叫 `UpsertExchangeRate`，自動以 `source = MANUAL` 寫入
+- 匯率為全域資料（無 merchant_id 欄位），各商戶的匯率事件都寫進同一張 exchange_rates 表（以 `(currency, rate_date)` 為 unique key UPSERT）
+
+#### Rebuild Projection 端點
+
+`POST /api/audit/replay` body：`{ from_event_id: 0, aggregate_type: null }`（全量重建）
+
+- 後端呼叫 `EventStoreService.Replay(ctx, 0, nil)`，先清除當前商戶所有 projection 資料再逐一重播
+- 前端 `window.confirm` 雙重確認，完成後自動重整四個 tab 的資料
+- 回應格式：`{ replayed_count: N }`
+
+#### 稽核頁面設計決策
+
+- 4 個 tab（彙總版本、事件紀錄、Checkpoint、快照）全部在 mount 時並行載入，避免切 tab 時的延遲感
+- 事件紀錄 tab 使用分頁（20 筆/頁），其餘三個列表量少，直接全量載入
+- payload / metadata 欄不在表格展開（避免 JSON 破壞排版），只顯示 event_type 作為識別
+
+---
+
 ### 2026-05-26｜儀表板設計規劃
 
 #### 資料來源對應

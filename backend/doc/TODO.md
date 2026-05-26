@@ -79,6 +79,7 @@
 - [x] [Feature] `GET /api/audit/checkpoint` — 查詢所有投影機 checkpoint，完成日期：2026-05-26
 - [x] [Feature] `GET /api/audit/snapshot` — 查詢所有快照，完成日期：2026-05-26
 - [x] [Feature] `GET /api/exchange-rate?currency=` — 查詢匯率（全域資料，無商戶過濾），完成日期：2026-05-26
+- [x] [Feature] `POST /api/audit/replay` — 全量或部分重建 projection（`from_event_id` + `aggregate_type` 可選），完成日期：2026-05-26
 
 > 提升系統品質或開發效率，可排入下一個迭代。
 

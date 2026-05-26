@@ -1,0 +1,72 @@
+/* ── Rebuild button ────────────────────────── */
+
+.audit-rebuild-btn {
+  background: transparent;
+  border: 1px solid rgba(192, 112, 112, 0.4);
+  color: #c07070;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 6px 16px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.audit-rebuild-btn:hover:not(:disabled) {
+  background: rgba(192, 112, 112, 0.1);
+  color: #d08888;
+}
+
+.audit-rebuild-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Status message ───────────────────────── */
+
+.audit-msg--ok  { color: #6ab88a; font-size: 12px; margin: 0 0 16px; }
+.audit-msg--err { color: #c07070; font-size: 12px; margin: 0 0 16px; }
+
+/* ── Exchange rate form ───────────────────── */
+
+.exrate-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.exrate-field .form-input {
+  width: 120px;
+}
+
+.btn-success {
+  background: transparent;
+  border: 1px solid rgba(106, 184, 138, 0.4);
+  color: #6ab88a;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 9px 20px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.2s;
+  align-self: flex-end;
+}
+
+.btn-success:hover:not(:disabled) { background: rgba(106, 184, 138, 0.1); }
+.btn-success:disabled { opacity: 0.38; cursor: not-allowed; }
+
+.exrate-msg--ok  { color: #6ab88a; font-size: 12px; margin: 8px 0 0; }
+.exrate-msg--err { color: #c07070; font-size: 12px; margin: 8px 0 0; }
+
+/* ── Source badge ─────────────────────────── */
+
+.exrate-source--manual {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #c0a060;
+}
+
+.exrate-source--import {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: #5b8fe8;
+}

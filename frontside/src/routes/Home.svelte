@@ -28,6 +28,8 @@
   import FixedAsset         from '../views/FixedAsset.svelte';
   import Template           from '../views/Template.svelte';
   import AccountAnalysis    from '../views/AccountAnalysis.svelte';
+  import Audit              from '../views/Audit.svelte';
+  import ExchangeRate       from '../views/ExchangeRate.svelte';
 
   interface SubMenuItem { label: string; path: string; }
   interface MenuItem    { label: string; path: string; key?: string; children?: SubMenuItem[]; }
@@ -56,6 +58,8 @@
       { label: '帳戶類型設定', path: '/home/settings/ledger-type' },
       { label: '資產類型設定', path: '/home/settings/asset-type' },
       { label: '範本管理',     path: '/home/settings/template' },
+      { label: '稽核查詢',     path: '/home/settings/audit' },
+      { label: '匯率管理',     path: '/home/settings/exchange-rate' },
     ]},
   ];
 
@@ -80,6 +84,8 @@
     '/home/settings/ledger-type':     LedgerTypeConfig,
     '/home/settings/asset-type':      AssetTypeConfig,
     '/home/settings/template':        Template,
+    '/home/settings/audit':           Audit,
+    '/home/settings/exchange-rate':   ExchangeRate,
   };
 
   let currentPath     = $state(window.location.hash.replace(/^#/, '') || '/home');
@@ -88,7 +94,7 @@
 
   const parentChildPaths: Record<string, string[]> = {
     reports:      ['/home/reports'],
-    settings:     ['/home/settings'],
+    settings:     ['/home/settings', '/home/settings/audit', '/home/settings/exchange-rate'],
     amortization: ['/home/installment', '/home/prepaid', '/home/fixed-asset'],
   };
 

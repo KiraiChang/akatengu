@@ -51,7 +51,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	fixedAsset := newFixedAssetHandler(db, logger)
 	template := newTemplateHandler(db, logger)
 	dashboard := newDashboardHandler(db, logger)
-	audit := newAuditHandler(db, logger)
+	audit := newAuditHandler(db, eventService, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -138,6 +138,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("GET /audit/checkpoint", audit.GetCheckpoints)
 	bizApi.HandleFunc("GET /audit/snapshot", audit.GetSnapshots)
 	bizApi.HandleFunc("GET /exchange-rate", audit.GetExchangeRates)
+	bizApi.HandleFunc("POST /audit/replay", audit.Replay)
 
 	return mux
 }
