@@ -19,6 +19,22 @@
 
 <!-- 新增問題時複製以下範本，依日期降冪排列 -->
 
+### [ISSUE-005] AccountSelect 根目錄層無結果：傳入 descendants 導致空下拉選單
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-26
+- **嚴重程度**：High
+- **位置**：`src/views/Ledger.svelte:48`（`filteredAccounts` derived）
+- **描述**：
+  `Ledger.svelte` 的帳本新增 Modal 依 LedgerTypeConfig 過濾可選科目時，將 `filteredAccounts` 設為 `activeLedgerTypeConfig.descendants`（配置科目下的所有子孫）。但 `AccountSelect` 元件在開啟時以 `currentParentId = null` 為初始狀態，只顯示 `parent_id === null` 的頂層科目。由於 `descendants` 內所有科目的 `parent_id` 均非 `null`（它們都指向其父科目），導致初始畫面一筆都不顯示，下拉選單完全空白。
+- **影響範圍**：
+  帳本管理→新增帳戶→選擇現有科目，在 LedgerTypeConfig 已配置（`account_id` 非空、`descendants` 非空）的情況下，科目下拉選單無任何選項，使用者無法新增帳戶。
+- **解決方向**：
+  在 `filteredAccounts` 中除了 `descendants` 外，還必須加入從根節點到配置科目的完整祖先鏈（ancestors）。這樣 AccountSelect 在根目錄層就能找到頂層祖先，使用者可逐層鑽入，最終到達配置科目，再看到所有 descendants。
+- **解決紀錄**：
+  將 `filteredAccounts` 與 `filteredParentAccounts` 的計算邏輯改為 IIFE：從 `activeLedgerTypeConfig.account_id` 出發，沿 `parent_id` 向上追溯所有祖先，最終回傳 `[...path.reverse(), ...descendants]`。`filteredParentAccounts` 設為與 `filteredAccounts` 相同（兩者本質上是同一份祖先 + 子孫集合）。`npm run check` 與 `npm run build` 均無錯誤。
+
+---
+
 ### [ISSUE-004] Svelte 唯讀展示用 `<label>` 未關聯控制項導致 a11y 警告
 - **狀態**：🟢 Resolved
 - **日期**：2026-05-19

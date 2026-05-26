@@ -19,6 +19,53 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-26｜AccountSelect 根目錄層為空的根本原因與修法
+
+#### [DEBUG] 問題根源
+
+`AccountSelect` 開啟時 `currentParentId = null`，`currentItems` 計算為：
+
+```typescript
+accounts.filter(a => (a.parent_id ?? null) === currentParentId)
+// 等同於：只顯示 parent_id 為 null 的科目（頂層科目）
+```
+
+若傳入的 `accounts` 全是子孫科目（`descendants`），所有科目的 `parent_id !== null`，結果為空陣列 → 顯示「無符合科目」。
+
+#### 修法模式
+
+需包含**從根節點到配置科目的完整祖先鏈**，AccountSelect 才能從根出發正常鑽取：
+
+```typescript
+const filteredAccounts = $derived((() => {
+  if (!activeLedgerTypeConfig?.account_id || activeLedgerTypeConfig.descendants.length === 0) {
+    return allAccounts;
+  }
+  const path: Account[] = [];
+  let cur: string | null = activeLedgerTypeConfig.account_id;
+  while (cur) {
+    const a = allAccounts.find(x => x.account_id === cur);
+    if (!a) break;
+    path.push(a);
+    cur = a.parent_id ?? null;
+  }
+  return [...path.reverse(), ...activeLedgerTypeConfig.descendants];
+})());
+```
+
+回傳結果：`[根, 中間層, ..., 配置科目, ...descendants]`，AccountSelect 每一層都能找到對應的 `parent_id` 而正確顯示。
+
+#### Investment.svelte 的同名排查結論
+
+`Investment.svelte` **不存在同樣的 bug**，原因：
+
+- 投資新增/編輯 Modal 的 `AccountSelect` 直接使用完整 `accounts`（全件、未過濾），不受 LedgerTypeConfig 影響
+- 買入/賣出 Modal 使用 `LedgerSelectSection`，其內部呼叫 `NewLedgerFormSection` 時也傳入完整 `accounts`，無過濾步驟
+
+現存缺口：`LedgerSelectSection` 目前不支援 `accountsForParent` prop，因此 Investment / Installment 的帳戶新增 Modal 無法套用 LedgerTypeConfig 科目限制（已記錄於 `doc/TODO.md`）。
+
+---
+
 ### 2026-05-26｜稽核查詢與匯率管理實作
 
 #### 匯率手動輸入透過 EventRateUpdated 事件

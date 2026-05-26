@@ -45,19 +45,23 @@
   let newAccountForm     = $state<NewAccountForm>(emptyNewAccountForm());
 
   const activeLedgerTypeConfig = $derived(ledgerTypeConfigMap.get(newLedgerForm.type) ?? null);
-  const filteredAccounts = $derived(
-    activeLedgerTypeConfig?.account_id && activeLedgerTypeConfig.descendants.length > 0
-      ? activeLedgerTypeConfig.descendants
-      : allAccounts
-  );
-  const filteredParentAccounts = $derived(
-    activeLedgerTypeConfig?.account_id && activeLedgerTypeConfig.descendants.length > 0
-      ? [
-          ...allAccounts.filter(a => a.account_id === activeLedgerTypeConfig.account_id),
-          ...activeLedgerTypeConfig.descendants,
-        ]
-      : allAccounts
-  );
+  // Build ancestor-inclusive list so AccountSelect tree navigation works:
+  // without ancestors, AccountSelect starts at root (parent_id=null) and finds nothing.
+  const filteredAccounts = $derived((() => {
+    if (!activeLedgerTypeConfig?.account_id || activeLedgerTypeConfig.descendants.length === 0) {
+      return allAccounts;
+    }
+    const path: Account[] = [];
+    let cur: string | null = activeLedgerTypeConfig.account_id;
+    while (cur) {
+      const a = allAccounts.find(x => x.account_id === cur);
+      if (!a) break;
+      path.push(a);
+      cur = a.parent_id ?? null;
+    }
+    return [...path.reverse(), ...activeLedgerTypeConfig.descendants];
+  })());
+  const filteredParentAccounts = $derived(filteredAccounts);
 
   let _prevLedgerType = $state<LedgerAccountType | ''>('');
   $effect(() => {
