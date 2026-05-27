@@ -117,3 +117,21 @@ SET account_id   = ?,
     updated_at   = datetime('now'),
     version      = version + 1
 WHERE ledger_id = ? AND merchant_id = ? AND version = ?;
+
+-- name: UpsertAccount :exec
+INSERT INTO accounts
+    (account_id, merchant_id, parent_id, name, type, normal_balance, currency, is_summary, is_active, note, version, cash_flow_category, updated_by, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,datetime('now'))
+    ON CONFLICT (account_id, merchant_id) DO UPDATE
+    SET parent_id          = excluded.parent_id,
+        name               = excluded.name,
+        type               = excluded.type,
+        normal_balance     = excluded.normal_balance,
+        currency           = excluded.currency,
+        is_summary         = excluded.is_summary,
+        is_active          = excluded.is_active,
+        note               = excluded.note,
+        version            = excluded.version,
+        cash_flow_category = excluded.cash_flow_category,
+        updated_by         = excluded.updated_by,
+        updated_at         = datetime('now');

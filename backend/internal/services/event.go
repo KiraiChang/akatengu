@@ -176,7 +176,8 @@ func (s *EventStoreService) Replay(ctx context.Context, fromEventID int64, aggre
 			return nil, fmt.Errorf("dispatch event %d: %w", event.EventId, err)
 		}
 		ct.Event = event
-
+		ct.MerchantID = event.MerchantID
+		ct.UpdatedBy = *event.UpdatedBy
 		if err := s.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
 			for _, proj := range s.projections {
 				if err := proj.Apply(ctx, tx, event.EventType, ct); err != nil {

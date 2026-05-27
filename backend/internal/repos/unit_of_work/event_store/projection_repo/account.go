@@ -10,6 +10,11 @@ type sqlxAccountRepo struct {
 	q *sqlcdb.Queries
 }
 
+func (r *sqlxAccountRepo) UpsertAccount(ctx context.Context, p projection.Account) error {
+	err := r.q.UpsertAccount(ctx, p.ToUpsertAccountParams())
+	return err
+}
+
 func NewAccountRepo(q *sqlcdb.Queries) AccountRepo {
 	return &sqlxAccountRepo{
 		q: q,

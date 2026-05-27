@@ -9,6 +9,7 @@ import (
 //dbmap:sqlcdb=Account
 //dbmap:sqlcdb=CreateAccountParams
 //dbmap:sqlcdb=UpdateAccountParams
+//dbmap:sqlcdb=UpsertAccountParams
 //dbmap:sqlcdb=GetAccountPagedRow
 //dbmap:sqlcdb=GetAccountRow
 //dbmap:sqlcdb=GetChildrenAccountRow

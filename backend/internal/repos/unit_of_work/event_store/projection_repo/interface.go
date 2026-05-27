@@ -31,6 +31,7 @@ type AccountRepo interface {
 	// account
 	CreateAccount(ctx context.Context, p projection.Account) error
 	UpdateAccount(ctx context.Context, p projection.Account) error
+	UpsertAccount(ctx context.Context, p projection.Account) error
 	CreateLedgerAccount(ctx context.Context, p projection.LedgerAccount) error
 	UpdateLedgerAccount(ctx context.Context, p projection.LedgerAccount) error
 }

@@ -42,7 +42,7 @@ func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx ev
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	if err := tx.Projection.AccountRepo.CreateAccount(ctx, projection.Account{
+	if err := tx.Projection.AccountRepo.UpsertAccount(ctx, projection.Account{
 		MerchantID:       ct.MerchantID,
 		AccountId:        p.AccountId,
 		ParentId:         p.ParentId,
@@ -55,6 +55,7 @@ func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx ev
 		Note:             p.Note,
 		CashFlowCategory: p.CashFlowCategory,
 		UpdatedBy:        updatedBy,
+		Version:          0,
 	}); err != nil {
 		return err
 	}
@@ -97,7 +98,7 @@ func (s *AccountProjectionService) applyAccountUpdated(ctx context.Context, tx e
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	if err := tx.Projection.AccountRepo.UpdateAccount(ctx, projection.Account{
+	if err := tx.Projection.AccountRepo.UpsertAccount(ctx, projection.Account{
 		MerchantID:       ct.MerchantID,
 		AccountId:        p.AccountId,
 		ParentId:         p.ParentId,
