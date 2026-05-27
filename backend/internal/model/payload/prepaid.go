@@ -1,6 +1,10 @@
 package payload
 
 import (
+	"akatengu/internal/enums"
+	"akatengu/internal/model/db/projection"
+	"fmt"
+
 	"github.com/shopspring/decimal"
 )
 
@@ -76,4 +80,62 @@ func (p PrepaidDisposedPayload) Validate() error {
 		errs = append(errs, "disposal_date is required")
 	}
 	return joinErrors(errs)
+}
+
+// AmortizationAmount calculates this period's amortization amount.
+// Last period gets the remainder to avoid decimal drift.
+func AmortizationAmount(total decimal.Decimal, periods int64, amortizedPeriods int64, alreadyAmortized decimal.Decimal) decimal.Decimal {
+	remaining := periods - amortizedPeriods
+	if remaining <= 1 {
+		return total.Sub(alreadyAmortized)
+	}
+	return total.Div(decimal.NewFromInt(periods)).Truncate(6)
+}
+
+// BuildPrepaidCreatedTransaction assembles the journal entry payload for EventPrepaidCreated.
+// Called by the pipeline factory; the result is stored in PrepaidCreatedState.Transaction.
+func BuildPrepaidCreatedTransaction(p PrepaidCreatedPayload, ledger *projection.LedgerAccount) TransactionCreatedPayload {
+	cfOperating := enums.CashFlowCategoryOperating.Enum()
+	ledgerId := ledger.LedgerId
+	return TransactionCreatedPayload{
+		TransactionDate: p.StartDate,
+		Description:     fmt.Sprintf("預付費用 %s", p.Name),
+		Currency:        "TWD",
+		Entries: []TransactionEntryPayload{
+			{AccountId: p.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.TotalAmount},
+		},
+	}
+}
+
+// BuildPrepaidAmortizedTransaction assembles the journal entry payload for EventPrepaidAmortized.
+// Called by the pipeline factory; the result is stored in PrepaidAmortizedState.Transaction.
+func BuildPrepaidAmortizedTransaction(p PrepaidAmortizedPayload, prepaid *projection.Prepaid) TransactionCreatedPayload {
+	cfOperating := enums.CashFlowCategoryOperating.Enum()
+	amortAmount := AmortizationAmount(prepaid.TotalAmount, prepaid.Periods, prepaid.AmortizedPeriods, prepaid.AmortizedAmount)
+	return TransactionCreatedPayload{
+		TransactionDate: p.PeriodDate + "-01",
+		Description:     fmt.Sprintf("預付費用攤提 %s %s", prepaid.Name, p.PeriodDate),
+		Currency:        "TWD",
+		Entries: []TransactionEntryPayload{
+			{AccountId: prepaid.ExpenseAccountID, Debit: amortAmount, Credit: decimal.Zero},
+			{AccountId: prepaid.AccountID, Debit: decimal.Zero, Credit: amortAmount, CashFlowCategory: &cfOperating},
+		},
+	}
+}
+
+// BuildPrepaidDisposedTransaction assembles the journal entry payload for EventPrepaidDisposed.
+// Called by the pipeline factory; the result is stored in PrepaidDisposedState.Transaction.
+func BuildPrepaidDisposedTransaction(p PrepaidDisposedPayload, prepaid *projection.Prepaid) TransactionCreatedPayload {
+	cfOperating := enums.CashFlowCategoryOperating.Enum()
+	remaining := prepaid.TotalAmount.Sub(prepaid.AmortizedAmount)
+	return TransactionCreatedPayload{
+		TransactionDate: p.DisposalDate,
+		Description:     fmt.Sprintf("預付費用提前終止 %s", prepaid.Name),
+		Currency:        "TWD",
+		Entries: []TransactionEntryPayload{
+			{AccountId: prepaid.ExpenseAccountID, Debit: remaining, Credit: decimal.Zero},
+			{AccountId: prepaid.AccountID, Debit: decimal.Zero, Credit: remaining, CashFlowCategory: &cfOperating},
+		},
+	}
 }

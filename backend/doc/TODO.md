@@ -44,10 +44,10 @@
 **Running Balance 系統性缺口（AccountBalanceRealtimeProjection）**
 
 - [ ] [Feature] `EventInvestmentMarked` 的 running balance 更新 — `UnrealizedMarkedState.Transaction` 已存在，但 `TransactionProjectionService` 未處理此事件（分錄也未寫入），需先確認 MARK 分錄應由哪個 Projection 負責再一起修正，關聯：ISSUE-014
-- [ ] [Feature] Installment 事件 running balance 更新 — `EventInstallmentCreated` / `EventInstallmentPeriodPaid` 的 state 需確認欄位後補入 `AccountBalanceRealtimeProjection`，關聯：ISSUE-014
-- [ ] [Feature] Prepaid 事件 running balance 更新 — `EventPrepaidCreated` / `EventPrepaidAmortized` / `EventPrepaidDisposed`，關聯：ISSUE-014
-- [ ] [Feature] FixedAsset 事件 running balance 更新 — `EventAssetPurchased` / `EventAssetDepreciated` / `EventAssetDisposed`，關聯：ISSUE-014
-- [ ] [Feature] PeriodClose 事件 running balance 更新 — `EventPeriodAnnualClosed` / `EventPeriodAnnualReopened`（各建立 2 筆 txn），關聯：ISSUE-014
+- [x] [Feature] Installment 事件 running balance 更新 — `EventInstallmentCreated` / `EventInstallmentPeriodPaid`，完成日期：2026-05-27，關聯：ISSUE-014，ADR-017
+- [x] [Feature] Prepaid 事件 running balance 更新 — `EventPrepaidCreated` / `EventPrepaidAmortized` / `EventPrepaidDisposed`，完成日期：2026-05-27，關聯：ISSUE-014，ADR-017
+- [x] [Feature] FixedAsset 事件 running balance 更新 — `EventAssetPurchased` / `EventAssetDepreciated` / `EventAssetDisposed`，完成日期：2026-05-27，關聯：ISSUE-014，ADR-017
+- [x] [Feature] PeriodClose 事件 running balance 更新 — `EventPeriodAnnualClosed` / `EventPeriodAnnualReopened`（各建立 2 筆 txn），完成日期：2026-05-27，關聯：ISSUE-014，ADR-017
 
 **多租戶事件核心隔離（Merchant ID in Event Core）**
 

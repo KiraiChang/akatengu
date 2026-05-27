@@ -176,3 +176,67 @@ func (p InstallmentPeriodPaidPayload) Validate() error {
 
 	return joinErrors(errs)
 }
+
+// BuildInstallmentCreatedTransaction assembles the journal entry payload for EventInstallmentCreated.
+// Called by the pipeline factory; the result is stored in InstallmentCreatedState.Transaction.
+func BuildInstallmentCreatedTransaction(p InstallmentCreatedPayload, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
+	var entries []TransactionEntryPayload
+	ledgerId := p.LedgerId
+	switch p.InterestType.Val() {
+	case enums.InterestTypeFree:
+		entries = []TransactionEntryPayload{
+			{AccountId: p.AccountId, Debit: p.Amount, Credit: decimal.Zero},
+			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.Amount},
+		}
+	case enums.InterestTypeFixedRate:
+		interest := decimal.Zero
+		for _, pmt := range payments {
+			interest = interest.Add(pmt.Interest)
+		}
+		entries = []TransactionEntryPayload{
+			{AccountId: p.AccountId, Debit: p.Amount, Credit: decimal.Zero},
+			{AccountId: sysAccountAssetPrepaidInterest, Debit: p.Amount, Credit: decimal.Zero},
+			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.Amount.Add(interest)},
+		}
+	default:
+		return TransactionCreatedPayload{}, fmt.Errorf("invalid interest type: %s", p.InterestType.Val())
+	}
+	return TransactionCreatedPayload{
+		TransactionDate: p.StartDate,
+		Description:     fmt.Sprintf("分期付款 %s", p.Memo),
+		Currency:        "TWD",
+		Entries:         entries,
+	}, nil
+}
+
+// BuildInstallmentPeriodPaidTransaction assembles the journal entry payload for EventInstallmentPeriodPaid.
+// Called by the pipeline factory; the result is stored in InstallmentPeriodPaidState.Transaction.
+func BuildInstallmentPeriodPaidTransaction(p InstallmentPeriodPaidPayload, installment *projection.Installment, payment *projection.InstallmentPayment, ledger *projection.LedgerAccount, paidLedger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, sysAccountExpenseInterestExpense string) (TransactionCreatedPayload, error) {
+	cfFin := enums.CashFlowCategoryFinancing.Enum()
+	var entries []TransactionEntryPayload
+	ledgerId := ledger.LedgerId
+	paidLedgerId := paidLedger.LedgerId
+	switch installment.InterestType.Val() {
+	case enums.InterestTypeFree:
+		entries = []TransactionEntryPayload{
+			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: payment.Amount, Credit: decimal.Zero, CashFlowCategory: &cfFin},
+			{AccountId: paidLedger.AccountId, LedgerId: &paidLedgerId, Debit: decimal.Zero, Credit: payment.Amount},
+		}
+	case enums.InterestTypeFixedRate:
+		totalAmount := payment.Amount.Add(payment.Interest)
+		entries = []TransactionEntryPayload{
+			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: payment.Amount, Credit: decimal.Zero, CashFlowCategory: &cfFin},
+			{AccountId: sysAccountAssetPrepaidInterest, Debit: decimal.Zero, Credit: payment.Interest},
+			{AccountId: sysAccountExpenseInterestExpense, Debit: payment.Interest, Credit: decimal.Zero},
+			{AccountId: paidLedger.AccountId, LedgerId: &paidLedgerId, Debit: decimal.Zero, Credit: totalAmount},
+		}
+	default:
+		return TransactionCreatedPayload{}, fmt.Errorf("invalid interest type: %s", installment.InterestType.Val())
+	}
+	return TransactionCreatedPayload{
+		TransactionDate: p.PaidDate,
+		Description:     fmt.Sprintf("每期還款 %s", installment.Description),
+		Currency:        "TWD",
+		Entries:         entries,
+	}, nil
+}

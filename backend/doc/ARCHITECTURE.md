@@ -35,6 +35,7 @@
 | [ADR-013](#adr-013-直接法現金流量表固定利率分期還款已知限制) | 直接法現金流量表：固定利率分期還款已知限制 | Accepted | 2026-05-22 |
 | [ADR-014](#adr-014-所有會計帳務異動必須透過事件溯源寫入查詢透過-queryrepo) | 所有會計帳務異動必須透過事件溯源寫入，查詢透過 query.Repo | Accepted | 2026-05-22 |
 | [ADR-016](#adr-016-分頁-api-實作規範) | 分頁 API 實作規範 | Accepted | 2026-05-25 |
+| [ADR-017](#adr-017-分錄組裝移至-pipeline-factory) | 分錄組裝移至 Pipeline Factory | Accepted | 2026-05-27 |
 
 ---
 
@@ -559,6 +560,37 @@
 - **後果**：
   - 正面：所有分頁 API 對外格式統一（`data` + `meta` 含 `total_count`、`total_pages`）；DB 只需一次查詢；前端接入規則固定。
   - 負面：`SetDefaults()` 強制 `PageSize` 上限為 100，若特定場景需要更大批次，需另行評估替代方案（如游標分頁）。
+
+---
+
+## ADR-017 分錄組裝移至 Pipeline Factory
+
+- **狀態**：Accepted
+- **日期**：2026-05-27
+- **背景**：
+  `AccountBalanceRealtimeProjection` 負責維護即時餘額，需要讀取每個事件的 journal entry 分錄。
+  對於 Installment / Prepaid / FixedAsset 等事件，分錄 entries 不存在 payload 中，而是由業務邏輯計算組裝。
+  初始方案是由 `TransactionProjectionService` 在 Projection 階段組裝，再透過 state pointer mutation 傳給 `AccountBalanceRealtimeProjection`，
+  但這造成兩個 Projection 之間的執行順序強依賴，容易在調整 `NewProjection()` 順序時靜默失效。
+
+- **決策**：
+  將分錄組裝邏輯從 `TransactionProjectionService` 移至 **Pipeline Factory**（`factory/installment.go`、`factory/prepaid.go`、`factory/asset.go`）：
+
+  1. 在 `payload/` 套件新增 builder 函數（`BuildXxxTransaction`），接受 DB model 物件，返回 `TransactionCreatedPayload`。
+  2. Factory 的 `Project()` 方法在完成 state 查詢後，呼叫對應 builder 並將結果存入 `c.Transaction`（Pipeline 階段，DB 交易開始前）。
+  3. `TransactionProjectionService` 讀取 `st.Transaction` 直接呼叫 `applyTransaction` 寫入分錄，不再自行組裝 entries。
+  4. `AccountBalanceRealtimeProjection` 透過 `applyStateTransaction[S txnHolder]` 讀取 `st.Transaction` 更新 running balance。
+  5. 計算輔助函數 `AmortizationAmount`、`DepreciationAmount` 提升為 `payload/` 套件公開函數，`PrepaidProjectionService` 與 `FixedAssetProjectionService` 也改用這些公開函數（單一來源）。
+
+  兩個 Projection 現在各自**獨立**讀取 factory 預建的 `st.Transaction`，執行順序不再有強依賴。
+
+- **替代方案**：
+  - **State Pointer Mutation**（舊方案）：`TransactionProjectionService` 組裝後注入 `st.Transaction`，後續 Projection 讀取。Projection 執行順序必須固定，新增事件時兩處都需更新，靜默失效風險高，已廢棄。
+  - **DB 查詢回查**：`AccountBalanceRealtimeProjection` 以 txnId 查 `journal_entries`。txnId 在同一 TX 內不易取得，且增加 DB 往返，不採用。
+
+- **後果**：
+  - **正面**：分錄組裝邏輯集中在 `payload/` builder 函數，可獨立單元測試；Projection 互不依賴，執行順序可自由調整；新增事件只需在 factory + 一個 Projection（各加一行）。
+  - **負面**：`AmortizationAmount`（攤提金額）和 `DepreciationAmount`（折舊金額）在 factory 和 `TransactionProjectionService`（`InsertPrepaidAmortization` / `InsertFixedAssetDepreciation` 的 Amount 欄位）各計算一次，但函數為純函數且結果一致，可接受。
 
 ---
 

@@ -38,6 +38,7 @@ func (e *eventPrepaidCreatedProjector) Project(ctx context.Context, ct *pipeline
 		return fmt.Errorf("ledger not found")
 	}
 	c.Ledger = ledger
+	c.Transaction = payload.BuildPrepaidCreatedTransaction(p, c.Ledger)
 
 	return nil
 }
@@ -82,6 +83,7 @@ func (e *eventPrepaidAmortizedProjector) Project(ctx context.Context, ct *pipeli
 		return fmt.Errorf("prepaid is already fully amortized")
 	}
 	c.Prepaid = prepaid
+	c.Transaction = payload.BuildPrepaidAmortizedTransaction(p, c.Prepaid)
 
 	return nil
 }
@@ -119,6 +121,7 @@ func (e *eventPrepaidDisposedProjector) Project(ctx context.Context, ct *pipelin
 		return fmt.Errorf("prepaid is not active")
 	}
 	c.Prepaid = prepaid
+	c.Transaction = payload.BuildPrepaidDisposedTransaction(p, c.Prepaid)
 
 	return nil
 }

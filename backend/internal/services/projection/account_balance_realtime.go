@@ -12,6 +12,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// Transaction payload for Installment/Prepaid/Asset events is assembled by the pipeline factory
+// (before the DB transaction begins) and stored in ct.State.Transaction. Both this projection and
+// TransactionProjectionService read from that pre-built field independently — no ordering constraint.
+
 type AccountBalanceRealtimeProjection struct{}
 
 func (s *AccountBalanceRealtimeProjection) Name() string {
@@ -33,6 +37,30 @@ func (s *AccountBalanceRealtimeProjection) Apply(ctx context.Context, tx event_s
 		return s.applyInvestmentSold(ctx, tx, ct)
 	case event_types.EventDividendReceived:
 		return s.applyDividendReceived(ctx, tx, ct)
+
+	case event_types.EventInstallmentCreated:
+		return applyStateTransaction[state.InstallmentCreatedState](s, ctx, tx, ct)
+	case event_types.EventInstallmentPeriodPaid:
+		return applyStateTransaction[state.InstallmentPeriodPaidState](s, ctx, tx, ct)
+
+	case event_types.EventPrepaidCreated:
+		return applyStateTransaction[state.PrepaidCreatedState](s, ctx, tx, ct)
+	case event_types.EventPrepaidAmortized:
+		return applyStateTransaction[state.PrepaidAmortizedState](s, ctx, tx, ct)
+	case event_types.EventPrepaidDisposed:
+		return applyStateTransaction[state.PrepaidDisposedState](s, ctx, tx, ct)
+
+	case event_types.EventAssetPurchased:
+		return applyStateTransaction[state.AssetPurchasedState](s, ctx, tx, ct)
+	case event_types.EventAssetDepreciated:
+		return applyStateTransaction[state.AssetDepreciatedState](s, ctx, tx, ct)
+	case event_types.EventAssetDisposed:
+		return applyStateTransaction[state.AssetDisposedState](s, ctx, tx, ct)
+
+	case event_types.EventPeriodAnnualClosed:
+		return s.applyPeriodAnnualClosed(ctx, tx, ct)
+	case event_types.EventPeriodAnnualReopened:
+		return s.applyPeriodAnnualReopened(ctx, tx, ct)
 	}
 	return nil
 }
@@ -98,6 +126,43 @@ func (s *AccountBalanceRealtimeProjection) applyCorrected(ctx context.Context, t
 		}
 	}
 	return s.applyDeltas(ctx, tx, ct.MerchantID, deltas, decimal.NewFromInt(-1))
+}
+
+// txnHolder is implemented by state structs that expose a pre-assembled Transaction via pointer mutation from TransactionProjectionService.
+type txnHolder interface {
+	GetTransaction() payload.TransactionCreatedPayload
+}
+
+// applyStateTransaction is a package-level generic function (Go does not allow generic methods).
+func applyStateTransaction[S txnHolder](proj *AccountBalanceRealtimeProjection, ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	st, err := checkAndGetState[S](ct)
+	if err != nil {
+		return err
+	}
+	p := (*st).GetTransaction()
+	return proj.applyFromTxnPayload(ctx, tx, ct.MerchantID, &p)
+}
+
+func (s *AccountBalanceRealtimeProjection) applyPeriodAnnualClosed(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	st, err := checkAndGetState[state.PeriodAnnualClosedState](ct)
+	if err != nil {
+		return err
+	}
+	if err := s.applyFromTxnPayload(ctx, tx, ct.MerchantID, &st.ClosedTxn); err != nil {
+		return err
+	}
+	return s.applyFromTxnPayload(ctx, tx, ct.MerchantID, &st.OpenedTxn)
+}
+
+func (s *AccountBalanceRealtimeProjection) applyPeriodAnnualReopened(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	st, err := checkAndGetState[state.PeriodAnnualReopenedState](ct)
+	if err != nil {
+		return err
+	}
+	if err := s.applyFromTxnPayload(ctx, tx, ct.MerchantID, &st.ReverseClosedTxn); err != nil {
+		return err
+	}
+	return s.applyFromTxnPayload(ctx, tx, ct.MerchantID, &st.ReverseOpenedTxn)
 }
 
 func (s *AccountBalanceRealtimeProjection) applyInvestmentBought(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {

@@ -2,6 +2,8 @@ package payload
 
 import (
 	"akatengu/internal/enums"
+	"akatengu/internal/model/db/projection"
+	"fmt"
 
 	"github.com/shopspring/decimal"
 )
@@ -110,4 +112,101 @@ func (p AssetDisposedPayload) Validate() error {
 		errs = append(errs, "loss_account_id is required")
 	}
 	return joinErrors(errs)
+}
+
+// DepreciationAmount calculates this period's straight-line depreciation.
+// Last period gets the remainder to avoid decimal drift.
+func DepreciationAmount(cost, residualValue decimal.Decimal, usefulLifeMonths, depreciatedPeriods int64, totalDepreciated decimal.Decimal) decimal.Decimal {
+	depreciableAmount := cost.Sub(residualValue)
+	remaining := usefulLifeMonths - depreciatedPeriods
+	if remaining <= 1 {
+		return depreciableAmount.Sub(totalDepreciated)
+	}
+	return depreciableAmount.Div(decimal.NewFromInt(usefulLifeMonths)).Truncate(6)
+}
+
+// BuildAssetPurchasedTransaction assembles the journal entry payload for EventAssetPurchased.
+// Called by the pipeline factory; the result is stored in AssetPurchasedState.Transaction.
+func BuildAssetPurchasedTransaction(p AssetPurchasedPayload, ledger *projection.LedgerAccount) (TransactionCreatedPayload, error) {
+	cfInvesting := enums.CashFlowCategoryInvesting.Enum()
+	var entries []TransactionEntryPayload
+	switch p.PaymentType.Val() {
+	case enums.AssetPaymentTypeCash:
+		ledgerId := ledger.LedgerId
+		entries = []TransactionEntryPayload{
+			{AccountId: p.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.Cost},
+		}
+	case enums.AssetPaymentTypeLease:
+		entries = []TransactionEntryPayload{
+			{AccountId: p.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero},
+			{AccountId: p.LiabilityAccountID, Debit: decimal.Zero, Credit: p.Cost},
+		}
+	default:
+		return TransactionCreatedPayload{}, fmt.Errorf("invalid payment type: %s", p.PaymentType.Val())
+	}
+	return TransactionCreatedPayload{
+		TransactionDate: p.PurchaseDate,
+		Description:     fmt.Sprintf("固定資產購入 %s", p.Name),
+		Currency:        "TWD",
+		Entries:         entries,
+	}, nil
+}
+
+// BuildAssetDepreciatedTransaction assembles the journal entry payload for EventAssetDepreciated.
+// Called by the pipeline factory; the result is stored in AssetDepreciatedState.Transaction.
+func BuildAssetDepreciatedTransaction(p AssetDepreciatedPayload, asset *projection.FixedAsset) TransactionCreatedPayload {
+	cfOperating := enums.CashFlowCategoryOperating.Enum()
+	deprAmount := DepreciationAmount(asset.Cost, asset.ResidualValue, asset.UsefulLifeMonths, asset.DepreciatedPeriods, asset.TotalDepreciated)
+	return TransactionCreatedPayload{
+		TransactionDate: p.PeriodDate + "-01",
+		Description:     fmt.Sprintf("固定資產折舊 %s %s", asset.Name, p.PeriodDate),
+		Currency:        "TWD",
+		Entries: []TransactionEntryPayload{
+			{AccountId: asset.DepreciationExpenseAccountID, Debit: deprAmount, Credit: decimal.Zero},
+			{AccountId: asset.AccumDepreciationAccountID, Debit: decimal.Zero, Credit: deprAmount, CashFlowCategory: &cfOperating},
+		},
+	}
+}
+
+// BuildAssetDisposedTransaction assembles the journal entry payload for EventAssetDisposed.
+// Called by the pipeline factory; the result is stored in AssetDisposedState.Transaction.
+func BuildAssetDisposedTransaction(p AssetDisposedPayload, asset *projection.FixedAsset, proceedsLedger *projection.LedgerAccount) TransactionCreatedPayload {
+	cfInvesting := enums.CashFlowCategoryInvesting.Enum()
+	bookValue := asset.Cost.Sub(asset.TotalDepreciated)
+	gainLoss := p.Proceeds.Sub(bookValue)
+	entries := []TransactionEntryPayload{
+		{AccountId: asset.AccumDepreciationAccountID, Debit: asset.TotalDepreciated, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+		{AccountId: asset.AssetAccountID, Debit: decimal.Zero, Credit: asset.Cost, CashFlowCategory: &cfInvesting},
+	}
+	if p.Proceeds.GreaterThan(decimal.Zero) && proceedsLedger != nil {
+		ledgerId := proceedsLedger.LedgerId
+		entries = append(entries, TransactionEntryPayload{
+			AccountId: proceedsLedger.AccountId,
+			LedgerId:  &ledgerId,
+			Debit:     p.Proceeds,
+			Credit:    decimal.Zero,
+		})
+	}
+	if gainLoss.GreaterThan(decimal.Zero) {
+		entries = append(entries, TransactionEntryPayload{
+			AccountId:        p.GainAccountID,
+			Credit:           gainLoss,
+			Debit:            decimal.Zero,
+			CashFlowCategory: &cfInvesting,
+		})
+	} else if gainLoss.LessThan(decimal.Zero) {
+		entries = append(entries, TransactionEntryPayload{
+			AccountId:        p.LossAccountID,
+			Debit:            gainLoss.Abs(),
+			Credit:           decimal.Zero,
+			CashFlowCategory: &cfInvesting,
+		})
+	}
+	return TransactionCreatedPayload{
+		TransactionDate: p.DisposalDate,
+		Description:     fmt.Sprintf("固定資產處分 %s", asset.Name),
+		Currency:        "TWD",
+		Entries:         entries,
+	}
 }

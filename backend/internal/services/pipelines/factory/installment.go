@@ -56,6 +56,12 @@ func (e *eventInstallmentCreatedProjector) Project(ctx context.Context, ct *pipe
 
 	c.SysAccountAssetPrepaidInterest = code
 
+	txn, err := payload.BuildInstallmentCreatedTransaction(p, c.Ledger, c.SysAccountAssetPrepaidInterest, c.InstallmentPayments)
+	if err != nil {
+		return err
+	}
+	c.Transaction = txn
+
 	return nil
 }
 
@@ -143,6 +149,12 @@ func (e *eventInstallmentPeriodPaidProjector) Project(ctx context.Context, ct *p
 	}
 
 	c.SysAccountExpenseInterestExpense = code
+
+	txn, err := payload.BuildInstallmentPeriodPaidTransaction(p, c.Installment, c.InstallmentPayments, c.Ledger, c.PaidLedger, c.SysAccountAssetPrepaidInterest, c.SysAccountExpenseInterestExpense)
+	if err != nil {
+		return err
+	}
+	c.Transaction = txn
 
 	return nil
 }

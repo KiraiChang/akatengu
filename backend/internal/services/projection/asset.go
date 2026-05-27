@@ -9,8 +9,6 @@ import (
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"
-
-	"github.com/shopspring/decimal"
 )
 
 // ─────────────────────────────────────────
@@ -75,7 +73,7 @@ func (s *FixedAssetProjectionService) applyDepreciated(ctx context.Context, tx e
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	deprAmount := thisDepreciationAmount(st.Asset.Cost, st.Asset.ResidualValue, st.Asset.UsefulLifeMonths, st.Asset.DepreciatedPeriods, st.Asset.TotalDepreciated)
+	deprAmount := payload.DepreciationAmount(st.Asset.Cost, st.Asset.ResidualValue, st.Asset.UsefulLifeMonths, st.Asset.DepreciatedPeriods, st.Asset.TotalDepreciated)
 
 	if err := tx.Projection.FixedAssetRepo.UpdateFixedAssetDepreciation(ctx, st.Asset.ID, ct.MerchantID, deprAmount, updatedBy); err != nil {
 		return err
@@ -102,14 +100,3 @@ func (s *FixedAssetProjectionService) applyDisposed(ctx context.Context, tx even
 	return nil
 }
 
-// thisDepreciationAmount calculates this period's straight-line depreciation.
-// Last period gets the remainder to avoid decimal drift.
-func thisDepreciationAmount(cost, residualValue decimal.Decimal, usefulLifeMonths, depreciatedPeriods int64, totalDepreciated decimal.Decimal) decimal.Decimal {
-	depreciableAmount := cost.Sub(residualValue)
-	remaining := usefulLifeMonths - depreciatedPeriods
-	if remaining <= 1 {
-		return depreciableAmount.Sub(totalDepreciated)
-	}
-	base := depreciableAmount.Div(decimal.NewFromInt(usefulLifeMonths)).Truncate(6)
-	return base
-}

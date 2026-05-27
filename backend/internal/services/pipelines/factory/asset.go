@@ -43,6 +43,12 @@ func (e *eventAssetPurchasedProjector) Project(ctx context.Context, ct *pipeline
 		c.Ledger = ledger
 	}
 
+	txn, err := payload.BuildAssetPurchasedTransaction(p, c.Ledger)
+	if err != nil {
+		return err
+	}
+	c.Transaction = txn
+
 	return nil
 }
 
@@ -86,6 +92,7 @@ func (e *eventAssetDepreciatedProjector) Project(ctx context.Context, ct *pipeli
 		return fmt.Errorf("fixed asset is already fully depreciated")
 	}
 	c.Asset = asset
+	c.Transaction = payload.BuildAssetDepreciatedTransaction(p, c.Asset)
 
 	return nil
 }
@@ -134,6 +141,8 @@ func (e *eventAssetDisposedProjector) Project(ctx context.Context, ct *pipelines
 		}
 		c.ProceedsLedger = ledger
 	}
+
+	c.Transaction = payload.BuildAssetDisposedTransaction(p, c.Asset, c.ProceedsLedger)
 
 	return nil
 }

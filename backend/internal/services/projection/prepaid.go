@@ -9,8 +9,6 @@ import (
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"
-
-	"github.com/shopspring/decimal"
 )
 
 // ─────────────────────────────────────────
@@ -73,7 +71,7 @@ func (s *PrepaidProjectionService) applyAmortized(ctx context.Context, tx event_
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	amortAmount := thisAmortizationAmount(st.Prepaid.TotalAmount, st.Prepaid.Periods, st.Prepaid.AmortizedPeriods, st.Prepaid.AmortizedAmount)
+	amortAmount := payload.AmortizationAmount(st.Prepaid.TotalAmount, st.Prepaid.Periods, st.Prepaid.AmortizedPeriods, st.Prepaid.AmortizedAmount)
 
 	newAmortized := st.Prepaid.AmortizedAmount.Add(amortAmount)
 	isLast := st.Prepaid.AmortizedPeriods+1 >= st.Prepaid.Periods
@@ -109,13 +107,3 @@ func (s *PrepaidProjectionService) applyDisposed(ctx context.Context, tx event_s
 	return nil
 }
 
-// thisAmortizationAmount calculates this period's amortization amount.
-// Last period gets the remainder to avoid decimal drift.
-func thisAmortizationAmount(total decimal.Decimal, periods int64, amortizedPeriods int64, alreadyAmortized decimal.Decimal) decimal.Decimal {
-	remaining := periods - amortizedPeriods
-	if remaining <= 1 {
-		return total.Sub(alreadyAmortized)
-	}
-	base := total.Div(decimal.NewFromInt(periods)).Truncate(6)
-	return base
-}

@@ -1,6 +1,9 @@
 package state
 
-import "akatengu/internal/model/db/projection"
+import (
+	"akatengu/internal/model/db/projection"
+	"akatengu/internal/model/payload"
+)
 
 // ─────────────────────────────────────────
 // InstallmentCreatedState
@@ -11,7 +14,10 @@ type InstallmentCreatedState struct {
 	Installment                    *projection.Installment
 	InstallmentPayments            []*projection.InstallmentPayment
 	SysAccountAssetPrepaidInterest string
+	Transaction                    payload.TransactionCreatedPayload // populated by factory/pipeline; read by TransactionProjectionService and AccountBalanceRealtimeProjection
 }
+
+func (s InstallmentCreatedState) GetTransaction() payload.TransactionCreatedPayload { return s.Transaction }
 
 // ─────────────────────────────────────────
 // InstallmentPeriodPaidState
@@ -24,4 +30,7 @@ type InstallmentPeriodPaidState struct {
 	InstallmentPayments              *projection.InstallmentPayment
 	SysAccountExpenseInterestExpense string
 	SysAccountAssetPrepaidInterest   string
+	Transaction                      payload.TransactionCreatedPayload // populated by factory/pipeline; read by TransactionProjectionService and AccountBalanceRealtimeProjection
 }
+
+func (s InstallmentPeriodPaidState) GetTransaction() payload.TransactionCreatedPayload { return s.Transaction }
