@@ -167,7 +167,7 @@ func (e eventPeriodAnnualClosedProjector) Project(ctx context.Context, ct *pipel
 	periodStart, periodEnd := monthRange(year)
 
 	// 3. 計算本年損益
-	is, err := e.query.Report.GetIncomeStatement(ctx, periodStart, periodEnd)
+	is, err := e.query.Report.GetIncomeStatementOnClose(ctx, periodStart, periodEnd)
 	if err != nil {
 		return fmt.Errorf("income statement: %w", err)
 	}

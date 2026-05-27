@@ -16,6 +16,7 @@ import (
 type ReportRepo interface {
 	GetBalanceSheet(ctx context.Context, reportDate string) (*report.BalanceSheet, error)
 	GetIncomeStatement(ctx context.Context, startDate, endDate string) (*report.IncomeStatement, error)
+	GetIncomeStatementOnClose(ctx context.Context, startDate, endDate string) (*report.IncomeStatement, error)
 	GetCashFlowStatement(ctx context.Context, startDate, endDate string) (*report.CashFlowStatement, error)
 	GetDirectCashFlowStatement(ctx context.Context, startDate, endDate string) (*report.DirectCashFlowStatement, error)
 	GetEquityStatement(ctx context.Context, startDate, endDate string) (*report.EquityStatement, error)
@@ -318,6 +319,136 @@ SELECT account_id, name, type, normal_balance, period_debit, period_credit, pare
     SELECT account_id, name, type, normal_balance, period_debit, period_credit, parent_id, has_child, depth FROM parent_period
 ) ORDER BY CASE type WHEN 'INCOME' THEN 1 WHEN 'EXPENSE' THEN 2 END, account_id`
 
+const queryIncomeStatementNoSnapOnClose = `
+SELECT
+    a.account_id,
+    a.name,
+    a.type,
+    a.normal_balance,
+    COALESCE(pe.period_debit, 0)  AS period_debit,
+    COALESCE(pe.period_credit, 0) AS period_credit,
+    a.parent_id
+FROM accounts a
+LEFT JOIN (
+    SELECT
+        je.account_id,
+        SUM(je.debit)  AS period_debit,
+        SUM(je.credit) AS period_credit
+    FROM journal_entries je
+    JOIN transactions t
+      ON t.txn_id = je.txn_id
+     AND t.status = 'ACTIVE'
+     AND t.txn_date >= :start_date
+     AND t.txn_date <= :end_date
+     AND t.merchant_id = :merchant_id
+    WHERE je.merchant_id = :merchant_id
+    GROUP BY je.account_id
+) pe
+ON pe.account_id = a.account_id
+WHERE a.is_active = 1
+  AND a.type IN ('INCOME', 'EXPENSE')
+  AND a.merchant_id = :merchant_id
+ORDER BY
+    CASE a.type
+        WHEN 'INCOME' THEN 1
+        WHEN 'EXPENSE' THEN 2
+    END,
+    a.account_id;`
+
+const queryIncomeStatementWithSnapsOnClose = `
+WITH snap_end AS (
+    SELECT
+        account_id,
+        debit_total,
+        credit_total
+    FROM account_balance_snapshots
+    WHERE closing_id = :end_id
+      AND merchant_id = :merchant_id
+),
+
+snap_pre AS (
+    SELECT
+        account_id,
+        debit_total,
+        credit_total
+    FROM account_balance_snapshots
+    WHERE closing_id = :period_id
+      AND merchant_id = :merchant_id
+),
+
+delta_end AS (
+    SELECT
+        je.account_id,
+        SUM(je.debit)  AS debit,
+        SUM(je.credit) AS credit
+    FROM journal_entries je
+    JOIN transactions t
+      ON t.txn_id = je.txn_id
+     AND t.status = 'ACTIVE'
+     AND t.txn_date > :end_end_date
+     AND t.txn_date <= :end_date
+     AND t.merchant_id = :merchant_id
+    WHERE je.merchant_id = :merchant_id
+    GROUP BY je.account_id
+),
+
+delta_pre AS (
+    SELECT
+        je.account_id,
+        SUM(je.debit)  AS debit,
+        SUM(je.credit) AS credit
+    FROM journal_entries je
+    JOIN transactions t
+      ON t.txn_id = je.txn_id
+     AND t.status = 'ACTIVE'
+     AND t.txn_date > :period_end_date
+     AND t.txn_date < :start_date
+     AND t.merchant_id = :merchant_id
+    WHERE je.merchant_id = :merchant_id
+    GROUP BY je.account_id
+)
+
+SELECT
+    a.account_id,
+    a.name,
+    a.type,
+    a.normal_balance,
+
+    (COALESCE(se.debit_total, 0) + COALESCE(de.debit, 0))
+    - (COALESCE(sp.debit_total, 0) + COALESCE(dp.debit, 0))
+    AS period_debit,
+
+    (COALESCE(se.credit_total, 0) + COALESCE(de.credit, 0))
+    - (COALESCE(sp.credit_total, 0) + COALESCE(dp.credit, 0))
+    AS period_credit,
+
+    a.parent_id
+
+FROM accounts a
+
+LEFT JOIN snap_end se
+       ON se.account_id = a.account_id
+
+LEFT JOIN snap_pre sp
+       ON sp.account_id = a.account_id
+
+LEFT JOIN delta_end de
+       ON de.account_id = a.account_id
+
+LEFT JOIN delta_pre dp
+       ON dp.account_id = a.account_id
+
+WHERE a.is_active = 1
+  AND a.type IN ('INCOME', 'EXPENSE')
+  AND a.merchant_id = :merchant_id
+
+ORDER BY
+    CASE a.type
+        WHEN 'INCOME' THEN 1
+        WHEN 'EXPENSE' THEN 2
+    END,
+    a.account_id;`
+
 // cfRawRow is the local scan target for cash flow account period changes.
 type cfRawRow struct {
 	AccountId        string          `db:"account_id"`
@@ -613,6 +744,87 @@ func (r *sqlcReportRepo) GetIncomeStatement(ctx context.Context, startDate, endD
 		case enums.AccountExpense:
 			is.Expenses = append(is.Expenses, isRow)
 			if !isRow.HasChild {
+				is.TotalExpenses = is.TotalExpenses.Add(amount)
+			}
+		}
+	}
+	is.NetIncome = is.TotalIncome.Sub(is.TotalExpenses)
+	return is, nil
+}
+
+func (r *sqlcReportRepo) GetIncomeStatementOnClose(ctx context.Context, startDate, endDate string) (*report.IncomeStatement, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	snapEnd, errEnd := r.q.GetLatestClosedPeriodBetween(ctx, sqlcdb.GetLatestClosedPeriodBetweenParams{
+		PeriodType: enums.PeriodMonthly.Enum(),
+		Start:      startDate,
+		End:        endDate,
+		MerchantID: merchantID,
+	})
+	snapPre, errPre := r.q.GetLatestClosedPeriodBefore(ctx, sqlcdb.GetLatestClosedPeriodBeforeParams{
+		PeriodType: enums.PeriodMonthly.Enum(),
+		PeriodEnd:  startDate,
+		MerchantID: merchantID,
+	})
+
+	if errEnd != nil && !errors.Is(errEnd, sql.ErrNoRows) {
+		return nil, errEnd
+	}
+	if errPre != nil && !errors.Is(errPre, sql.ErrNoRows) {
+		return nil, errPre
+	}
+
+	var rawRows []isRawRow
+	if errEnd == nil && errPre == nil {
+		params := map[string]any{
+			"end_id":          snapEnd.ClosingID,
+			"period_id":       snapPre.ClosingID,
+			"start_date":      startDate,
+			"period_end_date": snapPre.PeriodEnd,
+			"end_end_date":    snapEnd.PeriodEnd,
+			"end_date":        endDate,
+			"merchant_id":     merchantID,
+		}
+		query, args, err := sqlx.Named(queryIncomeStatementWithSnapsOnClose, params)
+		if err != nil {
+			return nil, err
+		}
+		query = r.db.Rebind(query)
+		if err := r.db.SelectContext(ctx, &rawRows, query, args...); err != nil {
+			return nil, err
+		}
+	} else {
+		params := map[string]any{
+			"merchant_id": merchantID,
+			"start_date":  startDate,
+			"end_date":    endDate,
+		}
+		query, args, err := sqlx.Named(queryIncomeStatementNoSnapOnClose, params)
+		if err != nil {
+			return nil, err
+		}
+
+		query = r.db.Rebind(query)
+
+		if err = r.db.SelectContext(ctx, &rawRows, query, args...); err != nil {
+			return nil, err
+		}
+	}
+
+	is := &report.IncomeStatement{StartDate: startDate, EndDate: endDate}
+	for _, row := range rawRows {
+		isRow, amount := isRowFromRaw(row)
+		switch row.Type.Val() {
+		case enums.AccountIncome:
+			is.Income = append(is.Income, isRow)
+			if amount.GreaterThan(decimal.Zero) {
+				is.TotalIncome = is.TotalIncome.Add(amount)
+			}
+		case enums.AccountExpense:
+			is.Expenses = append(is.Expenses, isRow)
+			if amount.GreaterThan(decimal.Zero) {
 				is.TotalExpenses = is.TotalExpenses.Add(amount)
 			}
 		}
