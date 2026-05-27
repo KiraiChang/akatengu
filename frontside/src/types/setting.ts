@@ -22,6 +22,7 @@ export interface AssetTypeAccountConfig {
   id:                          number;
   merchant_id:                 number;
   asset_type:                  AssetType;
+  account_id:                  string | null;
   realized_gain_account_id:    string;
   realized_loss_account_id:    string;
   unrealized_gain_account_id:  string;
@@ -34,7 +35,12 @@ export interface AssetTypeAccountConfig {
   version:                     number;
 }
 
+export interface AssetTypeAccountConfigResult extends AssetTypeAccountConfig {
+  descendants: Account[];
+}
+
 export interface UpdateAssetTypePayload {
+  account_id?:                 string | null;
   realized_gain_account_id:    string;
   realized_loss_account_id:    string;
   unrealized_gain_account_id:  string;

@@ -13,8 +13,8 @@
   import type { Account, CreateAccountRequest } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
   import type { PaginatedMeta } from '../types/pagination';
-  import { getLedgerAccountTypeConfigs } from '../api/setting';
-  import type { LedgerAccountTypeConfigResult } from '../types/setting';
+  import { getLedgerAccountTypeConfigs, getAssetTypeConfigs } from '../api/setting';
+  import type { LedgerAccountTypeConfigResult, AssetTypeAccountConfigResult } from '../types/setting';
 
   const PAGE_SIZE = 20;
 
@@ -336,6 +336,7 @@
   let txnCreateNewAccount   = $state(false);
   let txnNewAccountForm     = $state<NewAccountForm>(emptyNewAccountForm());
   let ledgerTypeConfigMap   = $state(new Map<string, LedgerAccountTypeConfigResult>());
+  let assetTypeConfigMap    = $state(new Map<AssetType, AssetTypeAccountConfigResult>());
 
   const isTxnValid = $derived(
     (txnCreateNewLedger
@@ -352,6 +353,23 @@
 
   const activeLedgers = $derived(ledgers.filter(l => l.is_active));
 
+  const activeInvAssetTypeConfig = $derived(assetTypeConfigMap.get(form.asset_type) ?? null);
+
+  const filteredInvAccounts = $derived((() => {
+    if (!activeInvAssetTypeConfig?.account_id || activeInvAssetTypeConfig.descendants.length === 0) {
+      return accounts;
+    }
+    const path: Account[] = [];
+    let cur: string | null = activeInvAssetTypeConfig.account_id;
+    while (cur) {
+      const a = accounts.find(x => x.account_id === cur);
+      if (!a) break;
+      path.push(a);
+      cur = a.parent_id ?? null;
+    }
+    return [...path.reverse(), ...activeInvAssetTypeConfig.descendants];
+  })());
+
   const activeTxnLedgerTypeConfig = $derived(ledgerTypeConfigMap.get(txnNewLedgerForm.type) ?? null);
   const filteredTxnAccounts = $derived((() => {
     if (!activeTxnLedgerTypeConfig?.account_id || activeTxnLedgerTypeConfig.descendants.length === 0) {
@@ -367,6 +385,15 @@
     }
     return [...path.reverse(), ...activeTxnLedgerTypeConfig.descendants];
   })());
+
+  let _prevInvAssetType = $state('');
+  $effect(() => {
+    const t = form.asset_type as string;
+    if (mode === 'create' && _prevInvAssetType !== '' && _prevInvAssetType !== t) {
+      form.account_id = '';
+    }
+    _prevInvAssetType = t;
+  });
 
   let _prevTxnLedgerType = $state('');
   $effect(() => {
@@ -397,7 +424,7 @@
   }
 
   async function openCreateModal(): Promise<void> {
-    await ensureAccounts();
+    await Promise.all([ensureAccounts(), ensureAssetTypeConfigs()]);
     mode             = 'create';
     editId           = 0;
     editVersion      = 0;
@@ -475,6 +502,15 @@
       try {
         const configs = await getLedgerAccountTypeConfigs();
         ledgerTypeConfigMap = new Map(configs.map(c => [c.type, c]));
+      } catch { /* 非致命 */ }
+    }
+  }
+
+  async function ensureAssetTypeConfigs(): Promise<void> {
+    if (assetTypeConfigMap.size === 0) {
+      try {
+        const configs = await getAssetTypeConfigs();
+        assetTypeConfigMap = new Map(configs.map(c => [c.asset_type, c]));
       } catch { /* 非致命 */ }
     }
   }
@@ -1084,7 +1120,7 @@
           {#if !createNewAccount}
             <div class="form-group">
               <AccountSelect
-                accounts={accounts}
+                accounts={filteredInvAccounts}
                 value={form.account_id}
                 placeholder="選擇投資關聯的會計科目…"
                 onselect={(id) => { form.account_id = id; }}

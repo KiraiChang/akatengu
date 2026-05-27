@@ -1,7 +1,7 @@
 import { apiFetch } from './http';
 import type {
   LedgerAccountTypeConfigResult,
-  AssetTypeAccountConfig,
+  AssetTypeAccountConfigResult,
   UpdateAssetTypePayload,
   LedgerAccountType,
   AssetType,
@@ -31,7 +31,7 @@ export const updateLedgerAccountTypeConfig = async (
   }
 };
 
-export const getAssetTypeConfigs = async (): Promise<AssetTypeAccountConfig[]> => {
+export const getAssetTypeConfigs = async (): Promise<AssetTypeAccountConfigResult[]> => {
   const res = await apiFetch('/api/setting/asset-type');
   if (!res.ok) {
     const p = await res.json();

@@ -2,7 +2,7 @@
   import { getAssetTypeConfigs, updateAssetTypeConfig } from '../api/setting';
   import { getAccountAll } from '../api/account';
   import AccountSelect from '../components/AccountSelect.svelte';
-  import type { AssetTypeAccountConfig, AssetType, UpdateAssetTypePayload } from '../types/setting';
+  import type { AssetTypeAccountConfigResult, AssetType, UpdateAssetTypePayload } from '../types/setting';
   import type { Account } from '../types/account';
 
   const ASSET_TYPE_LABELS: Record<AssetType, string> = {
@@ -14,6 +14,7 @@
   const ALL_ASSET_TYPES: AssetType[] = ['STOCK', 'FUND', 'GOLD', 'FX'];
 
   interface EditForm {
+    account_id:                  string;
     realized_gain_account_id:    string;
     realized_loss_account_id:    string;
     unrealized_gain_account_id:  string;
@@ -25,6 +26,7 @@
 
   function emptyEditForm(): EditForm {
     return {
+      account_id:                  '',
       realized_gain_account_id:    '',
       realized_loss_account_id:    '',
       unrealized_gain_account_id:  '',
@@ -35,7 +37,7 @@
     };
   }
 
-  let configs   = $state<AssetTypeAccountConfig[]>([]);
+  let configs   = $state<AssetTypeAccountConfigResult[]>([]);
   let accounts  = $state<Account[]>([]);
   let isLoading = $state(false);
   let error     = $state('');
@@ -78,6 +80,7 @@
     editingType = type;
     const cfg   = configMap.get(type);
     editForm = {
+      account_id:                  cfg?.account_id                  ?? '',
       realized_gain_account_id:    cfg?.realized_gain_account_id    ?? '',
       realized_loss_account_id:    cfg?.realized_loss_account_id    ?? '',
       unrealized_gain_account_id:  cfg?.unrealized_gain_account_id  ?? '',
@@ -101,6 +104,7 @@
     saveError = '';
     try {
       const payload: UpdateAssetTypePayload = {
+        account_id:                  editForm.account_id || null,
         realized_gain_account_id:    editForm.realized_gain_account_id,
         realized_loss_account_id:    editForm.realized_loss_account_id,
         unrealized_gain_account_id:  editForm.unrealized_gain_account_id,
@@ -150,6 +154,7 @@
       <thead>
         <tr>
           <th>資產類型</th>
+          <th>投資主科目</th>
           <th>已實現利得</th>
           <th>已實現損失</th>
           <th>未實現利得</th>
@@ -162,12 +167,13 @@
       </thead>
       <tbody>
         {#if isLoading && configs.length === 0}
-          <tr><td colspan="9" class="table-empty">載入中...</td></tr>
+          <tr><td colspan="10" class="table-empty">載入中...</td></tr>
         {:else}
           {#each ALL_ASSET_TYPES as type (type)}
             {@const cfg = configMap.get(type)}
             <tr>
               <td>{ASSET_TYPE_LABELS[type]}</td>
+              <td class="mono" style="font-size:11px;" title={cfg?.account_id ?? ''}>{acctName(cfg?.account_id)}</td>
               <td class="mono" style="font-size:11px;">{cfg?.realized_gain_account_id || '—'}</td>
               <td class="mono" style="font-size:11px;">{cfg?.realized_loss_account_id || '—'}</td>
               <td class="mono" style="font-size:11px;">{cfg?.unrealized_gain_account_id || '—'}</td>
@@ -204,6 +210,19 @@
         {#if saveError}
           <p class="query-error" role="alert" style="margin-bottom:16px;">{saveError}</p>
         {/if}
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="at-inv-account">投資主科目（選填）</label>
+            <AccountSelect
+              {accounts}
+              value={editForm.account_id}
+              placeholder="選填，用於過濾新增投資的關聯科目…"
+              onselect={(id) => { editForm.account_id = id; }}
+            />
+          </div>
+          <div class="form-group"></div>
+        </div>
 
         <div class="form-row">
           <div class="form-group">
