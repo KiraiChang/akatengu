@@ -41,6 +41,14 @@
 
 > 影響核心功能正確性或穩定性，應在近期處理。
 
+**Running Balance 系統性缺口（AccountBalanceRealtimeProjection）**
+
+- [ ] [Feature] `EventInvestmentMarked` 的 running balance 更新 — `UnrealizedMarkedState.Transaction` 已存在，但 `TransactionProjectionService` 未處理此事件（分錄也未寫入），需先確認 MARK 分錄應由哪個 Projection 負責再一起修正，關聯：ISSUE-014
+- [ ] [Feature] Installment 事件 running balance 更新 — `EventInstallmentCreated` / `EventInstallmentPeriodPaid` 的 state 需確認欄位後補入 `AccountBalanceRealtimeProjection`，關聯：ISSUE-014
+- [ ] [Feature] Prepaid 事件 running balance 更新 — `EventPrepaidCreated` / `EventPrepaidAmortized` / `EventPrepaidDisposed`，關聯：ISSUE-014
+- [ ] [Feature] FixedAsset 事件 running balance 更新 — `EventAssetPurchased` / `EventAssetDepreciated` / `EventAssetDisposed`，關聯：ISSUE-014
+- [ ] [Feature] PeriodClose 事件 running balance 更新 — `EventPeriodAnnualClosed` / `EventPeriodAnnualReopened`（各建立 2 筆 txn），關聯：ISSUE-014
+
 **多租戶事件核心隔離（Merchant ID in Event Core）**
 
 - [x] [Feature] Migration：event_store、aggregate_versions、snapshots 新增 `merchant_id` 欄位（含 Migration 20260526002）— 完成日期：2026-05-26

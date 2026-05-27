@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/payload"
+	"akatengu/internal/model/payload/state"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"
@@ -25,6 +26,13 @@ func (s *AccountBalanceRealtimeProjection) Apply(ctx context.Context, tx event_s
 		return s.applyVoided(ctx, tx, ct)
 	case event_types.EventTransactionCorrected:
 		return s.applyCorrected(ctx, tx, ct)
+
+	case event_types.EventInvestmentBought:
+		return s.applyInvestmentBought(ctx, tx, ct)
+	case event_types.EventInvestmentSold:
+		return s.applyInvestmentSold(ctx, tx, ct)
+	case event_types.EventDividendReceived:
+		return s.applyDividendReceived(ctx, tx, ct)
 	}
 	return nil
 }
@@ -90,6 +98,46 @@ func (s *AccountBalanceRealtimeProjection) applyCorrected(ctx context.Context, t
 		}
 	}
 	return s.applyDeltas(ctx, tx, ct.MerchantID, deltas, decimal.NewFromInt(-1))
+}
+
+func (s *AccountBalanceRealtimeProjection) applyInvestmentBought(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	st, err := checkAndGetState[state.InvestmentBoughtState](ct)
+	if err != nil {
+		return err
+	}
+	return s.applyFromTxnPayload(ctx, tx, ct.MerchantID, &st.Transaction)
+}
+
+func (s *AccountBalanceRealtimeProjection) applyInvestmentSold(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	st, err := checkAndGetState[state.InvestmentSoldState](ct)
+	if err != nil {
+		return err
+	}
+	return s.applyFromTxnPayload(ctx, tx, ct.MerchantID, &st.Transaction)
+}
+
+func (s *AccountBalanceRealtimeProjection) applyDividendReceived(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	st, err := checkAndGetState[state.DividendReceivedState](ct)
+	if err != nil {
+		return err
+	}
+	if st.Transaction == nil {
+		return nil
+	}
+	return s.applyFromTxnPayload(ctx, tx, ct.MerchantID, st.Transaction)
+}
+
+func (s *AccountBalanceRealtimeProjection) applyFromTxnPayload(ctx context.Context, tx event_store.EventStoreRepositories, merchantID int64, p *payload.TransactionCreatedPayload) error {
+	deltas := make([]balanceDelta, len(p.Entries))
+	for i, e := range p.Entries {
+		deltas[i] = balanceDelta{
+			accountId: e.AccountId,
+			ledgerId:  e.LedgerId,
+			debit:     e.Debit,
+			credit:    e.Credit,
+		}
+	}
+	return s.applyDeltas(ctx, tx, merchantID, deltas, decimal.NewFromInt(1))
 }
 
 // applyDeltas applies (sign * delta) to all touched accounts, their ancestors, and ledgers.

@@ -297,6 +297,38 @@
 
 ---
 
+### [ISSUE-014] AccountBalanceRealtimeProjection 未處理投資事件，running balance 未更新
+
+- **狀態**：🟢 Resolved（投資三事件；其餘事件見 TODO）
+- **日期**：2026-05-27
+- **嚴重程度**：High
+- **位置**：`internal/services/projection/account_balance_realtime.go`
+- **描述**：
+  `AccountBalanceRealtimeProjection.Apply` 的 switch 只處理三個基本交易事件：
+  `EventTransactionCreated`、`EventTransactionVoided`、`EventTransactionCorrected`。
+  其餘所有透過 `TransactionProjectionService.applyTransaction` 產生分錄的事件，
+  雖然 journal_entries 被正確寫入，但 `account_running_balance` 與 `ledger_running_balance`
+  的 Upsert 從未被呼叫，導致即時餘額永遠不更新。
+  受影響的事件類型（完整清單）：
+  - `EventInvestmentBought` / `EventInvestmentSold` / `EventDividendReceived`（**本次修正**）
+  - `EventInvestmentMarked`（`UnrealizedMarkedState.Transaction != nil` 但 TransactionProjectionService 亦未處理，屬複合 bug）
+  - `EventInstallmentCreated` / `EventInstallmentPeriodPaid`
+  - `EventPrepaidCreated` / `EventPrepaidAmortized` / `EventPrepaidDisposed`
+  - `EventAssetPurchased` / `EventAssetDepreciated` / `EventAssetDisposed`
+  - `EventPeriodAnnualClosed` / `EventPeriodAnnualReopened`
+- **根本原因**：
+  `AccountBalanceRealtimeProjection` 在設計之初只對應手動交易（EventTransactionCreated）。
+  後續新增投資、分期付款、預付費用、固定資產等功能時，忘記同步補上對應的 case，
+  形成「TransactionProjectionService 寫分錄 → AccountBalanceRealtimeProjection 靜默跳過」的系統性缺口。
+- **解決紀錄**：
+  在 `account_balance_realtime.go` 補上三個投資事件的 case，
+  透過 `checkAndGetState` 從 pipeline Result 取得已計算好的 `st.Transaction.Entries`，
+  呼叫 `applyFromTxnPayload` → `applyDeltas` 完成 running balance 的 Upsert。
+  此模式不需額外 DB 查詢，與現有 `applyCreated` 讀 payload.Entries 的模式一致。
+  其餘未修正的事件類型已記錄於 TODO（P1）。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open
