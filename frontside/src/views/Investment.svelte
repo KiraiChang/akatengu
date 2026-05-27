@@ -1128,7 +1128,7 @@
             </div>
           {:else}
             <NewAccountFormSection
-              accounts={accounts}
+              accounts={filteredInvAccounts}
               bind:form={newAccountForm}
               required={createNewAccount}
             />
