@@ -48,7 +48,7 @@
   // Build ancestor-inclusive list so AccountSelect tree navigation works:
   // without ancestors, AccountSelect starts at root (parent_id=null) and finds nothing.
   const filteredAccounts = $derived((() => {
-    if (!activeLedgerTypeConfig?.account_id || activeLedgerTypeConfig.descendants.length === 0) {
+    if (!activeLedgerTypeConfig?.account_id) {
       return allAccounts;
     }
     const path: Account[] = [];

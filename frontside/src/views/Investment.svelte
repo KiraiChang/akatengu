@@ -356,7 +356,7 @@
   const activeInvAssetTypeConfig = $derived(assetTypeConfigMap.get(form.asset_type) ?? null);
 
   const filteredInvAccounts = $derived((() => {
-    if (!activeInvAssetTypeConfig?.account_id || activeInvAssetTypeConfig.descendants.length === 0) {
+    if (!activeInvAssetTypeConfig?.account_id) {
       return accounts;
     }
     const path: Account[] = [];
@@ -372,7 +372,7 @@
 
   const activeTxnLedgerTypeConfig = $derived(ledgerTypeConfigMap.get(txnNewLedgerForm.type) ?? null);
   const filteredTxnAccounts = $derived((() => {
-    if (!activeTxnLedgerTypeConfig?.account_id || activeTxnLedgerTypeConfig.descendants.length === 0) {
+    if (!activeTxnLedgerTypeConfig?.account_id) {
       return accounts;
     }
     const path: Account[] = [];
