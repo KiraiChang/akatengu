@@ -65,7 +65,7 @@ func (p *registry) register(query *query.Repo) {
 
 	// Investment(Account Agg)
 	p.rules[event_types.EventInvestmentCreated.Enum()] = NewEventInvestmentCreatedPipeline()
-	p.rules[event_types.EventInvestmentUpdated.Enum()] = NewEventInvestmentUpdatedPipeline()
+	p.rules[event_types.EventInvestmentUpdated.Enum()] = NewEventInvestmentUpdatedPipeline(query)
 
 	// Investment(Transaction Agg)
 	p.rules[event_types.EventInvestmentBought.Enum()] = NewEventInvestmentBoughtPipeline(query)

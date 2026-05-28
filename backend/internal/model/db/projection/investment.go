@@ -14,20 +14,22 @@ import (
 //dbmap:sqlcdb=GetInvestmentPagedRow
 //dbmap:sqlcdb=GetInvestmentRow
 //dbmap:sqlcdb=GetInvestmentBySymbolRow
+//dbmap:sqlcdb=GetInvestmentByCreationEventUuidRow
 type Investment struct {
-	MerchantID   int64              `db:"merchant_id" json:"merchant_id"`
-	InvestmentId int64              `db:"investment_id" json:"investment_id"`
-	AccountId    string             `db:"account_id" json:"account_id"`
-	AssetType    enums.AssetType    `db:"asset_type" json:"asset_type"`
-	Currency     string             `db:"currency" json:"currency"`
-	Symbol       string             `db:"symbol" json:"symbol"`
-	Name         string             `db:"name" json:"name"`
-	CostMethod   enums.CostMethod   `db:"cost_method" json:"cost_method"`
-	IFRSCategory enums.IFRSCategory `db:"ifrs_category" json:"ifrs_category"`
-	IsActive     bool               `db:"is_active" json:"is_active"`
-	Version      int64              `db:"version" json:"version"`
-	UpdatedBy    *string            `db:"updated_by" json:"updated_by"`
-	UpdatedAt    *string            `db:"updated_at" json:"updated_at"`
+	MerchantID          int64              `db:"merchant_id" json:"merchant_id"`
+	InvestmentId        int64              `db:"investment_id" json:"investment_id"`
+	AccountId           string             `db:"account_id" json:"account_id"`
+	AssetType           enums.AssetType    `db:"asset_type" json:"asset_type"`
+	Currency            string             `db:"currency" json:"currency"`
+	Symbol              string             `db:"symbol" json:"symbol"`
+	Name                string             `db:"name" json:"name"`
+	CostMethod          enums.CostMethod   `db:"cost_method" json:"cost_method"`
+	IFRSCategory        enums.IFRSCategory `db:"ifrs_category" json:"ifrs_category"`
+	IsActive            bool               `db:"is_active" json:"is_active"`
+	Version             int64              `db:"version" json:"version"`
+	UpdatedBy           *string            `db:"updated_by" json:"updated_by"`
+	UpdatedAt           *string            `db:"updated_at" json:"updated_at"`
+	CreationEventUUID   string             `db:"creation_event_uuid" json:"creation_event_uuid"`
 }
 
 // InvestmentLot 投資庫存表

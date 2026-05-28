@@ -1,15 +1,22 @@
 -- name: GetInvestment :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
        name, cost_method, ifrs_category, is_active, version,
-       updated_by, updated_at
+       updated_by, updated_at, creation_event_uuid
 FROM investments
 WHERE investment_id = @investment_id AND merchant_id = @merchant_id;
+
+-- name: GetInvestmentByCreationEventUuid :one
+SELECT investment_id, account_id, asset_type, currency, symbol,
+       name, cost_method, ifrs_category, is_active, version,
+       updated_by, updated_at, creation_event_uuid
+FROM investments
+WHERE creation_event_uuid = @creation_event_uuid AND merchant_id = @merchant_id;
 
 -- name: GetInvestmentPaged :many
 WITH total AS (SELECT COUNT(*) AS cnt FROM investments WHERE merchant_id = @merchant_id)
 SELECT i.investment_id, i.account_id, i.asset_type, i.currency, i.symbol,
        i.name, i.cost_method, i.ifrs_category, i.is_active, i.version,
-       i.updated_by, i.updated_at,
+       i.updated_by, i.updated_at, i.creation_event_uuid,
        total.cnt AS total
 FROM investments AS i, total
 WHERE i.merchant_id = @merchant_id
@@ -20,7 +27,7 @@ OFFSET @offset;
 -- name: GetInvestmentBySymbol :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
        name, cost_method, ifrs_category, is_active, version,
-       updated_by, updated_at
+       updated_by, updated_at, creation_event_uuid
 FROM investments
 WHERE symbol = @symbol AND currency = @currency AND merchant_id = @merchant_id;
 
@@ -87,8 +94,8 @@ OFFSET @offset;
 
 -- name: CreateInvestment :exec
 INSERT INTO investments
-    (merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);
+    (merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, updated_by, creation_event_uuid)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?);
 
 -- name: UpdateInvestment :exec
 UPDATE investments

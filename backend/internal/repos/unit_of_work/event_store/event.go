@@ -19,6 +19,7 @@ func (r *sqlcdbTxEventRepository) Insert(ctx context.Context, p InsertEventParam
 		AggregateID:      p.AggregateID,
 		AggregateVersion: p.AggregateVersion,
 		EventType:        p.EventType,
+		EventUuid:        p.EventUuid,
 		Payload:          p.Payload,
 		Metadata:         p.Metadata,
 		UpdatedBy:        p.UpdatedBy,

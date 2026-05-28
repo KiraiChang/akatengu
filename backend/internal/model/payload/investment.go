@@ -35,15 +35,15 @@ func (p InvestmentCreatedPayload) Validate() error {
 
 type InvestmentUpdatedPayload struct {
 	InvestmentCreatedPayload
-	InvestmentId int64 `json:"investment_id"`
-	Version      int64 `json:"version"`
+	InvestmentUUID string `json:"investment_uuid"`
+	Version        int64  `json:"version"`
 }
 
 func (p InvestmentUpdatedPayload) Validate() error {
 	var errs []string
 
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
+	if p.InvestmentUUID == "" {
+		errs = append(errs, "investment_uuid is required")
 	}
 
 	if p.AccountId == "" {
@@ -60,14 +60,14 @@ func (p InvestmentUpdatedPayload) Validate() error {
 }
 
 type InvestmentBoughtPayload struct {
-	InvestmentId int64           `json:"investment_id"`
-	Date         string          `json:"date"`
-	Quantity     decimal.Decimal `json:"quantity"`
-	UnitPrice    decimal.Decimal `json:"unit_price"`
-	ExchangeRate decimal.Decimal `json:"exchange_rate"`
-	Fee          decimal.Decimal `json:"fee"`
-	Tax          decimal.Decimal `json:"tax"`
-	LedgerId     int64           `json:"ledger_id"` // 由哪個帳戶扣款
+	InvestmentUUID string          `json:"investment_uuid"`
+	Date           string          `json:"date"`
+	Quantity       decimal.Decimal `json:"quantity"`
+	UnitPrice      decimal.Decimal `json:"unit_price"`
+	ExchangeRate   decimal.Decimal `json:"exchange_rate"`
+	Fee            decimal.Decimal `json:"fee"`
+	Tax            decimal.Decimal `json:"tax"`
+	LedgerId       int64           `json:"ledger_id"` // 由哪個帳戶扣款
 }
 
 func (p InvestmentBoughtPayload) Validate() error {
@@ -75,8 +75,8 @@ func (p InvestmentBoughtPayload) Validate() error {
 	if p.Date == "" {
 		errs = append(errs, "date is required")
 	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
+	if p.InvestmentUUID == "" {
+		errs = append(errs, "investment_uuid is required")
 	}
 
 	if p.LedgerId == 0 {
@@ -99,14 +99,14 @@ func (p InvestmentBoughtPayload) Validate() error {
 }
 
 type InvestmentSoldPayload struct {
-	InvestmentId int64           `json:"investment_id"`
-	Date         string          `json:"date"`
-	Quantity     decimal.Decimal `json:"quantity"`
-	UnitPrice    decimal.Decimal `json:"unit_price"`
-	ExchangeRate decimal.Decimal `json:"exchange_rate"`
-	Fee          decimal.Decimal `json:"fee"`
-	Tax          decimal.Decimal `json:"tax"`
-	LedgerId     int64           `json:"ledger_id"` // 入到哪個帳戶
+	InvestmentUUID string          `json:"investment_uuid"`
+	Date           string          `json:"date"`
+	Quantity       decimal.Decimal `json:"quantity"`
+	UnitPrice      decimal.Decimal `json:"unit_price"`
+	ExchangeRate   decimal.Decimal `json:"exchange_rate"`
+	Fee            decimal.Decimal `json:"fee"`
+	Tax            decimal.Decimal `json:"tax"`
+	LedgerId       int64           `json:"ledger_id"` // 入到哪個帳戶
 }
 
 func (p InvestmentSoldPayload) Validate() error {
@@ -114,8 +114,8 @@ func (p InvestmentSoldPayload) Validate() error {
 	if p.Date == "" {
 		errs = append(errs, "date is required")
 	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
+	if p.InvestmentUUID == "" {
+		errs = append(errs, "investment_uuid is required")
 	}
 
 	if p.LedgerId == 0 {
@@ -138,7 +138,7 @@ func (p InvestmentSoldPayload) Validate() error {
 }
 
 type DividendReceivedPayload struct {
-	InvestmentId   int64           `json:"investment_id"`
+	InvestmentUUID string          `json:"investment_uuid"`
 	Date           string          `json:"date"`
 	Amount         decimal.Decimal `json:"amount"`          // 現金股利
 	ExchangeRate   decimal.Decimal `json:"exchange_rate"`   // 匯率
@@ -152,8 +152,8 @@ func (p DividendReceivedPayload) Validate() error {
 	if p.Date == "" {
 		errs = append(errs, "date is required")
 	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
+	if p.InvestmentUUID == "" {
+		errs = append(errs, "investment_uuid is required")
 	}
 	if p.ExchangeRate.LessThanOrEqual(decimal.Zero) {
 		errs = append(errs, "exchange_rate is required")
@@ -163,9 +163,9 @@ func (p DividendReceivedPayload) Validate() error {
 }
 
 type StockSplitPayload struct {
-	InvestmentId int64           `json:"investment_id"`
-	Date         string          `json:"date"`
-	Ratio        decimal.Decimal `json:"ratio"`
+	InvestmentUUID string          `json:"investment_uuid"`
+	Date           string          `json:"date"`
+	Ratio          decimal.Decimal `json:"ratio"`
 }
 
 func (p StockSplitPayload) Validate() error {
@@ -173,18 +173,18 @@ func (p StockSplitPayload) Validate() error {
 	if p.Date == "" {
 		errs = append(errs, "date is required")
 	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
+	if p.InvestmentUUID == "" {
+		errs = append(errs, "investment_uuid is required")
 	}
 
 	return joinErrors(errs)
 }
 
 type UnrealizedMarkedPayload struct {
-	InvestmentId int64           `json:"investment_id"`
-	Date         string          `json:"date"`
-	MarketPrice  decimal.Decimal `json:"market_price"`
-	ExchangeRate decimal.Decimal `json:"exchange_rate"`
+	InvestmentUUID string          `json:"investment_uuid"`
+	Date           string          `json:"date"`
+	MarketPrice    decimal.Decimal `json:"market_price"`
+	ExchangeRate   decimal.Decimal `json:"exchange_rate"`
 }
 
 func (p UnrealizedMarkedPayload) Validate() error {
@@ -192,8 +192,8 @@ func (p UnrealizedMarkedPayload) Validate() error {
 	if p.Date == "" {
 		errs = append(errs, "date is required")
 	}
-	if p.InvestmentId == 0 {
-		errs = append(errs, "investment_id is required")
+	if p.InvestmentUUID == "" {
+		errs = append(errs, "investment_uuid is required")
 	}
 	if p.MarketPrice.IsNegative() {
 		errs = append(errs, "market_price must be non-negative")

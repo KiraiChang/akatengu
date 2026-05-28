@@ -212,9 +212,10 @@ CREATE TABLE investments (
     cost_method   TEXT    NOT NULL DEFAULT 'FIFO',
     ifrs_category TEXT    NOT NULL DEFAULT 'FVTPL',
     is_active     INTEGER NOT NULL DEFAULT 1,
-    version       INTEGER NOT NULL,
-    updated_by    TEXT,
-    updated_at    TEXT
+    version               INTEGER NOT NULL,
+    updated_by            TEXT,
+    updated_at            TEXT,
+    creation_event_uuid   TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE investment_lots (

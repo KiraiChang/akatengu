@@ -10,6 +10,7 @@ import (
 )
 
 type InsertEventParams struct {
+	EventUuid        string
 	AggregateType    enums.AggregateType
 	AggregateID      string
 	AggregateVersion int64

@@ -41,6 +41,11 @@
 
 > 影響核心功能正確性或穩定性，應在近期處理。
 
+**Replay 穩定性**
+
+- [x] [Feature] 投資事件以 `creation_event_uuid` 取代 AUTOINCREMENT `investment_id` 作為跨事件引用鍵，完成日期：2026-05-28，關聯：ISSUE-018
+- [ ] [Feature] `event_seed.go` bootstrapInvestmentIdUpcast — 將既有 EventInvestmentBought/Sold 等事件的 `investment_id` payload 欄位替換成對應的 `creation_event_uuid`，使舊資料亦可正確 replay（現版本「不考慮既存資料」，啟用前須先執行 upcast）
+
 **Running Balance 系統性缺口（AccountBalanceRealtimeProjection）**
 
 - [ ] [Feature] `EventInvestmentMarked` 的 running balance 更新 — `UnrealizedMarkedState.Transaction` 已存在，但 `TransactionProjectionService` 未處理此事件（分錄也未寫入），需先確認 MARK 分錄應由哪個 Projection 負責再一起修正，關聯：ISSUE-014

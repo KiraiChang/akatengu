@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"time"
 )
 
@@ -54,6 +55,12 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 	ct.MerchantID = merchantID
 	ct.UpdatedBy = ctxkey.GetUserName(ctx)
 
+	eventUUID, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("generate event uuid: %w", err)
+	}
+	eventUUIDStr := eventUUID.String()
+
 	err = es.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
 
 		// 版本控制
@@ -76,6 +83,7 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 			updatedBy = &ct.UpdatedBy
 		}
 		eventID, err := tx.Event.Insert(ctx, event_store.InsertEventParams{
+			EventUuid:        eventUUIDStr,
 			AggregateType:    cmd.AggregateType,
 			AggregateID:      cmd.AggregateID,
 			AggregateVersion: newVersion,
@@ -89,6 +97,7 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 
 		ct.Event = db.EventStore{
 			EventId:          eventID,
+			EventUuid:        eventUUIDStr,
 			AggregateType:    cmd.AggregateType,
 			AggregateId:      cmd.AggregateID,
 			AggregateVersion: newVersion,
@@ -177,7 +186,10 @@ func (s *EventStoreService) Replay(ctx context.Context, fromEventID int64, aggre
 		}
 		ct.Event = event
 		ct.MerchantID = event.MerchantID
-		ct.UpdatedBy = *event.UpdatedBy
+		if event.UpdatedBy != nil {
+			ct.UpdatedBy = *event.UpdatedBy
+		}
+
 		if err := s.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
 			for _, proj := range s.projections {
 				if err := proj.Apply(ctx, tx, event.EventType, ct); err != nil {

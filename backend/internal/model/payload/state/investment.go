@@ -7,6 +7,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type InvestmentUpdatedState struct {
+	InvestmentId int64
+}
+
 type InvestmentBoughtState struct {
 	Investment  projection.Investment             `json:"investment"`
 	Movement    projection.InvestmentMovement     `json:"movement"`

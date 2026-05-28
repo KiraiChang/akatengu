@@ -14,6 +14,7 @@ import (
 
 type InvestmentRepo interface {
 	GetByID(ctx context.Context, id int64) (*projection.Investment, error)
+	GetByCreationEventUuid(ctx context.Context, uuid string) (*projection.Investment, error)
 	GetBySymbol(ctx context.Context, symbol, currency string) (*projection.Investment, error)
 	GetSummary(ctx context.Context, id int64) (*projection.InvestmentSummary, error)
 	GetAllSummaries(ctx context.Context) ([]projection.InvestmentSummary, error)
@@ -151,6 +152,21 @@ func (r *sqlcdbInvestmentRepository) GetByID(ctx context.Context, id int64) (*pr
 		return nil, err
 	}
 	return projection.InvestmentPtrFromGetInvestmentRow(result), nil
+}
+
+func (r *sqlcdbInvestmentRepository) GetByCreationEventUuid(ctx context.Context, uuid string) (*projection.Investment, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := r.q.GetInvestmentByCreationEventUuid(ctx, sqlcdb.GetInvestmentByCreationEventUuidParams{
+		CreationEventUuid: uuid,
+		MerchantID:        merchantID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return projection.InvestmentPtrFromGetInvestmentByCreationEventUuidRow(result), nil
 }
 
 func (r *sqlcdbInvestmentRepository) GetBySymbol(ctx context.Context, symbol, currency string) (*projection.Investment, error) {

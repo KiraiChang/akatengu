@@ -1,7 +1,7 @@
 -- name: InsertEvent :execlastid
 INSERT INTO event_store
-    (merchant_id, aggregate_type, aggregate_id, aggregate_version, event_type, payload, metadata, updated_by)
-VALUES (@merchant_id, @aggregate_type, @aggregate_id, @aggregate_version, @event_type, @payload, @metadata, @updated_by);
+    (merchant_id, aggregate_type, aggregate_id, aggregate_version, event_type, event_uuid, payload, metadata, updated_by)
+VALUES (@merchant_id, @aggregate_type, @aggregate_id, @aggregate_version, @event_type, @event_uuid, @payload, @metadata, @updated_by);
 
 -- name: GetEventsByAggregate :many
 SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,

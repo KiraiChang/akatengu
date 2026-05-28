@@ -49,13 +49,13 @@ func (e eventInvestmentBoughtProjector) Project(ctx context.Context, ct *pipelin
 		return err
 	}
 
-	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
+	inv, err := e.query.Investment.GetByCreationEventUuid(ctx, p.InvestmentUUID)
 	if err != nil {
 		return err
 	}
 
 	if inv == nil {
-		return fmt.Errorf("investment %d not found", p.InvestmentId)
+		return fmt.Errorf("investment %s not found", p.InvestmentUUID)
 	}
 	ledger, err := e.query.Account.GetLedger(ctx, p.LedgerId)
 	if err != nil {
@@ -65,7 +65,7 @@ func (e eventInvestmentBoughtProjector) Project(ctx context.Context, ct *pipelin
 	ct.State.Ledger = *ledger
 	ct.State.Investment = *inv
 	ct.State.Movement = projection.InvestmentMovement{
-		InvestmentId: p.InvestmentId,
+		InvestmentId: inv.InvestmentId,
 		MovementType: enums.MovementTypeBuy.Enum(),
 		MovementDate: p.Date,
 		Quantity:     p.Quantity,
@@ -77,13 +77,13 @@ func (e eventInvestmentBoughtProjector) Project(ctx context.Context, ct *pipelin
 	}
 	if inv.CostMethod.Is(enums.CostMethodAvg) {
 		ct.State.Position = projection.InvestmentPosition{
-			InvestmentId:  p.InvestmentId,
+			InvestmentId:  inv.InvestmentId,
 			TotalQuantity: p.Quantity,
 			TotalCost:     p.UnitPrice.Mul(p.Quantity),
 		}
 	} else {
 		ct.State.Lot = projection.InvestmentLot{
-			InvestmentId: p.InvestmentId,
+			InvestmentId: inv.InvestmentId,
 			AcquiredDate: p.Date,
 			Quantity:     p.Quantity,
 			UnitCost:     p.UnitPrice.Mul(p.ExchangeRate),
@@ -153,13 +153,13 @@ func (e eventInvestmentSoldProjector) Project(ctx context.Context, ct *pipelines
 		return err
 	}
 
-	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
+	inv, err := e.query.Investment.GetByCreationEventUuid(ctx, p.InvestmentUUID)
 	if err != nil {
 		return err
 	}
 
 	if inv == nil {
-		return fmt.Errorf("investment %d not found", p.InvestmentId)
+		return fmt.Errorf("investment %s not found", p.InvestmentUUID)
 	}
 	ledger, err := e.query.Account.GetLedger(ctx, p.LedgerId)
 	if err != nil {
@@ -177,14 +177,14 @@ func (e eventInvestmentSoldProjector) Project(ctx context.Context, ct *pipelines
 
 	switch inv.CostMethod.Val() {
 	case enums.CostMethodAvg:
-		position, err := e.query.Investment.GetPosition(ctx, p.InvestmentId)
+		position, err := e.query.Investment.GetPosition(ctx, inv.InvestmentId)
 		if err != nil {
 			return fmt.Errorf("calc avg cost fail: %w", err)
 		}
 		originalCostBasis = position.AvgCost.Mul(p.Quantity)
 		ct.State.CostBasis = originalCostBasis
 		ct.State.Position = projection.InvestmentPosition{
-			InvestmentId:  p.InvestmentId,
+			InvestmentId:  inv.InvestmentId,
 			TotalQuantity: p.Quantity,
 			TotalCost:     originalCostBasis,
 		}
@@ -199,7 +199,7 @@ func (e eventInvestmentSoldProjector) Project(ctx context.Context, ct *pipelines
 		}
 
 	case enums.CostMethodFIFO:
-		result, err := e.calcFIFOCostBasis(ctx, p)
+		result, err := e.calcFIFOCostBasis(ctx, inv.InvestmentId, p)
 		if err != nil {
 			return fmt.Errorf("calc fifo cost fail: %w", err)
 		}
@@ -219,7 +219,7 @@ func (e eventInvestmentSoldProjector) Project(ctx context.Context, ct *pipelines
 	ct.State.NetProceeds = sellAmount.Sub(p.Fee).Sub(p.Tax)
 
 	ct.State.Movement = projection.InvestmentMovement{
-		InvestmentId: p.InvestmentId,
+		InvestmentId: inv.InvestmentId,
 		MovementType: enums.MovementTypeSell.Enum(),
 		MovementDate: p.Date,
 		Quantity:     p.Quantity.Neg(),
@@ -255,9 +255,10 @@ type fifoCalcResult struct {
 
 func (e *eventInvestmentSoldProjector) calcFIFOCostBasis(
 	ctx context.Context,
+	investmentID int64,
 	p payload.InvestmentSoldPayload,
 ) (fifoCalcResult, error) {
-	lots, err := e.query.Investment.GetOpenLots(ctx, p.InvestmentId)
+	lots, err := e.query.Investment.GetOpenLots(ctx, investmentID)
 	if err != nil {
 		return fifoCalcResult{}, err
 	}
@@ -395,17 +396,17 @@ func (e eventStockSplitProjector) Project(ctx context.Context, ct *pipelines.Con
 
 	p := ct.Payload
 
-	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
+	inv, err := e.query.Investment.GetByCreationEventUuid(ctx, p.InvestmentUUID)
 	if err != nil {
 		return err
 	}
 
 	if inv == nil {
-		return fmt.Errorf("investment %d not found", p.InvestmentId)
+		return fmt.Errorf("investment %s not found", p.InvestmentUUID)
 	}
 	ct.State.Investment = *inv
 	ct.State.Movement = projection.InvestmentMovement{
-		InvestmentId: p.InvestmentId,
+		InvestmentId: inv.InvestmentId,
 		MovementType: enums.MovementTypeSplit.Enum(),
 		MovementDate: p.Date,
 		SplitRatio:   decimal.NewNullDecimal(p.Ratio),
@@ -435,13 +436,13 @@ func (e eventDividendReceivedProjector) Project(ctx context.Context, ct *pipelin
 
 	p := ct.Payload
 
-	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
+	inv, err := e.query.Investment.GetByCreationEventUuid(ctx, p.InvestmentUUID)
 	if err != nil {
 		return err
 	}
 
 	if inv == nil {
-		return fmt.Errorf("investment %d not found", p.InvestmentId)
+		return fmt.Errorf("investment %s not found", p.InvestmentUUID)
 	}
 
 	ledger, err := e.query.Account.GetLedger(ctx, p.LedgerId)
@@ -451,7 +452,7 @@ func (e eventDividendReceivedProjector) Project(ctx context.Context, ct *pipelin
 
 	ct.State.Investment = *inv
 	ct.State.Movement = projection.InvestmentMovement{
-		InvestmentId: p.InvestmentId,
+		InvestmentId: inv.InvestmentId,
 		MovementType: enums.MovementTypeDividend.Enum(),
 		MovementDate: p.Date,
 		ExchangeRate: p.ExchangeRate,
@@ -507,12 +508,12 @@ func (e *eventUnrealizedMarkedProjector) Project(ctx context.Context, ct *pipeli
 	}
 	p := ct.Payload
 
-	inv, err := e.query.Investment.GetByID(ctx, p.InvestmentId)
+	inv, err := e.query.Investment.GetByCreationEventUuid(ctx, p.InvestmentUUID)
 	if err != nil {
 		return err
 	}
 	if inv == nil {
-		return fmt.Errorf("investment %d not found", p.InvestmentId)
+		return fmt.Errorf("investment %s not found", p.InvestmentUUID)
 	}
 	ct.State.Investment = *inv
 
@@ -523,12 +524,12 @@ func (e *eventUnrealizedMarkedProjector) Project(ctx context.Context, ct *pipeli
 
 	switch inv.CostMethod.Val() {
 	case enums.CostMethodAvg:
-		pos, err := e.query.Investment.GetPosition(ctx, p.InvestmentId)
+		pos, err := e.query.Investment.GetPosition(ctx, inv.InvestmentId)
 		if err != nil {
 			return err
 		}
 		if pos == nil {
-			return fmt.Errorf("investment %d has no position", p.InvestmentId)
+			return fmt.Errorf("investment %s has no position", p.InvestmentUUID)
 		}
 		totalQty = pos.TotalQuantity
 		if pos.MarketPriceTWD.IsPositive() {
@@ -538,7 +539,7 @@ func (e *eventUnrealizedMarkedProjector) Project(ctx context.Context, ct *pipeli
 		}
 
 	case enums.CostMethodFIFO:
-		lots, err := e.query.Investment.GetOpenLots(ctx, p.InvestmentId)
+		lots, err := e.query.Investment.GetOpenLots(ctx, inv.InvestmentId)
 		if err != nil {
 			return err
 		}
@@ -555,7 +556,7 @@ func (e *eventUnrealizedMarkedProjector) Project(ctx context.Context, ct *pipeli
 	}
 
 	if totalQty.IsZero() {
-		return fmt.Errorf("investment %d has zero position, cannot mark fair value", p.InvestmentId)
+		return fmt.Errorf("investment %s has zero position, cannot mark fair value", p.InvestmentUUID)
 	}
 
 	newValueTWD := newPriceTWD.Mul(totalQty)
@@ -569,7 +570,7 @@ func (e *eventUnrealizedMarkedProjector) Project(ctx context.Context, ct *pipeli
 	ct.State.LotUnrealizedUpdates = lotUnrealizedUpdates
 
 	ct.State.Movement = projection.InvestmentMovement{
-		InvestmentId: p.InvestmentId,
+		InvestmentId: inv.InvestmentId,
 		MovementType: enums.MovementTypeMark.Enum(),
 		MovementDate: p.Date,
 		Quantity:     decimal.Zero,

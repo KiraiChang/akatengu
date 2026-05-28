@@ -58,16 +58,17 @@ func (s *InvestmentProjectionService) applyInvestmentCreated(ctx context.Context
 	}
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.InvestmentRepo.CreateInvestment(ctx, projection.Investment{
-		MerchantID:   ct.MerchantID,
-		AccountId:    p.AccountId,
-		AssetType:    p.AssetType,
-		Currency:     coalesce(p.Currency, "TWD"),
-		Symbol:       p.Symbol,
-		Name:         p.Name,
-		CostMethod:   p.CostMethod,
-		IFRSCategory: ifrsCategory,
-		IsActive:     p.IsActive,
-		UpdatedBy:    updatedBy,
+		MerchantID:        ct.MerchantID,
+		AccountId:         p.AccountId,
+		AssetType:         p.AssetType,
+		Currency:          coalesce(p.Currency, "TWD"),
+		Symbol:            p.Symbol,
+		Name:              p.Name,
+		CostMethod:        p.CostMethod,
+		IFRSCategory:      ifrsCategory,
+		IsActive:          p.IsActive,
+		UpdatedBy:         updatedBy,
+		CreationEventUUID: ct.Event.EventUuid,
 	}); err != nil {
 		return err
 	}
@@ -80,12 +81,15 @@ func (s *InvestmentProjectionService) applyInvestmentUpdate(ctx context.Context,
 	if err != nil {
 		return err
 	}
+	st, err := checkAndGetState[state.InvestmentUpdatedState](ct)
+	if err != nil {
+		return err
+	}
 
-	// 業務邏輯：組裝 proj model
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.InvestmentRepo.UpdateInvestment(ctx, projection.Investment{
 		MerchantID:   ct.MerchantID,
-		InvestmentId: p.InvestmentId,
+		InvestmentId: st.InvestmentId,
 		AccountId:    p.AccountId,
 		AssetType:    p.AssetType,
 		Currency:     coalesce(p.Currency, "TWD"),
@@ -222,12 +226,12 @@ func (s *InvestmentProjectionService) applyStockSplit(ctx context.Context, tx ev
 	}
 
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
-		err = tx.Projection.InvestmentRepo.PositionSplit(ctx, p.InvestmentId, p.Ratio, updatedBy)
+		err = tx.Projection.InvestmentRepo.PositionSplit(ctx, st.Investment.InvestmentId, p.Ratio, updatedBy)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := tx.Projection.InvestmentRepo.LotSplit(ctx, p.InvestmentId, p.Ratio, updatedBy)
+		err := tx.Projection.InvestmentRepo.LotSplit(ctx, st.Investment.InvestmentId, p.Ratio, updatedBy)
 		if err != nil {
 			return err
 		}
@@ -256,12 +260,12 @@ func (s *InvestmentProjectionService) applyDividendReceived(ctx context.Context,
 	}
 
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
-		err = tx.Projection.InvestmentRepo.PositionSplit(ctx, p.InvestmentId, p.Ratio, updatedBy)
+		err = tx.Projection.InvestmentRepo.PositionSplit(ctx, st.Investment.InvestmentId, p.Ratio, updatedBy)
 		if err != nil {
 			return err
 		}
 	} else {
-		err := tx.Projection.InvestmentRepo.LotSplit(ctx, p.InvestmentId, p.Ratio, updatedBy)
+		err := tx.Projection.InvestmentRepo.LotSplit(ctx, st.Investment.InvestmentId, p.Ratio, updatedBy)
 		if err != nil {
 			return err
 		}

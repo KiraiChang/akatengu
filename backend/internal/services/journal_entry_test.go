@@ -169,12 +169,16 @@ func insertAssetTypeConfig(t *testing.T, db *sqlx.DB) {
 	}
 }
 
+func testInvestmentUUID(id int64) string {
+	return fmt.Sprintf("test-inv-uuid-%d", id)
+}
+
 func insertInvestment(t *testing.T, db *sqlx.DB, id int64, acctID, assetType, costMethod, ifrsCategory string) {
 	t.Helper()
 	_, err := db.ExecContext(testCtx(),
-		`INSERT INTO investments(investment_id, merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version)
-		 VALUES(?, ?, ?, ?, 'TWD', 'TEST', 'TestStock', ?, ?, 1, 1)`,
-		id, testMID, acctID, assetType, costMethod, ifrsCategory,
+		`INSERT INTO investments(investment_id, merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, creation_event_uuid)
+		 VALUES(?, ?, ?, ?, 'TWD', 'TEST', 'TestStock', ?, ?, 1, 1, ?)`,
+		id, testMID, acctID, assetType, costMethod, ifrsCategory, testInvestmentUUID(id),
 	)
 	if err != nil {
 		t.Fatalf("insertInvestment(%d): %v", id, err)
@@ -901,14 +905,14 @@ func TestInvestmentBought(t *testing.T) {
 	svc := newSvc(db)
 	a := newAppender(t, svc, testCtx(), "inv-buy-1")
 	a.do(event_types.EventInvestmentBought.Enum(), payload.InvestmentBoughtPayload{
-		InvestmentId: 1,
-		Date:         "2026-05-01",
-		Quantity:     dec("10"),
-		UnitPrice:    dec("100"),
-		ExchangeRate: dec("1"),
-		Fee:          dec("5"),
-		Tax:          dec("0"),
-		LedgerId:     1,
+		InvestmentUUID: testInvestmentUUID(1),
+		Date:           "2026-05-01",
+		Quantity:       dec("10"),
+		UnitPrice:      dec("100"),
+		ExchangeRate:   dec("1"),
+		Fee:            dec("5"),
+		Tax:            dec("0"),
+		LedgerId:       1,
 	})
 
 	// cost = 10×100×1 = 1000; totalCost = 1005 (fee=5)
@@ -943,20 +947,20 @@ func TestInvestmentSold_Gain(t *testing.T) {
 
 	// Buy 10 @ 100 (no fee to keep costBasis simple)
 	a.do(event_types.EventInvestmentBought.Enum(), payload.InvestmentBoughtPayload{
-		InvestmentId: 1,
-		Date:         "2026-05-01",
-		Quantity:     dec("10"),
-		UnitPrice:    dec("100"),
-		ExchangeRate: dec("1"),
-		Fee:          dec("0"),
-		Tax:          dec("0"),
-		LedgerId:     1,
+		InvestmentUUID: testInvestmentUUID(1),
+		Date:           "2026-05-01",
+		Quantity:       dec("10"),
+		UnitPrice:      dec("100"),
+		ExchangeRate:   dec("1"),
+		Fee:            dec("0"),
+		Tax:            dec("0"),
+		LedgerId:       1,
 	})
 
 	// Sell 10 @ 120; fee=5; netProceeds = 10×120-5 = 1195; costBasis = 1000; gain = 200
 	a.do(event_types.EventInvestmentSold.Enum(), payload.InvestmentSoldPayload{
-		InvestmentId: 1,
-		Date:         "2026-05-15",
+		InvestmentUUID: testInvestmentUUID(1),
+		Date:           "2026-05-15",
 		Quantity:     dec("10"),
 		UnitPrice:    dec("120"),
 		ExchangeRate: dec("1"),
@@ -999,18 +1003,18 @@ func TestDividendReceived(t *testing.T) {
 
 	// Must have a position before receiving dividends
 	a.do(event_types.EventInvestmentBought.Enum(), payload.InvestmentBoughtPayload{
-		InvestmentId: 1,
-		Date:         "2026-05-01",
-		Quantity:     dec("10"),
-		UnitPrice:    dec("100"),
-		ExchangeRate: dec("1"),
-		Fee:          dec("0"),
-		Tax:          dec("0"),
-		LedgerId:     1,
+		InvestmentUUID: testInvestmentUUID(1),
+		Date:           "2026-05-01",
+		Quantity:       dec("10"),
+		UnitPrice:      dec("100"),
+		ExchangeRate:   dec("1"),
+		Fee:            dec("0"),
+		Tax:            dec("0"),
+		LedgerId:       1,
 	})
 
 	a.do(event_types.EventDividendReceived.Enum(), payload.DividendReceivedPayload{
-		InvestmentId:   1,
+		InvestmentUUID: testInvestmentUUID(1),
 		Date:           "2026-05-15",
 		Amount:         dec("1000"),
 		ExchangeRate:   dec("1"),

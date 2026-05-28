@@ -2,8 +2,11 @@ package factory
 
 import (
 	"akatengu/internal/model/payload"
+	"akatengu/internal/model/payload/state"
+	"akatengu/internal/repos/query"
 	"akatengu/internal/services/pipelines"
 	"context"
+	"fmt"
 )
 
 // ------------------------------
@@ -100,12 +103,26 @@ func NewEventInvestmentCreatedPipeline() *pipelines.TypedPipeline[pipelines.NoSt
 // ------------------------------
 
 type eventInvestmentUpdatedProjector struct {
+	query *query.Repo
 }
 
-func (e *eventInvestmentUpdatedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.InvestmentUpdatedPayload]) error {
-	return ct.Payload.Validate()
+func (e *eventInvestmentUpdatedProjector) Project(ctx context.Context, ct *pipelines.Context[state.InvestmentUpdatedState, payload.InvestmentUpdatedPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+	inv, err := e.query.Investment.GetByCreationEventUuid(ctx, ct.Payload.InvestmentUUID)
+	if err != nil {
+		return err
+	}
+	if inv == nil {
+		return fmt.Errorf("investment %s not found", ct.Payload.InvestmentUUID)
+	}
+	ct.State.InvestmentId = inv.InvestmentId
+	return nil
 }
 
-func NewEventInvestmentUpdatedPipeline() *pipelines.TypedPipeline[pipelines.NoState, payload.InvestmentUpdatedPayload] {
-	return pipelines.NewTypeWithNoState[payload.InvestmentUpdatedPayload](&eventInvestmentUpdatedProjector{})
+func NewEventInvestmentUpdatedPipeline(query *query.Repo) *pipelines.TypedPipeline[state.InvestmentUpdatedState, payload.InvestmentUpdatedPayload] {
+	return pipelines.NewType[state.InvestmentUpdatedState, payload.InvestmentUpdatedPayload](&eventInvestmentUpdatedProjector{query: query}, func() *state.InvestmentUpdatedState {
+		return &state.InvestmentUpdatedState{}
+	})
 }
