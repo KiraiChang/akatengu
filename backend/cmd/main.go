@@ -2,6 +2,7 @@ package main
 
 import (
 	"akatengu/internal/bootstrap"
+	"akatengu/internal/enums"
 	"akatengu/internal/handler"
 	"context"
 	"errors"
@@ -15,6 +16,9 @@ import (
 )
 
 func main() {
+	// 0. register enums
+	enums.InitEnums()
+
 	// 1. Config
 	cfg := bootstrap.LoadConfig()
 

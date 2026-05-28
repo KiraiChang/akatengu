@@ -371,6 +371,54 @@
 
 ---
 
+### [ISSUE-016] enums.InitEnums() 必須在任何 enum 使用前呼叫，不可放在 handler 初始化中
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-28
+- **嚴重程度**：High
+- **位置**：`cmd/main.go`（原位於 `internal/handler/handler.go` 的 `NewMux`）
+- **描述**：
+  `enums.InitEnums()` 負責將所有 enum 值註冊到全域 registry，使 `Parse*`、`.Enum()`、`.String()` 等方法正確運作。
+  原本放在 `handler.NewMux()` 中執行，但 `bootstrap.BootstrapEventSeeds` 在 `InitDB` 階段（比 `NewMux` 更早）就呼叫了 enum 方法，
+  導致 event seed bootstrap 執行時 registry 尚未初始化，產生 runtime 錯誤。
+- **影響範圍**：
+  任何在 `NewMux` 呼叫之前使用 enum 的程式碼（如 bootstrap、seeder、排程任務）都會受影響。
+- **解決紀錄**：
+  將 `enums.InitEnums()` 移至 `cmd/main.go` 的最頂端，確保早於 `InitDB`（及其內部的 `BootstrapEventSeeds`）執行。
+  **結論：`enums.InitEnums()` 屬於全域初始化，必須是程式啟動的第一步，不得放在任何具體的服務或 handler 初始化函式內。**
+
+---
+
+### [ISSUE-017] 新增 AggregateType 需同步更新 DB schema 的 CHECK constraint
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-28
+- **嚴重程度**：High
+- **位置**：`internal/database/schema.sql`、對應 migration 檔
+- **描述**：
+  `event_store` 與 `aggregate_versions` 兩張表均有如下 CHECK constraint：
+  ```sql
+  CONSTRAINT chk_aggregate_type CHECK (aggregate_type IN ('ACCOUNT', 'TRANSACTION'))
+  ```
+  新增 `AggregateSysConfig`（'SYS_CONFIG'）與 `AggregateAccountConfig`（'ACCOUNT_CONFIG'）後，
+  嘗試寫入這兩類 aggregate 的事件時，SQLite 因 CHECK constraint 不符而拒絕 INSERT，
+  導致 `BootstrapEventSeeds` 與後續所有 SYS_CONFIG / ACCOUNT_CONFIG 相關事件寫入失敗。
+- **影響範圍**：
+  - `BootstrapEventSeeds`：`bootstrapSysAccounts`、`bootstrapAccountConfigs` 呼叫 `es.Append` 全部失敗
+  - 任何透過 `/api/event/append` 寫入新 aggregate type 的請求均被 DB constraint 拒絕
+- **解決紀錄**：
+  新增 `internal/database/migrations/20260528001_update_aggregate_type_constraint.sql`，
+  以 SQLite 慣用模式（CREATE new → INSERT SELECT → DROP old → RENAME）重建兩張表，
+  同時搭配 `PRAGMA legacy_alter_table = ON` 跳過 `v_installments_active` 既有視圖的欄位驗證（見 ISSUE-012）。
+  更新後的 CHECK constraint：
+  ```sql
+  CONSTRAINT chk_aggregate_type CHECK (aggregate_type IN ('ACCOUNT', 'TRANSACTION', 'SYS_CONFIG', 'ACCOUNT_CONFIG'))
+  ```
+  **結論：往後每次新增 `aggregateTypeVal` 常數，必須同步新增 migration 擴充此 constraint；
+  schema.sql 無需修改（sqlc 不需要知道 CHECK constraint）。**
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open

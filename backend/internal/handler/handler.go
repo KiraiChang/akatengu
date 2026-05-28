@@ -2,7 +2,6 @@ package handler
 
 import (
 	"akatengu/internal/bootstrap"
-	"akatengu/internal/enums"
 	"akatengu/internal/handler/middleware"
 	"akatengu/internal/pkg/jwt"
 	"akatengu/internal/repos/query"
@@ -24,8 +23,6 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	//	logger.Error("building client fail", zap.Error(err))
 	//	panic(err)
 	//}
-
-	enums.InitEnums()
 
 	uow := event_store.NewUnitOfWork(db)
 	queryRepo := query.NewQueryRepository(db)
