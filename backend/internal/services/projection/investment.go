@@ -192,10 +192,10 @@ func (s *InvestmentProjectionService) applyInvestmentSold(ctx context.Context, t
 			return err
 		}
 	} else {
-		for _, lots := range st.LotDisposals {
+		for index, lots := range st.LotDisposals {
 			lots.MerchantID = ct.MerchantID
 			lots.MovementId = st.Movement.MovementId
-			lots.LotId, err = tx.Projection.InvestmentRepo.InsertLotDisposals(ctx, lots)
+			st.LotDisposals[index].Id, err = tx.Projection.InvestmentRepo.InsertLotDisposals(ctx, lots)
 			if err != nil {
 				return err
 			}

@@ -235,7 +235,7 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 
 	if st.LotDisposals != nil {
 		for _, lot := range st.LotDisposals {
-			err = tx.Projection.InvestmentRepo.UpdateDisposalTxn(ctx, lot.LotId, txnId)
+			err = tx.Projection.InvestmentRepo.UpdateDisposalTxn(ctx, lot.Id, txnId)
 			if err != nil {
 				return err
 			}
