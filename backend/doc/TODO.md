@@ -91,6 +91,10 @@
 
 > 提升系統品質或開發效率，可排入下一個迭代。
 
+**股息接收科目 Hardcode**
+
+- [ ] [Feature] DividendReceived factory 硬編碼帳戶 ID — `factory/investment.go` 的股息接收 pipeline 直接用字串 `"4210"`（INCOME）與 `"5920"`（EXPENSE）查詢帳戶。這兩個科目不在 `seeds/accounts.sql` 中，測試必須手動插入才能通過。應改為從 `asset_type_account_config`（或另一個設定表）動態查詢，消除硬編碼依賴
+
 **現金流量表（Cash Flow Statement）**
 
 - [ ] [Feature] 系統自動分錄補上 `cash_flow_category` — 年度結帳（Period Annual Close / Reopen）結帳分錄為科目間內部軋轉，應保持 `cash_flow_category = NULL`（投資買賣、分期付款已於 2026-05-22 完成）

@@ -167,7 +167,7 @@ func (e eventPeriodAnnualClosedProjector) Project(ctx context.Context, ct *pipel
 	periodStart, periodEnd := monthRange(year)
 
 	// 3. 計算本年損益
-	is, err := e.query.Report.GetIncomeStatementOnClose(ctx, periodStart, periodEnd)
+	is, err := e.query.Report.GetIncomeStatement(ctx, periodStart, periodEnd)
 	if err != nil {
 		return fmt.Errorf("income statement: %w", err)
 	}
@@ -336,9 +336,9 @@ func appendClosingEntry(
 	result := payload.TransactionCreatedPayload{}
 	result.Entries = []payload.TransactionEntryPayload{}
 
-	// 沖銷所有收入科目（收入正常貸方 → 借方沖銷）
+	// 沖銷所有收入科目（收入正常貸方 → 借方沖銷）；只沖葉科目，摘要科目為匯總顯示用，不重複沖銷
 	for _, row := range is.Income {
-		if row.Amount.IsZero() {
+		if row.HasChild || row.Amount.IsZero() {
 			continue
 		}
 		result.Entries = append(result.Entries, payload.TransactionEntryPayload{
@@ -348,9 +348,9 @@ func appendClosingEntry(
 		})
 	}
 
-	// 沖銷所有支出科目（支出正常借方 → 貸方沖銷）
+	// 沖銷所有支出科目（支出正常借方 → 貸方沖銷）；只沖葉科目，同上
 	for _, row := range is.Expenses {
-		if row.Amount.IsZero() {
+		if row.HasChild || row.Amount.IsZero() {
 			continue
 		}
 		result.Entries = append(result.Entries, payload.TransactionEntryPayload{

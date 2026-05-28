@@ -19,6 +19,35 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### [DEBUG] 2026-05-28 事件會計整合測試的設計模式
+
+**測試入口**：`internal/services/journal_entry_test.go`（`package services_test`）
+
+**核心原則**：所有寫入一律透過 `services.EventStoreService.Append`，不繞過 pipeline 直接操作 DB。
+此模式與正式 API 路徑完全一致，能驗證 pipeline 驗證邏輯、分錄產生及 running balance 更新。
+
+**測試前置資料（DB helpers）**：
+- `insertLedger(t, db, id, typ, acctID)` — INSERT INTO ledger_accounts
+- `insertPeriodOpen(t, db, id, startDate)` — INSERT 月結紀錄（MONTHLY, OPEN）
+- `insertAllMonthsClosed(t, db, year, baseID)` — 12 筆 CLOSED 月結（年度結帳前置條件）
+- `insertAnnualPeriodOpen(t, db, id, year)` — INSERT 年度結算期（ANNUAL, OPEN）
+- `insertSysAccounts(t, db)` — 5 筆 sys_accounts（PREPAID_INTEREST / LOAN:INTEREST 等）
+- `insertAssetTypeConfig(t, db)` — STOCK 投資科目設定（asset_type_account_config）
+- `insertInvestment(t, db, id, acctID, assetType, costMethod, ifrsCategory)` — 投資主檔
+- `insertDividendAccounts(t, db)` — 補插 "4210"（INCOME）/ "5920"（EXPENSE）（seeds 中缺少）
+
+**sqlx 掃描陷阱**：`db.GetContext(ctx, &anonymousStruct{}, ...)` 無法正確掃描（field 沒有 `db:` tag）。
+一律改用具名 struct 搭配 `db:` tag，例如 `rbScanRow{DebitTotal decimal.Decimal \`db:"debit_total"\`}`。
+
+**年度結帳測試的雞生蛋問題**：年度結帳 pipeline 需讀取當年損益表，但建立收入交易需要開放的月結期。
+解法：用原始 SQL 直接插入 `transactions` + `journal_entries` 繞過 pipeline，
+`GetIncomeStatement` 直接查 journal_entries，不依賴 EventStoreService，故此繞過合法。
+
+**DividendReceived 帳戶 hardcode 問題**：
+factory/investment.go 的股息接收 pipeline 直接以字串 `"4210"`（INCOME）與 `"5920"`（EXPENSE）查詢帳戶，
+這兩個科目在 seeds/accounts.sql 中不存在，測試中需 `insertDividendAccounts` 手動插入。
+這是已知的設計問題，詳見 TODO P2。
+
 ### [DEBUG] 2026-05-26 SQLite RENAME TABLE 觸發全視圖驗證
 
 SQLite 3.26+ 在執行 `ALTER TABLE X RENAME TO Y` 時，會驗證所有視圖的欄位有效性，

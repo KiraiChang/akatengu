@@ -329,6 +329,48 @@
 
 ---
 
+### [ISSUE-015] appendClosingEntry 迭代父科目導致年度結帳分錄借貸不平衡
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-28
+- **嚴重程度**：High
+- **位置**：`internal/services/pipelines/factory/period.go`，`appendClosingEntry` 函式
+- **描述**：
+  `appendClosingEntry` 負責產生年度結帳時的損益歸零分錄。它從 `GetIncomeStatement` 取得損益表資料，
+  遍歷 `is.Income` 與 `is.Expenses` 並對每一行產生沖銷分錄。
+  但 `queryIncomeStatementNoSnap` 同時回傳葉節點（`is_summary=0`）**與**父科目彙總行（`is_summary=1`）。
+  父科目的金額是其所有子孫葉節點的加總，因此若遍歷時不跳過父科目，
+  同一金額會被計入兩次（葉節點一次 + 父科目彙總一次），造成借方合計 ≠ 貸方合計。
+
+  **範例**：帳戶 "4101-01"（葉節點）有 50000 收入，其父 "4101"（`is_summary=TRUE`）彙總也顯示 50000。
+  若兩行都產生 DR 分錄，DR 合計 = 100000，但 CR（本期淨利）= 50000，借貸不平衡。
+  `applyTransaction` 的 `debit != credit` 驗證必然失敗，年度結帳事件寫入被拒絕。
+- **影響範圍**：
+  所有執行 `EventPeriodAnnualClosed` 的商戶。只要損益表科目有父子關係（幾乎必然），
+  結帳分錄即無法成功寫入，年度結帳功能完全失效。
+- **根本原因**：
+  `GetIncomeStatement` 回傳完整的科目樹（含彙總節點）供前端渲染階層用，
+  但 `appendClosingEntry` 設計時未考慮彙總節點的存在，對所有行一律沖銷。
+- **解決紀錄**：
+  在 `appendClosingEntry` 的收入與支出迴圈頭部分別加入 `row.HasChild ||` guard：
+  ```go
+  for _, row := range is.Income {
+      if row.HasChild || row.Amount.IsZero() {
+          continue
+      }
+      // ...
+  }
+  for _, row := range is.Expenses {
+      if row.HasChild || row.Amount.IsZero() {
+          continue
+      }
+      // ...
+  }
+  ```
+  只對葉科目（`HasChild=false`）產生沖銷分錄，父科目彙總行僅供顯示，不重複沖銷。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open
