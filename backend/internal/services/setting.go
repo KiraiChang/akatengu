@@ -1,8 +1,6 @@
 package services
 
 import (
-	"akatengu/internal/database/sqlcdb"
-	"akatengu/internal/enums"
 	"akatengu/internal/model/db/projection"
 	"akatengu/internal/repos/query"
 	"context"
@@ -12,10 +10,7 @@ import (
 
 type SettingService interface {
 	GetLedgerAccountTypeConfigs(ctx context.Context) ([]projection.LedgerAccountTypeConfigResult, error)
-	UpdateLedgerAccountTypeConfig(ctx context.Context, t enums.LedgerAccountType, accountID string, updatedBy *string) error
-
 	GetAssetTypeAccountConfigs(ctx context.Context) ([]projection.AssetTypeAccountConfigResult, error)
-	UpdateAssetTypeAccountConfig(ctx context.Context, params sqlcdb.UpsertAssetTypeAccountConfigParams) error
 }
 
 func NewSettingService(db *sqlx.DB) SettingService {
@@ -47,10 +42,6 @@ func (s *settingService) GetLedgerAccountTypeConfigs(ctx context.Context) ([]pro
 	return result, nil
 }
 
-func (s *settingService) UpdateLedgerAccountTypeConfig(ctx context.Context, t enums.LedgerAccountType, accountID string, updatedBy *string) error {
-	return s.r.UpsertLedgerAccountTypeConfig(ctx, t, accountID, updatedBy)
-}
-
 func (s *settingService) GetAssetTypeAccountConfigs(ctx context.Context) ([]projection.AssetTypeAccountConfigResult, error) {
 	configs, err := s.r.GetAssetTypeAccountConfigs(ctx)
 	if err != nil {
@@ -75,6 +66,3 @@ func (s *settingService) GetAssetTypeAccountConfigs(ctx context.Context) ([]proj
 	return result, nil
 }
 
-func (s *settingService) UpdateAssetTypeAccountConfig(ctx context.Context, params sqlcdb.UpsertAssetTypeAccountConfigParams) error {
-	return s.r.UpsertAssetTypeAccountConfig(ctx, params)
-}

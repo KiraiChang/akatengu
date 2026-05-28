@@ -6,6 +6,29 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// AccountBulkImportedPayload 一次性大批匯入科目樹的 payload。
+// Accounts 清單需依拓撲順序排列（父科目在前），由 pipeline 驗證後 projection 依序寫入。
+type AccountBulkImportedPayload struct {
+	Accounts []AccountCreatePayload `json:"accounts"`
+}
+
+func (p AccountBulkImportedPayload) Validate() error {
+	if len(p.Accounts) == 0 {
+		return joinErrors([]string{"accounts is required"})
+	}
+	seen := make(map[string]bool, len(p.Accounts))
+	for _, a := range p.Accounts {
+		if err := a.Validate(); err != nil {
+			return err
+		}
+		if seen[a.AccountId] {
+			return joinErrors([]string{"duplicate account_id: " + a.AccountId})
+		}
+		seen[a.AccountId] = true
+	}
+	return nil
+}
+
 // AccountCreatePayload 範例
 //
 //	{

@@ -39,6 +39,9 @@ func (r *sqlxTruncateRepository) TruncateProjections(ctx context.Context) error 
 		`DELETE FROM investments WHERE merchant_id = ?`,
 		`DELETE FROM period_closings WHERE merchant_id = ?`,
 		`DELETE FROM ledger_accounts WHERE merchant_id = ?`,
+		`DELETE FROM asset_type_account_config WHERE merchant_id = ?`,
+		`DELETE FROM ledger_account_type_config WHERE merchant_id = ?`,
+		`DELETE FROM sys_accounts WHERE merchant_id = ?`,
 		`DELETE FROM aggregate_versions WHERE merchant_id = ?`,
 		`DELETE FROM snapshots WHERE merchant_id = ?`,
 	}
@@ -59,24 +62,9 @@ func (r *sqlxTruncateRepository) TruncateProjections(ctx context.Context) error 
 		return fmt.Errorf("delete account_closure: %w", err)
 	}
 
-	// 只保留 sys_accounts 所依賴的祖先鏈，刪除當前商戶使用者建立的 accounts。
-	// 遞迴 CTE 起點、JOIN、外層 DELETE 均以 merchant_id 限定，避免跨商戶誤刪。
-	const deleteUserAccounts = `
-		DELETE FROM accounts
-		WHERE merchant_id = ?
-		AND account_id NOT IN (
-			WITH RECURSIVE protected(id) AS (
-				SELECT account_id FROM sys_accounts WHERE merchant_id = ?
-				UNION
-				SELECT a.parent_id
-				FROM   accounts a
-				INNER  JOIN protected p ON a.account_id = p.id
-				WHERE  a.parent_id IS NOT NULL AND a.merchant_id = ?
-			)
-			SELECT id FROM protected
-		)`
-	if _, err := r.tx.ExecContext(ctx, deleteUserAccounts, merchantID, merchantID, merchantID); err != nil {
-		return fmt.Errorf("delete user accounts: %w", err)
+	// sys_accounts 已在上方 stmts 中清除，accounts 可直接全數刪除，由 replay 從事件重建。
+	if _, err := r.tx.ExecContext(ctx, `DELETE FROM accounts WHERE merchant_id = ?`, merchantID); err != nil {
+		return fmt.Errorf("delete accounts: %w", err)
 	}
 
 	// sqlite_sequence reset 在多租戶下不適用：其他商戶資料仍存在，

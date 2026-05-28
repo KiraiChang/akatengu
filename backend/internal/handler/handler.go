@@ -116,12 +116,9 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("GET /aggerate/{aggerate_type}", aggerate.GetVersion)
 
 	bizApi.HandleFunc("GET /sys/account", sys.GetSysAccount)
-	bizApi.HandleFunc("POST /sys/account", sys.UpdateSysAccount)
 
 	bizApi.HandleFunc("GET /setting/ledger-account-type", setting.GetLedgerAccountTypeConfigs)
-	bizApi.HandleFunc("PUT /setting/ledger-account-type/{type}", setting.UpdateLedgerAccountTypeConfig)
 	bizApi.HandleFunc("GET /setting/asset-type", setting.GetAssetTypeAccountConfigs)
-	bizApi.HandleFunc("PUT /setting/asset-type/{type}", setting.UpdateAssetTypeAccountConfig)
 
 	bizApi.HandleFunc("GET /template", template.GetTemplates)
 	bizApi.HandleFunc("POST /template", template.CreateTemplate)

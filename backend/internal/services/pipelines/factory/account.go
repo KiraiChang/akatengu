@@ -7,6 +7,20 @@ import (
 )
 
 // ------------------------------
+// EventAccountBulkImported
+// ------------------------------
+
+type eventAccountBulkImportedProjector struct{}
+
+func (e *eventAccountBulkImportedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.AccountBulkImportedPayload]) error {
+	return ct.Payload.Validate()
+}
+
+func NewEventAccountBulkImportedPipeline() *pipelines.TypedPipeline[pipelines.NoState, payload.AccountBulkImportedPayload] {
+	return pipelines.NewTypeWithNoState[payload.AccountBulkImportedPayload](&eventAccountBulkImportedProjector{})
+}
+
+// ------------------------------
 // EventAccountCreated
 // ------------------------------
 

@@ -2,6 +2,7 @@ package event_types
 
 const (
 	// account
+	EventAccountBulkImported      eventTypeVal = "account.bulk_imported"
 	EventAccountCreated           eventTypeVal = "account.created"
 	EventAccountUpdated           eventTypeVal = "account.updated"
 	EventAccountDeactivated       eventTypeVal = "account.deactivated"

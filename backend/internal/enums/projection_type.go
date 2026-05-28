@@ -23,4 +23,5 @@ const (
 	ProjectionTypeAccountBalanceRealtime        projectionTypeValue = "ACCOUNT_BALANCE_REALTIME"
 	ProjectionTypePrepaid                       projectionTypeValue = "PREPAID"
 	ProjectionTypeFixedAsset                    projectionTypeValue = "FIXED_ASSET"
+	ProjectionTypeConfig                        projectionTypeValue = "CONFIG"
 )

@@ -37,10 +37,18 @@ func (p *registry) Dispatch(ctx context.Context, cmd cmd.AppendCmd) (*pipelines.
 
 func (p *registry) register(query *query.Repo) {
 	// Accounts
+	p.rules[event_types.EventAccountBulkImported.Enum()] = NewEventAccountBulkImportedPipeline()
 	p.rules[event_types.EventAccountCreated.Enum()] = NewEventAccountCreatedPipeline()
 	p.rules[event_types.EventAccountUpdated.Enum()] = NewEventAccountUpdatedPipeline()
 	p.rules[event_types.EventLedgerAccountCreated.Enum()] = NewEventLedgerAccountCreatedPipeline()
 	p.rules[event_types.EventLedgerAccountUpdated.Enum()] = NewEventLedgerAccountUpdatedPipeline()
+
+	// Sys Config
+	p.rules[event_types.EventSysAccountUpdated.Enum()] = NewEventSysAccountUpdatedPipeline(query)
+
+	// Account Config
+	p.rules[event_types.EventLedgerAccountTypeConfigUpdated.Enum()] = NewEventLedgerAccountTypeConfigUpdatedPipeline(query)
+	p.rules[event_types.EventAssetTypeAccountConfigUpdated.Enum()] = NewEventAssetTypeAccountConfigUpdatedPipeline(query)
 
 	// Transaction
 	p.rules[event_types.EventTransactionCreated.Enum()] = NewEventTransactionCreatedPipeline(query)

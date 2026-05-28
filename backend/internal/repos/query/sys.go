@@ -11,24 +11,10 @@ import (
 
 type SysRepo interface {
 	GetSysAccount(ctx context.Context) ([]db.SysAccount, error)
-	UpdateSysAccount(ctx context.Context, s db.SysAccount) error
 }
 
 type sqlcdbSysRepo struct {
 	q *sqlcdb.Queries
-}
-
-func (s *sqlcdbSysRepo) UpdateSysAccount(ctx context.Context, sys db.SysAccount) error {
-	merchantID, err := ctxkey.GetMerchantID(ctx)
-	if err != nil {
-		return err
-	}
-	return s.q.UpdateSysAccount(ctx, sqlcdb.UpdateSysAccountParams{
-		AccountID:   sys.AccountId,
-		Description: sys.Description,
-		SysCode:     sys.SysCode,
-		MerchantID:  merchantID,
-	})
 }
 
 func newSysRepo(q *sqlcdb.Queries) SysRepo {
