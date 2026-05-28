@@ -258,7 +258,7 @@ func (e *eventInvestmentSoldProjector) calcFIFOCostBasis(
 	investmentID int64,
 	p payload.InvestmentSoldPayload,
 ) (fifoCalcResult, error) {
-	lots, err := e.query.Investment.GetOpenLots(ctx, investmentID)
+	lots, err := e.query.Investment.GetNotCloseLots(ctx, investmentID)
 	if err != nil {
 		return fifoCalcResult{}, err
 	}
@@ -539,7 +539,7 @@ func (e *eventUnrealizedMarkedProjector) Project(ctx context.Context, ct *pipeli
 		}
 
 	case enums.CostMethodFIFO:
-		lots, err := e.query.Investment.GetOpenLots(ctx, inv.InvestmentId)
+		lots, err := e.query.Investment.GetNotCloseLots(ctx, inv.InvestmentId)
 		if err != nil {
 			return err
 		}
@@ -643,7 +643,6 @@ func (e *eventUnrealizedMarkedProjector) fvEntries(
 		return nil, fmt.Errorf("unsupported ifrs_category %s for fair value marking", inv.IFRSCategory.String())
 	}
 }
-
 
 func NewEventUnrealizedMarkedPipeline(query *query.Repo) *pipelines.TypedPipeline[state.UnrealizedMarkedState, payload.UnrealizedMarkedPayload] {
 	return pipelines.NewType[state.UnrealizedMarkedState, payload.UnrealizedMarkedPayload](&eventUnrealizedMarkedProjector{query}, func() *state.UnrealizedMarkedState {

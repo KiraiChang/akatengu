@@ -59,7 +59,7 @@
 .inv-lot-header,
 .inv-lot-row {
   display: grid;
-  grid-template-columns: 160px 1fr 1fr 1fr 1fr 1fr 80px 90px 64px;
+  grid-template-columns: 160px 1fr 1fr 1fr 1fr 1fr 80px 180px 64px;
   gap: 0;
   align-items: center;
 }
@@ -76,6 +76,9 @@
   text-transform: uppercase;
   color: #3d4258;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inv-lot-row {
@@ -89,6 +92,9 @@
   font-size: 11px;
   color: #7a8096;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inv-lot-row span.num { text-align: right; }
@@ -170,6 +176,9 @@
   text-transform: uppercase;
   color: #3d4258;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inv-disposal-row {
@@ -183,6 +192,9 @@
   font-size: 10px;
   color: #6a7096;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inv-disposal-row span.num { text-align: right; }
@@ -223,7 +235,7 @@
 .inv-movement-header,
 .inv-movement-row {
   display: grid;
-  grid-template-columns: 120px 80px 1fr 1fr 1fr 1fr 1fr 80px 90px 64px;
+  grid-template-columns: 120px 80px 1fr 1fr 1fr 1fr 1fr 80px 180px 64px;
   gap: 0;
   align-items: center;
 }
@@ -240,6 +252,9 @@
   text-transform: uppercase;
   color: #3d4258;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inv-movement-row {
@@ -254,6 +269,9 @@
   font-size: 11px;
   color: #7a8096;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inv-movement-row span.num { text-align: right; }

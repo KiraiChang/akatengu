@@ -37,7 +37,7 @@ SELECT id, investment_id, total_quantity, total_cost, avg_cost, market_price_twd
 FROM investment_positions
 WHERE investment_id = @investment_id AND merchant_id = @merchant_id;
 
--- name: GetOpenLots :many
+-- name: GetNotStatusLots :many
 SELECT lot_id, investment_id, movement_id, acquired_date, txn_id,
        quantity, unit_cost, total_cost, remaining_qty, status, unrealized_unit_twd,
        updated_by, updated_at

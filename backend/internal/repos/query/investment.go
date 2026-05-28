@@ -18,7 +18,7 @@ type InvestmentRepo interface {
 	GetBySymbol(ctx context.Context, symbol, currency string) (*projection.Investment, error)
 	GetSummary(ctx context.Context, id int64) (*projection.InvestmentSummary, error)
 	GetAllSummaries(ctx context.Context) ([]projection.InvestmentSummary, error)
-	GetOpenLots(ctx context.Context, investmentID int64) ([]projection.InvestmentLot, error)
+	GetNotCloseLots(ctx context.Context, investmentID int64) ([]projection.InvestmentLot, error)
 	GetPosition(ctx context.Context, id int64) (*projection.InvestmentPosition, error)
 	GetMovements(ctx context.Context, investmentID int64) ([]projection.InvestmentMovement, error)
 	GetInvestmentPaged(ctx context.Context, req model.PaginationParams) ([]projection.Investment, int64, error)
@@ -240,22 +240,22 @@ func (r *sqlcdbInvestmentRepository) GetAllSummaries(ctx context.Context) ([]pro
 	return summaries, err
 }
 
-func (r *sqlcdbInvestmentRepository) GetOpenLots(ctx context.Context, investmentID int64) ([]projection.InvestmentLot, error) {
+func (r *sqlcdbInvestmentRepository) GetNotCloseLots(ctx context.Context, investmentID int64) ([]projection.InvestmentLot, error) {
 	merchantID, err := ctxkey.GetMerchantID(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := r.q.GetOpenLots(ctx, sqlcdb.GetOpenLotsParams{
+	rows, err := r.q.GetNotStatusLots(ctx, sqlcdb.GetNotStatusLotsParams{
 		MerchantID:   merchantID,
 		InvestmentID: investmentID,
-		Status:       enums.LotStatusOpen.Enum(),
+		Status:       enums.LotStatusClose.Enum(),
 	})
 	if err != nil {
 		return nil, err
 	}
 	result := make([]projection.InvestmentLot, len(rows))
 	for i, row := range rows {
-		result[i] = projection.InvestmentLotFromGetOpenLotsRow(row)
+		result[i] = projection.InvestmentLotFromGetNotStatusLotsRow(row)
 	}
 	return result, nil
 }
