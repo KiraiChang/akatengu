@@ -1,3 +1,10 @@
+/* ── Pagination override ──────────────────── */
+
+.pagination .page-btn {
+  width: auto;
+  padding: 5px 14px;
+}
+
 /* ── Rebuild button ────────────────────────── */
 
 .audit-rebuild-btn {

@@ -18,7 +18,7 @@
   let snapshots    = $state<SnapshotAudit[]>([]);
   let events       = $state<EventStoreAudit[]>([]);
   let eventTotal   = $state(0);
-  let eventPage    = $state(0);
+  let eventPage    = $state(1);
 
   let isLoadingEvents = $state(false);
   let isRebuilding    = $state(false);
@@ -31,7 +31,7 @@
       getAggregateVersions(),
       getCheckpoints(),
       getSnapshots(),
-      getEventStorePaged(0, PAGE_SIZE),
+      getEventStorePaged(1, PAGE_SIZE),
     ])
       .then(([v, c, s, ep]) => {
         versions    = v;
@@ -45,7 +45,7 @@
   });
 
   async function gotoEventPage(p: number): Promise<void> {
-    if (isLoadingEvents || p < 0 || p >= eventTotalPages) return;
+    if (isLoadingEvents || p < 1 || p > eventTotalPages) return;
     isLoadingEvents = true;
     try {
       const ep = await getEventStorePaged(p, PAGE_SIZE);
@@ -70,8 +70,8 @@
         getAggregateVersions().then(v => { versions = v; }),
         getCheckpoints().then(c => { checkpoints = c; }),
         getSnapshots().then(s => { snapshots = s; }),
-        getEventStorePaged(0, PAGE_SIZE).then(ep => {
-          events = ep.data ?? []; eventTotal = ep.meta.total_count; eventPage = 0;
+        getEventStorePaged(1, PAGE_SIZE).then(ep => {
+          events = ep.data ?? []; eventTotal = ep.meta.total_count; eventPage = 1;
         }),
       ]);
     } catch (err) {
@@ -174,10 +174,10 @@
         </tbody>
       </table>
     </div>
-    <div class="pagination-bar">
-      <button class="page-btn" disabled={eventPage === 0} onclick={() => gotoEventPage(eventPage - 1)}>‹ 上一頁</button>
-      <span class="page-info">第 {eventPage + 1} / {eventTotalPages} 頁（共 {eventTotal} 筆）</span>
-      <button class="page-btn" disabled={eventPage >= eventTotalPages - 1} onclick={() => gotoEventPage(eventPage + 1)}>下一頁 ›</button>
+    <div class="pagination">
+      <button class="page-btn" disabled={eventPage === 1} onclick={() => gotoEventPage(eventPage - 1)}>‹ 上一頁</button>
+      <span class="page-info">第 {eventPage} / {eventTotalPages} 頁（共 {eventTotal} 筆）</span>
+      <button class="page-btn" disabled={eventPage >= eventTotalPages} onclick={() => gotoEventPage(eventPage + 1)}>下一頁 ›</button>
     </div>
   </section>
 

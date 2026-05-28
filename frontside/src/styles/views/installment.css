@@ -51,7 +51,7 @@
 .inst-payment-header,
 .inst-payment-item {
   display: grid;
-  grid-template-columns: 40px 110px 1fr 1fr 1fr 110px 70px 80px 90px 72px;
+  grid-template-columns: 40px 110px 1fr 1fr 1fr 110px 70px 80px 90px auto;
   gap: 0;
   align-items: center;
 }
@@ -68,6 +68,9 @@
   text-transform: uppercase;
   color: #3d4258;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inst-payment-item {
@@ -81,6 +84,12 @@
   font-size: 11px;
   color: #7a8096;
   min-width: 0;
+}
+
+.inst-payment-item span:not(:last-child) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inst-payment-item span.num { text-align: right; }
