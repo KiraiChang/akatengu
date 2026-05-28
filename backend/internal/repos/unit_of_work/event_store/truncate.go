@@ -37,7 +37,10 @@ func (r *sqlxTruncateRepository) TruncateProjections(ctx context.Context) error 
 		`DELETE FROM investment_movements WHERE merchant_id = ?`,
 		`DELETE FROM transactions WHERE merchant_id = ?`,
 		`DELETE FROM investments WHERE merchant_id = ?`,
+		`DELETE FROM account_balance_snapshots WHERE merchant_id = ?`,
+		`DELETE FROM ledger_account_balance_snapshots WHERE merchant_id = ?`,
 		`DELETE FROM period_closings WHERE merchant_id = ?`,
+		`DELETE FROM ledger_running_balances WHERE merchant_id = ?`,
 		`DELETE FROM ledger_accounts WHERE merchant_id = ?`,
 		`DELETE FROM asset_type_account_config WHERE merchant_id = ?`,
 		`DELETE FROM ledger_account_type_config WHERE merchant_id = ?`,
@@ -60,6 +63,11 @@ func (r *sqlxTruncateRepository) TruncateProjections(ctx context.Context) error 
 	// account_closure 參照 accounts，先於 accounts 刪除。
 	if _, err := r.tx.ExecContext(ctx, `DELETE FROM account_closure WHERE merchant_id = ?`, merchantID); err != nil {
 		return fmt.Errorf("delete account_closure: %w", err)
+	}
+
+	// account_running_balances 參照 accounts，先於 accounts 刪除。
+	if _, err := r.tx.ExecContext(ctx, `DELETE FROM account_running_balances WHERE merchant_id = ?`, merchantID); err != nil {
+		return fmt.Errorf("delete account_running_balances: %w", err)
 	}
 
 	// sys_accounts 已在上方 stmts 中清除，accounts 可直接全數刪除，由 replay 從事件重建。
