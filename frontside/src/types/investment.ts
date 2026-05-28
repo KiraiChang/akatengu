@@ -3,18 +3,19 @@ export type CostMethod   = 'AVG' | 'FIFO';
 export type IFRSCategory = 'FVTPL' | 'FVOCI' | 'AC';
 
 export interface Investment {
-  investment_id: number;
-  account_id:    string;
-  asset_type:    AssetType;
-  currency:      string;
-  symbol:        string;
-  name:          string;
-  cost_method:   CostMethod;
-  ifrs_category: IFRSCategory;
-  is_active:     boolean;
-  version:       number;
-  updated_by:    string | null;
-  updated_at:    string | null;
+  investment_id:       number;
+  account_id:          string;
+  asset_type:          AssetType;
+  currency:            string;
+  symbol:              string;
+  name:                string;
+  cost_method:         CostMethod;
+  ifrs_category:       IFRSCategory;
+  is_active:           boolean;
+  version:             number;
+  updated_by:          string | null;
+  updated_at:          string | null;
+  creation_event_uuid: string;
 }
 
 export interface InvestmentCreatedPayload {
@@ -29,8 +30,8 @@ export interface InvestmentCreatedPayload {
 }
 
 export interface InvestmentUpdatedPayload extends InvestmentCreatedPayload {
-  investment_id: number;
-  version:       number;
+  investment_uuid: string;
+  version:         number;
 }
 
 export type LotStatus    = 'OPEN' | 'PARTIAL' | 'CLOSED';
@@ -64,25 +65,25 @@ export interface InvestmentPosition {
 }
 
 export interface InvestmentBoughtPayload {
-  investment_id: number;
-  date:          string;
-  quantity:      string;
-  unit_price:    string;
-  exchange_rate: string;
-  fee:           string;
-  tax:           string;
-  ledger_id:     number;
+  investment_uuid: string;
+  date:            string;
+  quantity:        string;
+  unit_price:      string;
+  exchange_rate:   string;
+  fee:             string;
+  tax:             string;
+  ledger_id:       number;
 }
 
 export interface InvestmentSoldPayload {
-  investment_id: number;
-  date:          string;
-  quantity:      string;
-  unit_price:    string;
-  exchange_rate: string;
-  fee:           string;
-  tax:           string;
-  ledger_id:     number;
+  investment_uuid: string;
+  date:            string;
+  quantity:        string;
+  unit_price:      string;
+  exchange_rate:   string;
+  fee:             string;
+  tax:             string;
+  ledger_id:       number;
 }
 
 export interface InvestmentLotDisposal {

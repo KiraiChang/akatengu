@@ -60,7 +60,7 @@
   let isSaving         = $state(false);
   let saveError        = $state('');
   let accounts         = $state<Account[]>([]);
-  let editId           = $state(0);
+  let editId           = $state('');
   let editVersion      = $state(0);
   let createNewAccount = $state(false);
   let newAccountForm   = $state<NewAccountForm>(emptyNewAccountForm());
@@ -321,6 +321,7 @@
   let txnError     = $state('');
   let ledgers      = $state<LedgerAccount[]>([]);
   let txnInvId     = $state(0);
+  let txnInvUUID   = $state('');
   let txnForm      = $state<TxnForm>({
     date:          today(),
     quantity:      '',
@@ -426,7 +427,7 @@
   async function openCreateModal(): Promise<void> {
     await Promise.all([ensureAccounts(), ensureAssetTypeConfigs()]);
     mode             = 'create';
-    editId           = 0;
+    editId           = '';
     editVersion      = 0;
     createNewAccount = false;
     newAccountForm   = emptyNewAccountForm();
@@ -447,7 +448,7 @@
   async function openEditModal(inv: Investment): Promise<void> {
     await ensureAccounts();
     mode        = 'edit';
-    editId      = inv.investment_id;
+    editId      = inv.creation_event_uuid;
     editVersion = inv.version;
     form = {
       account_id:    inv.account_id,
@@ -466,7 +467,8 @@
   async function openTxnModal(inv: Investment, m: 'buy' | 'sell'): Promise<void> {
     await Promise.all([ensureLedgers(), ensureAccounts(), ensureConfigs()]);
     txnMode  = m;
-    txnInvId = inv.investment_id;
+    txnInvId    = inv.investment_id;
+    txnInvUUID  = inv.creation_event_uuid;
     txnForm  = {
       date:          today(),
       quantity:      '',
@@ -567,8 +569,8 @@
           symbol:        form.symbol.trim().toUpperCase(),
           currency:      form.currency.trim().toUpperCase(),
           name:          form.name.trim(),
-          investment_id: editId,
-          version:       editVersion,
+          investment_uuid: editId,
+          version:         editVersion,
         });
       }
       showModal = false;
@@ -640,8 +642,8 @@
       }
 
       const payload = {
-        investment_id: txnInvId,
-        date:          txnForm.date,
+        investment_uuid: txnInvUUID,
+        date:            txnForm.date,
         quantity:      txnForm.quantity,
         unit_price:    txnForm.unit_price,
         exchange_rate: txnForm.exchange_rate,
@@ -1198,7 +1200,7 @@
         </div>
 
         {#if mode === 'edit'}
-          {@const inv = investments.find(i => i.investment_id === editId)}
+          {@const inv = investments.find(i => i.creation_event_uuid === editId)}
           {#if inv}
             <div class="form-row" style="margin-top:8px;">
               <div class="form-group">
