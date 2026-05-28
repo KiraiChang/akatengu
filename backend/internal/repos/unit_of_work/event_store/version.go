@@ -39,6 +39,19 @@ func (r *sqlcdbTxVersionRepository) Insert(ctx context.Context, aggregateType en
 	})
 }
 
+func (r *sqlcdbTxVersionRepository) Upsert(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, version int64) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	return r.q.UpsertAggregateVersion(ctx, sqlcdb.UpsertAggregateVersionParams{
+		AggregateType:  aggregateType,
+		AggregateID:    aggregateID,
+		MerchantID:     merchantID,
+		CurrentVersion: version,
+	})
+}
+
 func (r *sqlcdbTxVersionRepository) UpdateIfVersionMatch(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, version int64) (int64, error) {
 	merchantID, err := ctxkey.GetMerchantID(ctx)
 	if err != nil {

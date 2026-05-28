@@ -222,5 +222,30 @@ func (s *EventStoreService) Replay(ctx context.Context, fromEventID int64, aggre
 		}
 	}
 
+	// 5. 重建 aggregate_versions，確保後續 Append 的版本控制正確
+	if len(events) > 0 {
+		type aggKey struct {
+			t  enums.AggregateType
+			id string
+		}
+		latestVersions := make(map[aggKey]int64)
+		for _, event := range events {
+			k := aggKey{event.AggregateType, event.AggregateId}
+			if event.AggregateVersion > latestVersions[k] {
+				latestVersions[k] = event.AggregateVersion
+			}
+		}
+		if err := s.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
+			for k, v := range latestVersions {
+				if err := tx.Version.Upsert(ctx, k.t, k.id, v); err != nil {
+					return fmt.Errorf("upsert aggregate version %s/%s: %w", k.t, k.id, err)
+				}
+			}
+			return nil
+		}); err != nil {
+			return nil, fmt.Errorf("rebuild aggregate versions: %w", err)
+		}
+	}
+
 	return events, nil
 }

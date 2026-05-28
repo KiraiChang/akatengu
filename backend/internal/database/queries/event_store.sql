@@ -107,3 +107,9 @@ WHERE aggregate_type  = @aggregate_type
   AND merchant_id     = @merchant_id
   AND current_version = @current_version
 RETURNING aggregate_type, aggregate_id, merchant_id, current_version;
+
+-- name: UpsertAggregateVersion :exec
+INSERT INTO aggregate_versions (aggregate_type, aggregate_id, merchant_id, current_version)
+VALUES (@aggregate_type, @aggregate_id, @merchant_id, @current_version)
+ON CONFLICT(aggregate_type, aggregate_id, merchant_id) DO UPDATE SET
+    current_version = MAX(current_version, excluded.current_version);
