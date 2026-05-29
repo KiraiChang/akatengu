@@ -20,7 +20,7 @@ type InstallmentCreatedPayload struct {
 	InterestType     enums.InterestType `json:"interest_type"`         // "interest_free" | "fixed_rate"
 	AnnualRate       decimal.Decimal    `json:"annual_rate,omitempty"` // "12.5"，有息才填
 	AccountId        string             `json:"account_id"`            // 買的東西歸屬科目，如「電腦設備」
-	LedgerId         int64              `json:"ledger_id"`             // 哪張信用卡 / 哪個帳戶
+	LedgerUuid       string             `json:"ledger_uuid"`           // 哪張信用卡 / 哪個帳戶
 	Memo             string             `json:"memo,omitempty"`
 	Note             string             `json:"note,omitempty"`
 }
@@ -44,8 +44,8 @@ func (p InstallmentCreatedPayload) Validate() error {
 		errs = append(errs, "account_id is required")
 	}
 
-	if p.LedgerId <= 0 {
-		errs = append(errs, "ledger_id is required")
+	if p.LedgerUuid == "" {
+		errs = append(errs, "ledger_uuid is required")
 	}
 
 	if !p.InterestType.In(enums.AllInterestType()...) {
@@ -57,7 +57,7 @@ func (p InstallmentCreatedPayload) Validate() error {
 
 func (p InstallmentCreatedPayload) CreateInstallment() (*projection.Installment, error) {
 	return &projection.Installment{
-		LedgerId:        p.LedgerId,
+		LedgerUuid:      p.LedgerUuid,
 		Description:     p.Memo,
 		TotalAmount:     p.Amount,
 		TotalPeriods:    p.InstallmentCount,
@@ -181,12 +181,11 @@ func (p InstallmentPeriodPaidPayload) Validate() error {
 // Called by the pipeline factory; the result is stored in InstallmentCreatedState.Transaction.
 func BuildInstallmentCreatedTransaction(p InstallmentCreatedPayload, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
 	var entries []TransactionEntryPayload
-	ledgerId := p.LedgerId
 	switch p.InterestType.Val() {
 	case enums.InterestTypeFree:
 		entries = []TransactionEntryPayload{
 			{AccountId: p.AccountId, Debit: p.Amount, Credit: decimal.Zero},
-			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.Amount},
+			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.Amount},
 		}
 	case enums.InterestTypeFixedRate:
 		interest := decimal.Zero
@@ -196,7 +195,7 @@ func BuildInstallmentCreatedTransaction(p InstallmentCreatedPayload, ledger *pro
 		entries = []TransactionEntryPayload{
 			{AccountId: p.AccountId, Debit: p.Amount, Credit: decimal.Zero},
 			{AccountId: sysAccountAssetPrepaidInterest, Debit: p.Amount, Credit: decimal.Zero},
-			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.Amount.Add(interest)},
+			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.Amount.Add(interest)},
 		}
 	default:
 		return TransactionCreatedPayload{}, fmt.Errorf("invalid interest type: %s", p.InterestType.Val())

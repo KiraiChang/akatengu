@@ -16,7 +16,7 @@ type Installment struct {
 	InstallmentId   int64                   `db:"installment_id" json:"installment_id"`
 	InstallmentUuid string                  `db:"installment_uuid" json:"installment_uuid"`
 	TransactionId   *int64                  `db:"txn_id" json:"transaction_id"`
-	LedgerId        int64                   `db:"ledger_id" json:"ledger_id"`
+	LedgerUuid      string                  `db:"ledger_uuid" json:"ledger_uuid"`
 	Description     string                  `db:"description" json:"description"`
 	TotalAmount     decimal.Decimal         `db:"total_amount" json:"total_amount"`
 	TotalPeriods    int64                   `db:"total_periods" json:"total_periods"`

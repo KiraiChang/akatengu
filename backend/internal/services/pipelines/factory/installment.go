@@ -31,7 +31,7 @@ func (e *eventInstallmentCreatedProjector) Project(ctx context.Context, ct *pipe
 		return err
 	}
 
-	ledger, err := e.query.Account.GetLedger(ctx, p.LedgerId)
+	ledger, err := e.query.Account.GetLedgerByUuid(ctx, p.LedgerUuid)
 	if err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func (e *eventInstallmentPeriodPaidProjector) Project(ctx context.Context, ct *p
 		return fmt.Errorf("payment not found")
 	}
 
-	ledger, err = e.query.Account.GetLedger(ctx, c.Installment.LedgerId)
+	ledger, err = e.query.Account.GetLedgerByUuid(ctx, c.Installment.LedgerUuid)
 	if err != nil {
 		return err
 	}

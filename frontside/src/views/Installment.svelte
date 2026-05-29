@@ -317,6 +317,11 @@
         finalLedgerId = parseInt(createForm.ledger_id, 10);
       }
 
+      const ledger = activeLedgers.find(item => item.ledger_id === finalLedgerId);
+      if (!ledger) {
+        return;
+      }
+
       // 4. 建立分期
       const payload: InstallmentCreatedPayload = {
         amount:            createForm.amount,
@@ -325,7 +330,7 @@
         interest_type:     createForm.interest_type,
         annual_rate:       createForm.interest_type === 'FIXED_RATE' ? createForm.annual_rate : '0',
         account_id:        createForm.account_id,
-        ledger_id:         finalLedgerId,
+        ledger_uuid:       ledger.ledger_uuid,
         memo:              createForm.memo.trim(),
         note:              createForm.note.trim(),
       };

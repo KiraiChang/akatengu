@@ -43,7 +43,7 @@ export interface InstallmentCreatedPayload {
   interest_type:     InterestType;
   annual_rate:       string;
   account_id:        string;
-  ledger_id:         number;
+  ledger_uuid:       string;
   memo:              string;
   note:              string;
 }

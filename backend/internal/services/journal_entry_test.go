@@ -79,13 +79,17 @@ func (a *appender) do(et event_types.EventType, p any) {
 func insertLedger(t *testing.T, db *sqlx.DB, id int64, typ, acctID string) {
 	t.Helper()
 	_, err := db.ExecContext(testCtx(),
-		`INSERT INTO ledger_accounts(ledger_id, merchant_id, account_id, institution, name, type, currency, is_active, version)
-		 VALUES(?, ?, ?, 'TEST', 'test ledger', ?, 'TWD', 1, 1)`,
-		id, testMID, acctID, typ,
+		`INSERT INTO ledger_accounts(ledger_id, merchant_id, account_id, institution, name, type, currency, is_active, version, uuid)
+		 VALUES(?, ?, ?, 'TEST', 'test ledger', ?, 'TWD', 1, 1, ?)`,
+		id, testMID, acctID, typ, testLedgerUUID(id),
 	)
 	if err != nil {
 		t.Fatalf("insertLedger(%d): %v", id, err)
 	}
+}
+
+func testLedgerUUID(id int64) string {
+	return fmt.Sprintf("test-ledger-uuid-%d", id)
 }
 
 func insertPeriodOpen(t *testing.T, db *sqlx.DB, id int64, startDate string) {
@@ -359,6 +363,23 @@ func queryLastInstallmentID(t *testing.T, db *sqlx.DB) int64 {
 		t.Fatalf("queryLastInstallmentID: %v", err)
 	}
 	return id
+}
+
+func insertInstallment(t *testing.T, db *sqlx.DB, id int64, ledgerID int64, desc string) {
+	t.Helper()
+	_, err := db.ExecContext(testCtx(),
+		`INSERT INTO installments(installment_id, merchant_id, installment_uuid, ledger_id, ledger_uuid, description, total_amount, total_periods,
+		amount_per_period, start_date, interest_rate, interest_type, status, note)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, testMID, testInstallmentUUID(id), ledgerID, testLedgerUUID(ledgerID), desc,
+	)
+	if err != nil {
+		t.Fatalf("insertInstallment(%d): %v", id, err)
+	}
+}
+
+func testInstallmentUUID(id int64) string {
+	return fmt.Sprintf("test-inst-uuid-%d", id)
 }
 
 type rbScanRow struct {
@@ -870,10 +891,10 @@ func TestInstallmentPeriodPaid_Free(t *testing.T) {
 	installmentID := queryLastInstallmentID(t, db)
 
 	a.do(event_types.EventInstallmentPeriodPaid.Enum(), payload.InstallmentPeriodPaidPayload{
-		InstallmentId: installmentID,
-		Period:        1,
-		PaidDate:      "2026-06-01",
-		PaidLedgerId:  2,
+		InstallmentId:  installmentID,
+		Period:         1,
+		PaidDate:       "2026-06-01",
+		PaidLedgerUuid: testLedgerUUID(2),
 	})
 
 	// Period 1: 10000/12 truncate(6) = 833.333333
@@ -961,12 +982,12 @@ func TestInvestmentSold_Gain(t *testing.T) {
 	a.do(event_types.EventInvestmentSold.Enum(), payload.InvestmentSoldPayload{
 		InvestmentUUID: testInvestmentUUID(1),
 		Date:           "2026-05-15",
-		Quantity:     dec("10"),
-		UnitPrice:    dec("120"),
-		ExchangeRate: dec("1"),
-		Fee:          dec("5"),
-		Tax:          dec("0"),
-		LedgerId:     1,
+		Quantity:       dec("10"),
+		UnitPrice:      dec("120"),
+		ExchangeRate:   dec("1"),
+		Fee:            dec("5"),
+		Tax:            dec("0"),
+		LedgerId:       1,
 	})
 
 	txn := queryLastTxn(t, db)

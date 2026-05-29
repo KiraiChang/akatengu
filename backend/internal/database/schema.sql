@@ -122,11 +122,11 @@ CREATE TABLE journal_entries (
     updated_at          TEXT
 );
 
-CREATE TABLE installments (
+CREATE TABLE installments(
     installment_id    INTEGER PRIMARY KEY AUTOINCREMENT,
     installment_uuid  TEXT    NOT NULL DEFAULT '',
     merchant_id       INTEGER NOT NULL DEFAULT 0,
-    ledger_id         INTEGER NOT NULL,
+    ledger_uuid       TEXT    NOT NULL DEFAULT '',
     txn_id            INTEGER,
     description       TEXT    NOT NULL,
     total_amount      REAL    NOT NULL,

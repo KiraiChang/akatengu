@@ -1,5 +1,5 @@
 -- name: GetInstallment :one
-SELECT installment_id, installment_uuid, txn_id, ledger_id, description, total_amount,
+SELECT installment_id, installment_uuid, txn_id, description, total_amount,
        total_periods, amount_per_period, start_date, end_date,
        interest_rate, interest_type, status, note,
        updated_by, updated_at
@@ -7,10 +7,10 @@ FROM installments
 WHERE installment_id = @installment_id AND merchant_id = @merchant_id;
 
 -- name: GetInstallmentByUuid :one
-SELECT installment_id, installment_uuid, txn_id, ledger_id, description, total_amount,
+SELECT installment_id, installment_uuid, txn_id, description, total_amount,
        total_periods, amount_per_period, start_date, end_date,
        interest_rate, interest_type, status, note,
-       updated_by, updated_at
+       updated_by, updated_at, ledger_uuid
 FROM installments
 WHERE installment_uuid = @installment_uuid AND merchant_id = @merchant_id;
 
@@ -19,7 +19,7 @@ WITH total AS (
     SELECT COUNT(*) AS cnt FROM installments WHERE merchant_id = @merchant_id
 )
 SELECT
-             i.installment_id, i.installment_uuid, i.txn_id, i.ledger_id, i.description, i.total_amount,
+             i.installment_id, i.installment_uuid, i.txn_id, i.ledger_uuid, i.description, i.total_amount,
              i.total_periods, i.amount_per_period, i.start_date, i.end_date,
              i.interest_rate, i.interest_type, i.status, i.note,
              i.updated_by, i.updated_at,
@@ -30,7 +30,7 @@ SELECT
                             ON p.installment_id = i.installment_id AND p.status = 'PAID'
          WHERE i.merchant_id = @merchant_id
          GROUP BY
-             i.installment_id, i.installment_uuid, i.txn_id, i.ledger_id, i.description, i.total_amount,
+             i.installment_id, i.installment_uuid, i.txn_id, i.ledger_uuid, i.description, i.total_amount,
              i.total_periods, i.amount_per_period, i.start_date, i.end_date,
              i.interest_rate, i.interest_type, i.status, i.note,
              i.updated_by, i.updated_at
@@ -61,7 +61,7 @@ WITH total AS (
 
 -- name: InsertInstallment :execlastid
 INSERT INTO installments
-    (merchant_id, installment_uuid, ledger_id, description, total_amount, total_periods,
+    (merchant_id, installment_uuid, ledger_uuid, description, total_amount, total_periods,
      amount_per_period, start_date, interest_rate, interest_type, status, note, updated_by)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 

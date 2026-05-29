@@ -351,7 +351,7 @@ func (s *TransactionProjectionService) applyInstallmentPeriodPaid(ctx context.Co
 	if err != nil {
 		return err
 	}
-	return tx.Projection.InstallmentRepo.UpdatePaymentTxn(ctx, st.Installment.InstallmentId, txnId, updatedBy)
+	return tx.Projection.InstallmentRepo.UpdatePaymentTxn(ctx, st.InstallmentPayments.PaymentId, txnId, updatedBy)
 }
 
 func (s *TransactionProjectionService) applyPrepaidCreated(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
