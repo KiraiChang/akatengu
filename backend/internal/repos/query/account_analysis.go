@@ -45,10 +45,6 @@ func (r *sqlxAccountAnalysisRepo) GetAccountDirectChildrenWithBalance(ctx contex
 	if err != nil {
 		return nil, err
 	}
-	if len(children) == 0 {
-		return []projection.AccountChildBalance{}, nil
-	}
-
 	// Fetch all running balances and index by account_id
 	balances, err := r.q.GetAllAccountRunningBalance(ctx, merchantID)
 	if err != nil {
@@ -61,6 +57,27 @@ func (r *sqlxAccountAnalysisRepo) GetAccountDirectChildrenWithBalance(ctx contex
 	balanceMap := make(map[string]totals, len(balances))
 	for _, b := range balances {
 		balanceMap[b.AccountID] = totals{debit: b.DebitTotal, credit: b.CreditTotal}
+	}
+
+	// 葉科目（無子科目）：回傳自身以利前端顯示餘額
+	if len(children) == 0 {
+		self, err := r.q.GetAccount(ctx, sqlcdb.GetAccountParams{
+			AccountID:  accountID,
+			MerchantID: merchantID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		bal := balanceMap[accountID]
+		return []projection.AccountChildBalance{{
+			AccountID:   self.AccountID,
+			ParentID:    self.ParentID,
+			Name:        self.Name,
+			IsSummary:   self.IsSummary,
+			HasChild:    false,
+			DebitTotal:  bal.debit,
+			CreditTotal: bal.credit,
+		}}, nil
 	}
 
 	result := make([]projection.AccountChildBalance, len(children))
