@@ -6,6 +6,14 @@ SELECT installment_id, installment_uuid, txn_id, ledger_id, description, total_a
 FROM installments
 WHERE installment_id = @installment_id AND merchant_id = @merchant_id;
 
+-- name: GetInstallmentByUuid :one
+SELECT installment_id, installment_uuid, txn_id, ledger_id, description, total_amount,
+       total_periods, amount_per_period, start_date, end_date,
+       interest_rate, interest_type, status, note,
+       updated_by, updated_at
+FROM installments
+WHERE installment_uuid = @installment_uuid AND merchant_id = @merchant_id;
+
 -- name: GetInstallmentPaged :many
 WITH total AS (
     SELECT COUNT(*) AS cnt FROM installments WHERE merchant_id = @merchant_id

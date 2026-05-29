@@ -16,6 +16,7 @@ type InstallmentRepo interface {
 	GetPayment(ctx context.Context, id int64, period int) (*projection.InstallmentPayment, error)
 	GetInstallmentPaged(ctx context.Context, req model.PaginationParams) ([]projection.Installment, int64, error)
 	GetPaymentPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InstallmentPayment, int64, error)
+	GetInstallmentByUuid(ctx context.Context, uuid string) (*projection.Installment, error)
 }
 
 type sqlcdbInstallmentRepo struct {
@@ -99,6 +100,30 @@ func (r *sqlcdbInstallmentRepo) GetInstallment(ctx context.Context, id int64) (*
 		note = *row.Note
 	}
 	result := projection.InstallmentPtrFromGetInstallmentRow(row)
+	result.Note = note
+	return result, nil
+}
+
+func (r *sqlcdbInstallmentRepo) GetInstallmentByUuid(ctx context.Context, uuid string) (*projection.Installment, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetInstallmentByUuid(ctx, sqlcdb.GetInstallmentByUuidParams{
+		InstallmentUuid: uuid,
+		MerchantID:      merchantID,
+	})
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	note := ""
+	if row.Note != nil {
+		note = *row.Note
+	}
+	result := projection.InstallmentPtrFromGetInstallmentByUuidRow(row)
 	result.Note = note
 	return result, nil
 }

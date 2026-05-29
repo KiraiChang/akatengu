@@ -38,6 +38,7 @@ type Account struct {
 //dbmap:sqlcdb=GetLedgerPagedRow
 //dbmap:sqlcdb=GetLedgerRow
 //dbmap:sqlcdb=GetAllLedgersRow
+//dbmap:sqlcdb=GetLedgerByUuidRow
 type LedgerAccount struct {
 	MerchantID  int64                   `db:"merchant_id" json:"merchant_id"`
 	LedgerId    int64                   `db:"ledger_id" json:"ledger_id"`

@@ -149,17 +149,17 @@ func (p InstallmentCreatedPayload) generateFixedRateItems() ([]*projection.Insta
 // ─────────────────────────────────────────
 
 type InstallmentPeriodPaidPayload struct {
-	InstallmentId int64  `json:"installment_id"` // 1
-	Period        int    `json:"period"`         // 期數
-	PaidDate      string `json:"paid_date"`      // "2026-05-01"，到期日
-	PaidLedgerId  int64  `json:"paid_ledger_id"` // 由那裡扣款 現金/信用卡當期帳單
+	InstallmentUuid string `json:"installment_uuid"` // 主檔的uuid
+	Period          int    `json:"period"`           // 期數
+	PaidDate        string `json:"paid_date"`        // "2026-05-01"，到期日
+	PaidLedgerUuid  string `json:"paid_ledger_uuid"` // 扣款帳戶的uuid
 }
 
 func (p InstallmentPeriodPaidPayload) Validate() error {
 	var errs []string
 
-	if p.InstallmentId == 0 {
-		errs = append(errs, "installment_id is required")
+	if p.InstallmentUuid == "" {
+		errs = append(errs, "installment_uuid is required")
 	}
 
 	if p.Period == 0 {
@@ -170,8 +170,8 @@ func (p InstallmentPeriodPaidPayload) Validate() error {
 		errs = append(errs, "PaidDate is required")
 	}
 
-	if p.PaidLedgerId == 0 {
-		errs = append(errs, "paid_ledger_id is required")
+	if p.PaidLedgerUuid == "" {
+		errs = append(errs, "paid_ledger_uuid is required")
 	}
 
 	return joinErrors(errs)

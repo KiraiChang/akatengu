@@ -10,6 +10,7 @@ import (
 //dbmap:sqlcdb=InsertInstallmentParams
 //dbmap:sqlcdb=GetInstallmentRow
 //dbmap:sqlcdb=GetInstallmentPagedRow
+//dbmap:sqlcdb=GetInstallmentByUuidRow
 type Installment struct {
 	MerchantID      int64                   `db:"merchant_id" json:"merchant_id"`
 	InstallmentId   int64                   `db:"installment_id" json:"installment_id"`

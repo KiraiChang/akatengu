@@ -18,6 +18,7 @@ type AccountRepo interface {
 	GetChildrenAccount(ctx context.Context, id string) ([]projection.Account, error)
 	GetLedgerPaged(ctx context.Context, req model.PaginationParams) ([]projection.LedgerAccount, int64, error)
 	GetAllLedgers(ctx context.Context) ([]projection.LedgerAccount, error)
+	GetLedgerByUuid(ctx context.Context, uuid string) (*projection.LedgerAccount, error)
 }
 
 type sqlxAccountRepo struct {
@@ -149,6 +150,22 @@ func (r *sqlxAccountRepo) GetAccount(ctx context.Context, id string) (*projectio
 	}
 	a := projection.AccountFromGetAccountRow(row)
 	return &a, nil
+}
+
+func (r *sqlxAccountRepo) GetLedgerByUuid(ctx context.Context, uuid string) (*projection.LedgerAccount, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetLedgerByUuid(ctx, sqlcdb.GetLedgerByUuidParams{
+		LedgerUuid: uuid,
+		MerchantID: merchantID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	la := projection.LedgerAccountFromGetLedgerByUuidRow(row)
+	return &la, nil
 }
 
 func (r *sqlxAccountRepo) GetLedger(ctx context.Context, id int64) (*projection.LedgerAccount, error) {

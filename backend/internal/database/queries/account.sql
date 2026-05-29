@@ -43,6 +43,13 @@ SELECT ledger_id, ledger_uuid, account_id, institution, name, type,
 FROM ledger_accounts
 WHERE ledger_id = @ledger_id AND merchant_id = @merchant_id;
 
+-- name: GetLedgerByUuid :one
+SELECT ledger_id, ledger_uuid, account_id, institution, name, type,
+       account_no, currency, credit_limit, billing_day, due_day,
+       is_active, note, version, updated_by, updated_at
+FROM ledger_accounts
+WHERE ledger_uuid = @ledger_uuid AND merchant_id = @merchant_id;
+
 -- name: GetAllLedgers :many
 SELECT ledger_id, ledger_uuid, account_id, institution, name, type,
        account_no, currency, credit_limit, billing_day, due_day,

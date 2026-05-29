@@ -22,17 +22,18 @@ export interface Installment {
 }
 
 export interface InstallmentPayment {
-  payment_id:     number;
-  installment_id: number;
-  transaction_id: number | null;
-  period:         number;
-  amount:         string;
-  interest:       string;
-  due_date:       string;
-  paid_date:      string | null;
-  status:         InstallmentPaymentStatus;
-  updated_by:     string | null;
-  updated_at:     string | null;
+  payment_id:       number;
+  installment_id:   number;
+  installment_uuid: string;
+  transaction_id:   number | null;
+  period:           number;
+  amount:           string;
+  interest:         string;
+  due_date:         string;
+  paid_date:        string | null;
+  status:           InstallmentPaymentStatus;
+  updated_by:       string | null;
+  updated_at:       string | null;
 }
 
 export interface InstallmentCreatedPayload {
@@ -48,8 +49,8 @@ export interface InstallmentCreatedPayload {
 }
 
 export interface InstallmentPeriodPaidPayload {
-  installment_id: number;
-  period:         number;
-  paid_date:      string;
-  paid_ledger_id: number;
+  installment_uuid: string;
+  period:           number;
+  paid_date:        string;
+  paid_ledger_uuid: string;
 }

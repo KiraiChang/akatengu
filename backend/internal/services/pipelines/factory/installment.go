@@ -91,7 +91,7 @@ func (e *eventInstallmentPeriodPaidProjector) Project(ctx context.Context, ct *p
 		return err
 	}
 
-	ledger, err := e.query.Account.GetLedger(ctx, p.PaidLedgerId)
+	ledger, err := e.query.Account.GetLedgerByUuid(ctx, p.PaidLedgerUuid)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (e *eventInstallmentPeriodPaidProjector) Project(ctx context.Context, ct *p
 	}
 	c.PaidLedger = ledger
 
-	c.Installment, err = e.query.Installment.GetInstallment(ctx, p.InstallmentId)
+	c.Installment, err = e.query.Installment.GetInstallmentByUuid(ctx, p.InstallmentUuid)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (e *eventInstallmentPeriodPaidProjector) Project(ctx context.Context, ct *p
 		return fmt.Errorf("installment not found")
 	}
 
-	c.InstallmentPayments, err = e.query.Installment.GetPayment(ctx, p.InstallmentId, p.Period)
+	c.InstallmentPayments, err = e.query.Installment.GetPayment(ctx, c.Installment.InstallmentId, p.Period)
 	if err != nil {
 		return err
 	}

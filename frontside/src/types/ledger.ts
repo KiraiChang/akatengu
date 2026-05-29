@@ -2,6 +2,7 @@ export type LedgerAccountType = 'BANK_ACCOUNT' | 'CREDIT_CARD' | 'LOAN';
 
 export interface LedgerAccount {
   ledger_id:    number;
+  ledger_uuid:  string;
   account_id:   string;
   institution:  string;
   name:         string;

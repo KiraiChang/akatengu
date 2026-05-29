@@ -131,6 +131,7 @@
   let isPaying     = $state(false);
   let payError     = $state('');
   let payInstId    = $state(0);
+  let payInstUuid  = $state('');
   let payPeriod    = $state(0);
   let payForm      = $state<PayForm>({ paid_date: '', paid_ledger_id: '' });
 
@@ -342,6 +343,7 @@
     e.stopPropagation();
     await ensureLedgers();
     payInstId = payment.installment_id;
+    payInstUuid = payment.installment_uuid
     payPeriod = Number(payment.period);
     payForm   = { paid_date: payment.due_date, paid_ledger_id: '' };
     payError  = '';
@@ -353,12 +355,16 @@
     if (!isPayValid) return;
     isPaying = true;
     payError = '';
+    const ledger = activeLedgers.find((item) => item.ledger_id === parseInt(payForm.paid_ledger_id, 10) )
+    if (ledger == undefined || ledger == null) {
+      return;
+    }
     try {
       await payInstallmentPeriod({
-        installment_id: payInstId,
+        installment_uuid: payInstUuid,
         period:         payPeriod,
         paid_date:      payForm.paid_date,
-        paid_ledger_id: parseInt(payForm.paid_ledger_id, 10),
+        paid_ledger_uuid: ledger.ledger_uuid,
       });
       showPayModal = false;
       const next = new Map(paymentMap);
