@@ -79,7 +79,7 @@ func (a *appender) do(et event_types.EventType, p any) {
 func insertLedger(t *testing.T, db *sqlx.DB, id int64, typ, acctID string) {
 	t.Helper()
 	_, err := db.ExecContext(testCtx(),
-		`INSERT INTO ledger_accounts(ledger_id, merchant_id, account_id, institution, name, type, currency, is_active, version, uuid)
+		`INSERT INTO ledger_accounts(ledger_id, merchant_id, account_id, institution, name, type, currency, is_active, version, ledger_uuid)
 		 VALUES(?, ?, ?, 'TEST', 'test ledger', ?, 'TWD', 1, 1, ?)`,
 		id, testMID, acctID, typ, testLedgerUUID(id),
 	)
@@ -365,21 +365,15 @@ func queryLastInstallmentID(t *testing.T, db *sqlx.DB) int64 {
 	return id
 }
 
-func insertInstallment(t *testing.T, db *sqlx.DB, id int64, ledgerID int64, desc string) {
+func queryLastInstallmentUUID(t *testing.T, db *sqlx.DB) string {
 	t.Helper()
-	_, err := db.ExecContext(testCtx(),
-		`INSERT INTO installments(installment_id, merchant_id, installment_uuid, ledger_id, ledger_uuid, description, total_amount, total_periods,
-		amount_per_period, start_date, interest_rate, interest_type, status, note)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, testMID, testInstallmentUUID(id), ledgerID, testLedgerUUID(ledgerID), desc,
-	)
+	var uuid string
+	err := db.GetContext(testCtx(), &uuid,
+		`SELECT installment_uuid FROM installments WHERE merchant_id=? ORDER BY installment_id DESC LIMIT 1`, testMID)
 	if err != nil {
-		t.Fatalf("insertInstallment(%d): %v", id, err)
+		t.Fatalf("queryLastInstallmentUUID: %v", err)
 	}
-}
-
-func testInstallmentUUID(id int64) string {
-	return fmt.Sprintf("test-inst-uuid-%d", id)
+	return uuid
 }
 
 type rbScanRow struct {
@@ -848,7 +842,7 @@ func TestInstallmentCreated_Free(t *testing.T) {
 		StartDate:        "2026-05-01",
 		InterestType:     enums.InterestTypeFree.Enum(),
 		AccountId:        "1201-04",
-		LedgerId:         1,
+		LedgerUuid:       testLedgerUUID(1),
 		Memo:             "辦公電腦分期",
 	})
 
@@ -885,16 +879,16 @@ func TestInstallmentPeriodPaid_Free(t *testing.T) {
 		StartDate:        "2026-05-01",
 		InterestType:     enums.InterestTypeFree.Enum(),
 		AccountId:        "1201-04",
-		LedgerId:         1,
+		LedgerUuid:       testLedgerUUID(1),
 		Memo:             "辦公電腦分期",
 	})
-	installmentID := queryLastInstallmentID(t, db)
+	installmentUUID := queryLastInstallmentUUID(t, db)
 
 	a.do(event_types.EventInstallmentPeriodPaid.Enum(), payload.InstallmentPeriodPaidPayload{
-		InstallmentId:  installmentID,
-		Period:         1,
-		PaidDate:       "2026-06-01",
-		PaidLedgerUuid: testLedgerUUID(2),
+		InstallmentUuid: installmentUUID,
+		Period:          1,
+		PaidDate:        "2026-06-01",
+		PaidLedgerUuid:  testLedgerUUID(2),
 	})
 
 	// Period 1: 10000/12 truncate(6) = 833.333333
