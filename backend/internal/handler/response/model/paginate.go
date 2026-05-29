@@ -7,7 +7,7 @@ func PaginateWithTotal[T any](items []T, pagination PaginationParams, totalCount
 			Page:     pagination.Page,
 			PageSize: pagination.PageSize,
 		},
-		Data: paginateByPage(items, pagination.Page, pagination.PageSize),
+		Data: items,
 	}
 
 	resp.SetTotalCount(totalCount)
