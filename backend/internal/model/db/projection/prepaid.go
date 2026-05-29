@@ -9,6 +9,7 @@ import (
 //dbmap:sqlcdb=Prepaid
 type Prepaid struct {
 	ID               int64               `db:"id" json:"id"`
+	PrepaidUuid      string              `db:"prepaid_uuid" json:"prepaid_uuid"`
 	MerchantID       int64               `db:"merchant_id" json:"merchant_id"`
 	TxnID            *int64              `db:"txn_id" json:"txn_id"`
 	AccountID        string              `db:"account_id" json:"account_id"`
@@ -27,12 +28,14 @@ type Prepaid struct {
 
 //dbmap:sqlcdb=PrepaidAmortization
 type PrepaidAmortization struct {
-	ID         int64           `db:"id" json:"id"`
-	MerchantID int64           `db:"merchant_id" json:"merchant_id"`
-	PrepaidID  int64           `db:"prepaid_id" json:"prepaid_id"`
-	TxnID      int64           `db:"txn_id" json:"txn_id"`
-	PeriodDate string          `db:"period_date" json:"period_date"`
-	Amount     decimal.Decimal `db:"amount" json:"amount"`
-	UpdatedBy  *string         `db:"updated_by" json:"updated_by"`
-	UpdatedAt  *string         `db:"updated_at" json:"updated_at"`
+	ID               int64           `db:"id" json:"id"`
+	AmortizationUuid string          `db:"amortization_uuid" json:"amortization_uuid"`
+	PrepaidUuid      string          `db:"prepaid_uuid" json:"prepaid_uuid"`
+	MerchantID       int64           `db:"merchant_id" json:"merchant_id"`
+	PrepaidID        int64           `db:"prepaid_id" json:"prepaid_id"`
+	TxnID            int64           `db:"txn_id" json:"txn_id"`
+	PeriodDate       string          `db:"period_date" json:"period_date"`
+	Amount           decimal.Decimal `db:"amount" json:"amount"`
+	UpdatedBy        *string         `db:"updated_by" json:"updated_by"`
+	UpdatedAt        *string         `db:"updated_at" json:"updated_at"`
 }

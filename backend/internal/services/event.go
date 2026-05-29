@@ -5,6 +5,7 @@ import (
 	"akatengu/internal/model/db"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/pkg/ctxkey"
+	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
@@ -120,6 +121,7 @@ func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db
 		if newVersion%50 == 0 {
 			state, _ := json.Marshal(ct.Event)
 			if err := tx.Snap.Upsert(ctx, db.Snapshot{
+				SnapshotUuid:  uuidx.NewFromEvent(eventUUIDStr, "snapshot"),
 				AggregateType: cmd.AggregateType,
 				AggregateId:   cmd.AggregateID,
 				AtVersion:     newVersion,

@@ -32,13 +32,13 @@ FROM investments
 WHERE symbol = @symbol AND currency = @currency AND merchant_id = @merchant_id;
 
 -- name: GetPosition :one
-SELECT id, investment_id, total_quantity, total_cost, avg_cost, market_price_twd,
+SELECT id, position_uuid, investment_id, investment_uuid, total_quantity, total_cost, avg_cost, market_price_twd,
        updated_by, updated_at
 FROM investment_positions
 WHERE investment_id = @investment_id AND merchant_id = @merchant_id;
 
 -- name: GetNotStatusLots :many
-SELECT lot_id, investment_id, movement_id, acquired_date, txn_id,
+SELECT lot_id, lot_uuid, investment_id, investment_uuid, movement_id, movement_uuid, acquired_date, txn_id,
        quantity, unit_cost, total_cost, remaining_qty, status, unrealized_unit_twd,
        updated_by, updated_at
 FROM investment_lots
@@ -47,7 +47,7 @@ ORDER BY acquired_date, lot_id;
 
 -- name: GetOpenLotsPaged :many
 WITH total AS (SELECT COUNT(*) AS cnt FROM investment_lots AS p2 WHERE p2.investment_id = @investment_id AND p2.merchant_id = @merchant_id)
-SELECT lot_id, p.investment_id, movement_id, acquired_date, txn_id,
+SELECT lot_id, lot_uuid, p.investment_id, investment_uuid, movement_id, movement_uuid, acquired_date, txn_id,
        quantity, unit_cost, total_cost, remaining_qty, status, unrealized_unit_twd,
        p.updated_by, p.updated_at,
        total.cnt AS total
@@ -59,7 +59,7 @@ OFFSET @offset;
 
 -- name: GetOpenLotDisposalsPaged :many
 WITH total AS (SELECT COUNT(*) AS cnt FROM investment_lot_disposals AS d2 WHERE d2.lot_id = @lot_id AND d2.merchant_id = @merchant_id)
-SELECT id, d.lot_id, movement_id, quantity, cost_basis, sale_proceeds, capital_gain,
+SELECT id, disposal_uuid, d.lot_id, lot_uuid, movement_id, movement_uuid, quantity, cost_basis, sale_proceeds, capital_gain,
        holding_period_days, disposal_date, txn_id,
        total.cnt AS total
 FROM investment_lot_disposals AS d, total
@@ -69,7 +69,7 @@ ORDER BY disposal_date ASC
 OFFSET @offset;
 
 -- name: GetInvestmentMovements :many
-SELECT movement_id, investment_id, event_id, txn_id, movement_type,
+SELECT movement_id, movement_uuid, investment_id, investment_uuid, event_id, event_uuid, txn_id, movement_type,
        movement_date, quantity, unit_price, unit_price_twd, exchange_rate,
        fee, tax, realized_gain, cost_basis, gross_amount, net_amount,
        withholding_tax, split_ratio,
@@ -80,7 +80,7 @@ ORDER BY movement_date, movement_id;
 
 -- name: GetInvestmentMovementsPaged :many
 WITH total AS (SELECT COUNT(*) AS cnt FROM investment_movements AS m2 WHERE m2.investment_id = @investment_id AND m2.merchant_id = @merchant_id)
-SELECT movement_id, m.investment_id, event_id, txn_id, movement_type,
+SELECT movement_id, movement_uuid, m.investment_id, investment_uuid, event_id, event_uuid, txn_id, movement_type,
        movement_date, quantity, unit_price, unit_price_twd, exchange_rate,
        fee, tax, realized_gain, cost_basis, gross_amount, net_amount,
        withholding_tax, split_ratio,
@@ -112,8 +112,8 @@ SET account_id  = ?,
 WHERE investment_id = ? AND merchant_id = ? AND version = ?;
 
 -- name: UpsertInvestmentPosition :exec
-INSERT INTO investment_positions (merchant_id, investment_id, total_quantity, total_cost, updated_by)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO investment_positions (merchant_id, position_uuid, investment_id, investment_uuid, total_quantity, total_cost, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(investment_id)
 DO UPDATE SET
     total_quantity = total_quantity + excluded.total_quantity,
@@ -123,8 +123,8 @@ DO UPDATE SET
 
 -- name: InsertInvestmentLot :execlastid
 INSERT INTO investment_lots
-    (merchant_id, investment_id, acquired_date, movement_id, quantity, unit_cost, total_cost, remaining_qty, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    (merchant_id, lot_uuid, investment_id, investment_uuid, acquired_date, movement_id, movement_uuid, quantity, unit_cost, total_cost, remaining_qty, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateInvestmentLotTxn :exec
 UPDATE investment_lots
@@ -142,9 +142,9 @@ WHERE lot_id = @lot_id;
 
 -- name: InsertInvestmentLotDisposal :execlastid
 INSERT INTO investment_lot_disposals
-    (merchant_id, lot_id, movement_id, quantity, cost_basis, sale_proceeds, capital_gain,
+    (merchant_id, disposal_uuid, lot_id, lot_uuid, movement_id, movement_uuid, quantity, cost_basis, sale_proceeds, capital_gain,
      holding_period_days, disposal_date)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateInvestmentLotDisposalTxn :exec
 UPDATE investment_lot_disposals
@@ -153,11 +153,11 @@ WHERE id = @id;
 
 -- name: InsertInvestmentMovement :execlastid
 INSERT INTO investment_movements
-    (merchant_id, investment_id, movement_type, movement_date, event_id,
+    (merchant_id, movement_uuid, investment_id, investment_uuid, movement_type, movement_date, event_id, event_uuid,
      quantity, unit_price, unit_price_twd, exchange_rate,
      fee, tax, realized_gain, cost_basis, split_ratio,
      gross_amount, net_amount, withholding_tax, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateInvestmentMovementTxn :exec
 UPDATE investment_movements

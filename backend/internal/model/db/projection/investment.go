@@ -41,8 +41,11 @@ type Investment struct {
 type InvestmentLot struct {
 	MerchantID        int64           `db:"merchant_id" json:"merchant_id"`
 	LotId             int64           `db:"lot_id" json:"lot_id"`
+	LotUuid           string          `db:"lot_uuid" json:"lot_uuid"`
 	InvestmentId      int64           `db:"investment_id" json:"investment_id"`
+	InvestmentUuid    string          `db:"investment_uuid" json:"investment_uuid"`
 	MovementId        int64           `db:"movement_id" json:"movement_id"`
+	MovementUuid      string          `db:"movement_uuid" json:"movement_uuid"`
 	AcquiredDate      string          `db:"acquired_date" json:"acquired_date"`
 	TransactionId     *int64          `db:"txn_id" json:"txn_id"`
 	Quantity          decimal.Decimal `db:"quantity" json:"quantity"`
@@ -61,9 +64,12 @@ type InvestmentLot struct {
 type InvestmentLotDisposals struct {
 	MerchantID        int64           `db:"merchant_id" json:"merchant_id"`
 	Id                int64           `db:"id" json:"id"`
+	DisposalUuid      string          `db:"disposal_uuid" json:"disposal_uuid"`
 	LotId             int64           `db:"lot_id" json:"lot_id"`
+	LotUuid           string          `db:"lot_uuid" json:"lot_uuid"`
 	TransactionId     *int64          `db:"txn_id" json:"txn_id"`
 	MovementId        int64           `db:"movement_id" json:"movement_id"`
+	MovementUuid      string          `db:"movement_uuid" json:"movement_uuid"`
 	Quantity          decimal.Decimal `db:"quantity" json:"quantity"`
 	CostBasis         decimal.Decimal `db:"cost_basis" json:"cost_basis"`
 	SaleProceeds      decimal.Decimal `db:"sale_proceeds" json:"sale_proceeds"`
@@ -79,7 +85,9 @@ type InvestmentLotDisposals struct {
 type InvestmentPosition struct {
 	MerchantID     int64           `db:"merchant_id" json:"merchant_id"`
 	Id             int64           `db:"id" json:"id"`
+	PositionUuid   string          `db:"position_uuid" json:"position_uuid"`
 	InvestmentId   int64           `db:"investment_id" json:"investment_id"`
+	InvestmentUuid string          `db:"investment_uuid" json:"investment_uuid"`
 	TotalQuantity  decimal.Decimal `db:"total_quantity" json:"total_quantity"`
 	TotalCost      decimal.Decimal `db:"total_cost" json:"total_cost"`
 	AvgCost        decimal.Decimal `db:"avg_cost" json:"avg_cost"`
@@ -95,21 +103,24 @@ type InvestmentPosition struct {
 //dbmap:sqlcdb=GetInvestmentMovementsRow
 //dbmap:sqlcdb=GetInvestmentMovementsPagedRow
 type InvestmentMovement struct {
-	MerchantID    int64               `db:"merchant_id" json:"merchant_id"`
-	MovementId    int64               `db:"movement_id" json:"movement_id"`
-	InvestmentId  int64               `db:"investment_id" json:"investment_id"`
-	EventId       int64               `db:"event_id" json:"event_id"`
-	TransactionId *int64              `db:"txn_id" json:"txn_id"`
-	MovementType  enums.MovementType  `db:"movement_type" json:"movement_type"`
-	MovementDate  string              `db:"movement_date" json:"movement_date"`
-	Quantity      decimal.Decimal     `db:"quantity" json:"quantity"`
-	UnitPrice     decimal.Decimal     `db:"unit_price" json:"unit_price"`
-	UnitPriceTWD  decimal.Decimal     `db:"unit_price_twd" json:"unit_price_twd"`
-	ExchangeRate  decimal.Decimal     `db:"exchange_rate" json:"exchange_rate"`
-	Fee           decimal.Decimal     `db:"fee" json:"fee"`
-	Tax           decimal.Decimal     `db:"tax" json:"tax"`
-	RealizedGain  decimal.NullDecimal `db:"realized_gain" json:"realized_gain"`
-	CostBasis     decimal.NullDecimal `db:"cost_basis" json:"cost_basis"`
+	MerchantID     int64               `db:"merchant_id" json:"merchant_id"`
+	MovementId     int64               `db:"movement_id" json:"movement_id"`
+	MovementUuid   string              `db:"movement_uuid" json:"movement_uuid"`
+	InvestmentId   int64               `db:"investment_id" json:"investment_id"`
+	InvestmentUuid string              `db:"investment_uuid" json:"investment_uuid"`
+	EventId        int64               `db:"event_id" json:"event_id"`
+	EventUuid      string              `db:"event_uuid" json:"event_uuid"`
+	TransactionId  *int64              `db:"txn_id" json:"txn_id"`
+	MovementType   enums.MovementType  `db:"movement_type" json:"movement_type"`
+	MovementDate   string              `db:"movement_date" json:"movement_date"`
+	Quantity       decimal.Decimal     `db:"quantity" json:"quantity"`
+	UnitPrice      decimal.Decimal     `db:"unit_price" json:"unit_price"`
+	UnitPriceTWD   decimal.Decimal     `db:"unit_price_twd" json:"unit_price_twd"`
+	ExchangeRate   decimal.Decimal     `db:"exchange_rate" json:"exchange_rate"`
+	Fee            decimal.Decimal     `db:"fee" json:"fee"`
+	Tax            decimal.Decimal     `db:"tax" json:"tax"`
+	RealizedGain   decimal.NullDecimal `db:"realized_gain" json:"realized_gain"`
+	CostBasis      decimal.NullDecimal `db:"cost_basis" json:"cost_basis"`
 
 	// --- Income (Cash Dividend) ---
 	GrossAmount    decimal.NullDecimal `db:"gross_amount" json:"gross_amount"`       // 含稅

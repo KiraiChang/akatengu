@@ -19,6 +19,28 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### [DRAFT] 2026-05-29 Event Sourcing UUID 設計要點
+
+**問題根因**：SQLite AUTOINCREMENT 計數器（`sqlite_sequence`）不在 DELETE 後重置，
+全量重播（TruncateProjections + 逐事件 Apply）後 projection 記錄的整數 ID 與原始不同，
+跨事件引用的 FK 斷裂（如 InvestmentSold 引用先前 InvestmentBought 建立的 lot_id）。
+
+**UUID 生成策略**：
+- 1:1 事件：`ct.Event.EventUuid` 直接作為主體 UUID（e.g., `txn_uuid`、`movement_uuid`、`ledger_uuid`、`prepaid_uuid`、`asset_uuid`）
+- 1:N 事件：`uuidx.NewFromEvent(ct.Event.EventUuid, qualifier)` 衍生，qualifier 帶索引（e.g., `"entry:0"`, `"lot"`, `"payment:0"`）
+- UUID v5（SHA1 deterministic）確保相同輸入永遠輸出相同值，replay 完全冪等
+
+**`journal_entries.ledger_uuid` 特殊處理**：
+TransactionCreatedPayload 不帶 LedgerAccount 狀態，改在 `sqlxTransactionRepo.UpsertJournalEntries` 內
+自動 `SELECT ledger_uuid FROM ledger_accounts WHERE ledger_id = ?` 補入，不需修改 payload 或 pipeline。
+lookup 失敗時寫 warn log 並繼續（ledger_uuid 留空字串），不中斷寫入。
+
+**`investment_lot_disposals.lot_uuid` 特殊處理**：
+`calcFIFOCostBasis` pipeline 從 DB 查詢 `GetNotCloseLots` 取得 `lot.LotUuid`，直接填入 `InvestmentLotDisposals.LotUuid`。
+schema 與 SQL query 已更新讓 `GetNotStatusLotsRow` 包含 `lot_uuid` 欄位，dbmap 自動映射。
+
+**整數 ID 保留**：UUID 欄位與現有整數 PK/FK 並存，不移除整數欄位，保持 SQLite btree 效能。
+
 ### [DEBUG] 2026-05-28 事件會計整合測試的設計模式
 
 **測試入口**：`internal/services/journal_entry_test.go`（`package services_test`）

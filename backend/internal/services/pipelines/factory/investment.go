@@ -290,6 +290,7 @@ func (e *eventInvestmentSoldProjector) calcFIFOCostBasis(
 		}
 		updates = append(updates, projection.InvestmentLotDisposals{
 			LotId:             lot.LotId,
+			LotUuid:           lot.LotUuid,
 			Quantity:          use,
 			CostBasis:         lotOriginal,
 			SaleProceeds:      p.UnitPrice.Mul(use),

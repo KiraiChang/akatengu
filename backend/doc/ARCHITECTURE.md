@@ -36,6 +36,7 @@
 | [ADR-014](#adr-014-所有會計帳務異動必須透過事件溯源寫入查詢透過-queryrepo) | 所有會計帳務異動必須透過事件溯源寫入，查詢透過 query.Repo | Accepted | 2026-05-22 |
 | [ADR-016](#adr-016-分頁-api-實作規範) | 分頁 API 實作規範 | Accepted | 2026-05-25 |
 | [ADR-017](#adr-017-分錄組裝移至-pipeline-factory) | 分錄組裝移至 Pipeline Factory | Accepted | 2026-05-27 |
+| [ADR-018](#adr-018-event-sourcing-projection-全面加入-uuid-以確保-replay-正確性) | Event Sourcing Projection 全面加入 UUID 以確保 Replay 正確性 | Accepted | 2026-05-29 |
 
 ---
 
@@ -591,6 +592,55 @@
 - **後果**：
   - **正面**：分錄組裝邏輯集中在 `payload/` builder 函數，可獨立單元測試；Projection 互不依賴，執行順序可自由調整；新增事件只需在 factory + 一個 Projection（各加一行）。
   - **負面**：`AmortizationAmount`（攤提金額）和 `DepreciationAmount`（折舊金額）在 factory 和 `TransactionProjectionService`（`InsertPrepaidAmortization` / `InsertFixedAssetDepreciation` 的 Amount 欄位）各計算一次，但函數為純函數且結果一致，可接受。
+
+---
+
+## ADR-018 Event Sourcing Projection 全面加入 UUID 以確保 Replay 正確性
+
+- **狀態**：Accepted
+- **日期**：2026-05-29
+- **背景**：
+  Projection 資料表（如 `transactions`、`journal_entries`、`investment_movements`、`investment_lots` 等）
+  的主鍵均為 SQLite AUTOINCREMENT 整數。全量重播（TruncateProjections + 逐事件 Apply）時，
+  所有 projection 資料被清空後重新寫入，但 SQLite AUTOINCREMENT 的計數器不隨 DELETE 重置，
+  因此重播後的自增 ID 會比原始值更大。此時跨表的整數 FK（如 `journal_entries.txn_id` → `transactions.txn_id`、
+  `investment_lots.movement_id` → `investment_movements.movement_id`）雖然在「同一筆 Apply 呼叫內」仍可正確取得剛插入的 ID，
+  但一旦需要「後序事件引用前序事件建立的記錄」（如 InvestmentSold 的 lot_uuid 引用先前 InvestmentBought 建立的 lot），
+  整數 ID 在重播後與原始不同，FK 關聯斷裂。
+
+- **決策**：
+  為每個 projection 資料表新增程式端生成的 UUID 欄位，跨表引用改為 UUID 版 FK，確保 replay 後關聯正確重建：
+
+  1. **UUID 生成策略**：所有 UUID 由 Go 程式碼在 Projection Apply 時生成，不依賴 SQLite DEFAULT：
+     - 主體 UUID（如 `txn_uuid`、`movement_uuid`）：直接使用 `ct.Event.EventUuid`（事件自身的 UUIDv7），1:1 關係時語義最直觀。
+     - 衍生 UUID（如 `entry_uuid`、`lot_uuid`、`payment_uuid`）：由 `uuidx.NewFromEvent(eventUUID, qualifier)` 衍生，
+       使用 UUID v5（SHA1 deterministic），給定相同 event UUID + qualifier 永遠產生相同 UUID，確保 replay 冪等。
+  2. **UUID 工具**：`internal/pkg/uuidx/NewFromEvent(eventUUID, qualifier)` 統一入口。
+  3. **資料表變更範圍**：17 張 projection 資料表新增 UUID 欄位（詳見 migration `20260529002_add_uuid_to_projections.sql`）：
+     - `transactions.txn_uuid`、`journal_entries.entry_uuid/txn_uuid/ledger_uuid`
+     - `ledger_accounts.ledger_uuid`
+     - `investment_movements.movement_uuid/investment_uuid/event_uuid`
+     - `investment_lots.lot_uuid/investment_uuid/movement_uuid`
+     - `investment_lot_disposals.disposal_uuid/lot_uuid/movement_uuid`
+     - `investment_positions.position_uuid/investment_uuid`
+     - `installments.installment_uuid`、`installment_payments.payment_uuid/installment_uuid`
+     - `prepaids.prepaid_uuid`、`prepaid_amortizations.amortization_uuid/prepaid_uuid`
+     - `fixed_assets.asset_uuid`、`fixed_asset_depreciations.depreciation_uuid/asset_uuid`
+     - `period_closings.closing_uuid`、`snapshots.snapshot_uuid`
+  4. **整數 ID 保留**：不移除現有整數 PK/FK，UUID 欄位與整數欄位並存，利用整數 PK 保持 SQLite 效能。
+  5. **`journal_entries.ledger_uuid` 特殊處理**：因 `TransactionCreatedPayload` 不帶 LedgerAccount 狀態，
+     `UpsertJournalEntries` 在 repo 層自動 SELECT `ledger_accounts.ledger_uuid` 補入，不需更動 payload 或 pipeline。
+
+- **替代方案**：
+  - **重置 sqlite_sequence**：TruncateProjections 時重置自增計數器。問題：多租戶環境下其他商戶資料仍存在，
+    重置會導致 ID 與現有 row 衝突，且 AUTOINCREMENT 設計上就是保證不重用，此方案從根本上違反設計意圖。
+  - **將 ID 存入 payload**：在 Handler 端生成 UUID 寫入事件 payload，Projection Apply 從 payload 讀取後以 INSERT ... WITH EXPLICIT ID 插入。
+    優點是保留整數 PK 語義；缺點是所有 payload struct 必須大幅修改，且每個 BuildXxx 函式都需注入多個 UUID，維護負擔高。
+  - **UUID 替換整數 PK**：完全以 UUID 取代整數 PK。優點是最純粹；缺點是 SQLite 效能下降，且現有大量程式碼依賴整數 PK，
+    遷移成本極高。
+- **後果**：
+  - 正面：Replay 後所有跨表 UUID FK 關聯正確重建，不受 AUTOINCREMENT 計數器影響；UUID 從 event_uuid deterministic 衍生，同一事件重複 replay 結果完全一致（冪等）。
+  - 負面：每次 INSERT 需設定多個 UUID 欄位，projection Apply 方法複雜度略增；`journal_entries.ledger_uuid` 需在 repo 層額外一次 SELECT lookup，有 N+1 查詢風險（實際影響很小，因 ledger 數量有限）。
 
 ---
 

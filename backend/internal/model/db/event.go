@@ -35,6 +35,7 @@ type AggregateVersion struct {
 //dbmap:sqlcdb=Snapshot
 type Snapshot struct {
 	SnapshotId    int64               `db:"snapshot_id"`
+	SnapshotUuid  string              `db:"snapshot_uuid"`
 	MerchantID    int64               `db:"merchant_id"`
 	AggregateType enums.AggregateType `db:"aggregate_type"`
 	AggregateId   string              `db:"aggregate_id"`

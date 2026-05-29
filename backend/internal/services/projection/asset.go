@@ -44,6 +44,7 @@ func (s *FixedAssetProjectionService) applyPurchased(ctx context.Context, tx eve
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	assetID, err := tx.Projection.FixedAssetRepo.InsertFixedAsset(ctx, sqlcdb.InsertFixedAssetParams{
 		MerchantID:                   ct.MerchantID,
+		AssetUuid:                    ct.Event.EventUuid,
 		Name:                         p.Name,
 		AssetAccountID:               p.AssetAccountID,
 		AccumDepreciationAccountID:   p.AccumDepreciationAccountID,

@@ -23,6 +23,7 @@ CREATE TABLE aggregate_versions (
 
 CREATE TABLE snapshots (
     snapshot_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_uuid  TEXT    NOT NULL DEFAULT '',
     merchant_id    INTEGER NOT NULL DEFAULT 0,
     aggregate_type TEXT    NOT NULL,
     aggregate_id   TEXT    NOT NULL,
@@ -60,6 +61,7 @@ CREATE TABLE accounts (
 
 CREATE TABLE ledger_accounts (
     ledger_id    INTEGER PRIMARY KEY,
+    ledger_uuid  TEXT    NOT NULL DEFAULT '',
     merchant_id  INTEGER NOT NULL DEFAULT 0,
     account_id   TEXT    NOT NULL,
     institution  TEXT    NOT NULL,
@@ -87,6 +89,7 @@ CREATE TABLE sys_accounts (
 
 CREATE TABLE transactions (
     txn_id         INTEGER PRIMARY KEY,
+    txn_uuid       TEXT    NOT NULL DEFAULT '',
     merchant_id    INTEGER NOT NULL DEFAULT 0,
     txn_date       TEXT    NOT NULL,
     description    TEXT    NOT NULL,
@@ -104,6 +107,9 @@ CREATE TABLE transactions (
 
 CREATE TABLE journal_entries (
     entry_id            INTEGER PRIMARY KEY,
+    entry_uuid          TEXT    NOT NULL DEFAULT '',
+    txn_uuid            TEXT    NOT NULL DEFAULT '',
+    ledger_uuid         TEXT    NOT NULL DEFAULT '',
     merchant_id         INTEGER NOT NULL DEFAULT 0,
     txn_id              INTEGER NOT NULL,
     ledger_id           INTEGER,
@@ -118,6 +124,7 @@ CREATE TABLE journal_entries (
 
 CREATE TABLE installments (
     installment_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    installment_uuid  TEXT    NOT NULL DEFAULT '',
     merchant_id       INTEGER NOT NULL DEFAULT 0,
     ledger_id         INTEGER NOT NULL,
     txn_id            INTEGER,
@@ -136,18 +143,20 @@ CREATE TABLE installments (
 );
 
 CREATE TABLE installment_payments (
-    payment_id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    merchant_id    INTEGER NOT NULL DEFAULT 0,
-    installment_id INTEGER NOT NULL,
-    txn_id         INTEGER,
-    period_no      INTEGER NOT NULL,
-    amount         REAL    NOT NULL,
-    interest       REAL    NOT NULL,
-    due_date       TEXT    NOT NULL,
-    paid_date      TEXT,
-    status         TEXT    NOT NULL DEFAULT 'PENDING',
-    updated_by     TEXT,
-    updated_at     TEXT
+    payment_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    payment_uuid     TEXT    NOT NULL DEFAULT '',
+    installment_uuid TEXT    NOT NULL DEFAULT '',
+    merchant_id      INTEGER NOT NULL DEFAULT 0,
+    installment_id   INTEGER NOT NULL,
+    txn_id           INTEGER,
+    period_no        INTEGER NOT NULL,
+    amount           REAL    NOT NULL,
+    interest         REAL    NOT NULL,
+    due_date         TEXT    NOT NULL,
+    paid_date        TEXT,
+    status           TEXT    NOT NULL DEFAULT 'PENDING',
+    updated_by       TEXT,
+    updated_at       TEXT
 );
 
 CREATE TABLE reconciliations (
@@ -175,6 +184,7 @@ CREATE TABLE reconciliation_adjustments (
 
 CREATE TABLE period_closings (
     closing_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    closing_uuid   TEXT    NOT NULL DEFAULT '',
     merchant_id    INTEGER NOT NULL DEFAULT 0,
     period_type    TEXT    NOT NULL,
     period_start   TEXT    NOT NULL,
@@ -219,15 +229,18 @@ CREATE TABLE investments (
 );
 
 CREATE TABLE investment_lots (
-    lot_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    merchant_id   INTEGER NOT NULL DEFAULT 0,
-    investment_id INTEGER NOT NULL,
-    movement_id   INTEGER NOT NULL,
-    acquired_date TEXT    NOT NULL,
-    txn_id        INTEGER,
-    quantity      REAL    NOT NULL,
-    unit_cost     REAL    NOT NULL,
-    total_cost    REAL    NOT NULL,
+    lot_id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_uuid         TEXT    NOT NULL DEFAULT '',
+    investment_uuid  TEXT    NOT NULL DEFAULT '',
+    movement_uuid    TEXT    NOT NULL DEFAULT '',
+    merchant_id      INTEGER NOT NULL DEFAULT 0,
+    investment_id    INTEGER NOT NULL,
+    movement_id      INTEGER NOT NULL,
+    acquired_date    TEXT    NOT NULL,
+    txn_id           INTEGER,
+    quantity         REAL    NOT NULL,
+    unit_cost        REAL    NOT NULL,
+    total_cost       REAL    NOT NULL,
     remaining_qty       REAL NOT NULL,
     status              TEXT NOT NULL DEFAULT 'OPEN',
     unrealized_unit_twd REAL NOT NULL DEFAULT 0,
@@ -236,53 +249,61 @@ CREATE TABLE investment_lots (
 );
 
 CREATE TABLE investment_movements (
-    movement_id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    merchant_id     INTEGER NOT NULL DEFAULT 0,
-    investment_id   INTEGER NOT NULL,
-    event_id        INTEGER NOT NULL,
-    txn_id          INTEGER,
-    movement_type   TEXT    NOT NULL,
-    movement_date   TEXT    NOT NULL,
-    quantity        REAL    NOT NULL DEFAULT 0,
-    unit_price      REAL    NOT NULL DEFAULT 0,
-    unit_price_twd  REAL    NOT NULL DEFAULT 0,
-    exchange_rate   REAL    NOT NULL DEFAULT 1,
-    fee             REAL    NOT NULL DEFAULT 0,
-    tax             REAL    NOT NULL DEFAULT 0,
-    realized_gain   REAL,
-    cost_basis      REAL,
-    split_ratio     REAL,
-    gross_amount    REAL,
-    net_amount      REAL,
-    withholding_tax REAL,
-    updated_by      TEXT,
-    updated_at      TEXT
+    movement_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    movement_uuid    TEXT    NOT NULL DEFAULT '',
+    investment_uuid  TEXT    NOT NULL DEFAULT '',
+    event_uuid       TEXT    NOT NULL DEFAULT '',
+    merchant_id      INTEGER NOT NULL DEFAULT 0,
+    investment_id    INTEGER NOT NULL,
+    event_id         INTEGER NOT NULL,
+    txn_id           INTEGER,
+    movement_type    TEXT    NOT NULL,
+    movement_date    TEXT    NOT NULL,
+    quantity         REAL    NOT NULL DEFAULT 0,
+    unit_price       REAL    NOT NULL DEFAULT 0,
+    unit_price_twd   REAL    NOT NULL DEFAULT 0,
+    exchange_rate    REAL    NOT NULL DEFAULT 1,
+    fee              REAL    NOT NULL DEFAULT 0,
+    tax              REAL    NOT NULL DEFAULT 0,
+    realized_gain    REAL,
+    cost_basis       REAL,
+    split_ratio      REAL,
+    gross_amount     REAL,
+    net_amount       REAL,
+    withholding_tax  REAL,
+    updated_by       TEXT,
+    updated_at       TEXT
 );
 
 CREATE TABLE investment_positions (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    merchant_id     INTEGER NOT NULL DEFAULT 0,
-    investment_id   INTEGER NOT NULL UNIQUE,
-    total_quantity  REAL    NOT NULL,
-    total_cost      REAL    NOT NULL,
-    avg_cost        REAL    NOT NULL DEFAULT 0,
-    market_price_twd REAL   NOT NULL DEFAULT 0,
-    updated_by      TEXT,
-    updated_at      TEXT
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    position_uuid    TEXT    NOT NULL DEFAULT '',
+    investment_uuid  TEXT    NOT NULL DEFAULT '',
+    merchant_id      INTEGER NOT NULL DEFAULT 0,
+    investment_id    INTEGER NOT NULL UNIQUE,
+    total_quantity   REAL    NOT NULL,
+    total_cost       REAL    NOT NULL,
+    avg_cost         REAL    NOT NULL DEFAULT 0,
+    market_price_twd REAL    NOT NULL DEFAULT 0,
+    updated_by       TEXT,
+    updated_at       TEXT
 );
 
 CREATE TABLE investment_lot_disposals (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    merchant_id         INTEGER NOT NULL DEFAULT 0,
-    lot_id              INTEGER,
-    txn_id              INTEGER,
-    movement_id         INTEGER,
-    quantity            REAL    NOT NULL,
-    cost_basis          REAL    NOT NULL,
-    sale_proceeds       REAL    NOT NULL,
-    capital_gain        REAL    NOT NULL,
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    disposal_uuid   TEXT    NOT NULL DEFAULT '',
+    lot_uuid        TEXT    NOT NULL DEFAULT '',
+    movement_uuid   TEXT    NOT NULL DEFAULT '',
+    merchant_id     INTEGER NOT NULL DEFAULT 0,
+    lot_id          INTEGER,
+    txn_id          INTEGER,
+    movement_id     INTEGER,
+    quantity        REAL    NOT NULL,
+    cost_basis      REAL    NOT NULL,
+    sale_proceeds   REAL    NOT NULL,
+    capital_gain    REAL    NOT NULL,
     holding_period_days INTEGER,
-    disposal_date       TEXT    NOT NULL
+    disposal_date   TEXT    NOT NULL
 );
 
 CREATE TABLE exchange_rates (
@@ -454,6 +475,7 @@ CREATE TABLE asset_type_account_config (
 
 CREATE TABLE prepaids (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    prepaid_uuid        TEXT    NOT NULL DEFAULT '',
     merchant_id         INTEGER NOT NULL,
     txn_id              INTEGER,
     account_id          TEXT    NOT NULL,
@@ -471,18 +493,21 @@ CREATE TABLE prepaids (
 );
 
 CREATE TABLE prepaid_amortizations (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    merchant_id INTEGER NOT NULL,
-    prepaid_id  INTEGER NOT NULL REFERENCES prepaids(id),
-    txn_id      INTEGER NOT NULL,
-    period_date TEXT    NOT NULL,
-    amount      REAL    NOT NULL,
-    updated_by  TEXT,
-    updated_at  TEXT    DEFAULT (datetime('now'))
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    amortization_uuid TEXT    NOT NULL DEFAULT '',
+    prepaid_uuid      TEXT    NOT NULL DEFAULT '',
+    merchant_id       INTEGER NOT NULL,
+    prepaid_id        INTEGER NOT NULL REFERENCES prepaids(id),
+    txn_id            INTEGER NOT NULL,
+    period_date       TEXT    NOT NULL,
+    amount            REAL    NOT NULL,
+    updated_by        TEXT,
+    updated_at        TEXT    DEFAULT (datetime('now'))
 );
 
 CREATE TABLE fixed_assets (
     id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_uuid                      TEXT    NOT NULL DEFAULT '',
     merchant_id                     INTEGER NOT NULL,
     txn_id                          INTEGER,
     name                            TEXT    NOT NULL,
@@ -505,12 +530,14 @@ CREATE TABLE fixed_assets (
 );
 
 CREATE TABLE fixed_asset_depreciations (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    merchant_id INTEGER NOT NULL,
-    asset_id    INTEGER NOT NULL REFERENCES fixed_assets(id),
-    txn_id      INTEGER NOT NULL,
-    period_date TEXT    NOT NULL,
-    amount      REAL    NOT NULL,
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    depreciation_uuid TEXT    NOT NULL DEFAULT '',
+    asset_uuid        TEXT    NOT NULL DEFAULT '',
+    merchant_id       INTEGER NOT NULL,
+    asset_id          INTEGER NOT NULL REFERENCES fixed_assets(id),
+    txn_id            INTEGER NOT NULL,
+    period_date       TEXT    NOT NULL,
+    amount            REAL    NOT NULL,
     updated_by  TEXT,
     updated_at  TEXT    DEFAULT (datetime('now'))
 );

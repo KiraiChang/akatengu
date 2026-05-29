@@ -41,6 +41,7 @@ type Account struct {
 type LedgerAccount struct {
 	MerchantID  int64                   `db:"merchant_id" json:"merchant_id"`
 	LedgerId    int64                   `db:"ledger_id" json:"ledger_id"`
+	LedgerUuid  string                  `db:"ledger_uuid" json:"ledger_uuid"`
 	AccountId   string                  `db:"account_id" json:"account_id"`
 	Institution string                  `db:"institution" json:"institution"`
 	Name        string                  `db:"name" json:"name"`

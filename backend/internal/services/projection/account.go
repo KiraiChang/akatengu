@@ -105,6 +105,7 @@ func (s *AccountProjectionService) applyLedgerCreate(ctx context.Context, tx eve
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.AccountRepo.CreateLedgerAccount(ctx, projection.LedgerAccount{
 		MerchantID:  ct.MerchantID,
+		LedgerUuid:  ct.Event.EventUuid,
 		AccountId:   p.AccountId,
 		Institution: p.Institution,
 		Name:        p.Name,

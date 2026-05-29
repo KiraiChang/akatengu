@@ -1,9 +1,9 @@
 -- name: InsertPrepaid :one
 INSERT INTO prepaids (
-    merchant_id, account_id, expense_account_id,
+    merchant_id, prepaid_uuid, account_id, expense_account_id,
     name, total_amount, periods, start_date, updated_by
 ) VALUES (
-    @merchant_id, @account_id, @expense_account_id,
+    @merchant_id, @prepaid_uuid, @account_id, @expense_account_id,
     @name, @total_amount, @periods, @start_date, @updated_by
 ) RETURNING *;
 
@@ -39,9 +39,9 @@ WHERE id = @id AND merchant_id = @merchant_id;
 
 -- name: InsertPrepaidAmortization :exec
 INSERT INTO prepaid_amortizations (
-    merchant_id, prepaid_id, txn_id, period_date, amount, updated_by
+    merchant_id, amortization_uuid, prepaid_uuid, prepaid_id, txn_id, period_date, amount, updated_by
 ) VALUES (
-    @merchant_id, @prepaid_id, @txn_id, @period_date, @amount, @updated_by
+    @merchant_id, @amortization_uuid, @prepaid_uuid, @prepaid_id, @txn_id, @period_date, @amount, @updated_by
 );
 
 -- name: GetPrepaidAmortizationsByPrepaidID :many

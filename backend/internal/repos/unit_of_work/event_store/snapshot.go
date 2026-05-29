@@ -16,6 +16,7 @@ func (r *sqlcdbTxSnapshotRepository) Upsert(ctx context.Context, snap db.Snapsho
 	}
 	return r.q.UpsertSnapshot(ctx, sqlcdb.UpsertSnapshotParams{
 		MerchantID:    merchantID,
+		SnapshotUuid:  snap.SnapshotUuid,
 		AggregateType: snap.AggregateType,
 		AggregateID:   snap.AggregateId,
 		AtVersion:     snap.AtVersion,

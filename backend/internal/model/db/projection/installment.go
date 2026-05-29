@@ -13,6 +13,7 @@ import (
 type Installment struct {
 	MerchantID      int64                   `db:"merchant_id" json:"merchant_id"`
 	InstallmentId   int64                   `db:"installment_id" json:"installment_id"`
+	InstallmentUuid string                  `db:"installment_uuid" json:"installment_uuid"`
 	TransactionId   *int64                  `db:"txn_id" json:"transaction_id"`
 	LedgerId        int64                   `db:"ledger_id" json:"ledger_id"`
 	Description     string                  `db:"description" json:"description"`
@@ -35,16 +36,18 @@ type Installment struct {
 //dbmap:sqlcdb=GetPaymentPagedRow
 //dbmap:sqlcdb=GetInstallmentPaymentRow
 type InstallmentPayment struct {
-	MerchantID    int64                          `db:"merchant_id" json:"merchant_id"`
-	PaymentId     int64                          `db:"payment_id" json:"payment_id"`
-	InstallmentId int64                          `db:"installment_id" json:"installment_id"`
-	TransactionId *int64                         `db:"txn_id" json:"transaction_id"`
-	Period        int64                          `db:"period_no" json:"period"`
-	Amount        decimal.Decimal                `db:"amount" json:"amount"`
-	Interest      decimal.Decimal                `db:"interest" json:"interest"`
-	DueDate       string                         `db:"due_date" json:"due_date"`
-	PaidDate      *string                        `db:"paid_date" json:"paid_date"`
-	Status        enums.InstallmentPaymentStatus `db:"status" json:"status"`
-	UpdatedBy     *string                        `db:"updated_by" json:"updated_by"`
-	UpdatedAt     *string                        `db:"updated_at" json:"updated_at"`
+	MerchantID      int64                          `db:"merchant_id" json:"merchant_id"`
+	PaymentId       int64                          `db:"payment_id" json:"payment_id"`
+	PaymentUuid     string                         `db:"payment_uuid" json:"payment_uuid"`
+	InstallmentId   int64                          `db:"installment_id" json:"installment_id"`
+	InstallmentUuid string                         `db:"installment_uuid" json:"installment_uuid"`
+	TransactionId   *int64                         `db:"txn_id" json:"transaction_id"`
+	Period          int64                          `db:"period_no" json:"period"`
+	Amount          decimal.Decimal                `db:"amount" json:"amount"`
+	Interest        decimal.Decimal                `db:"interest" json:"interest"`
+	DueDate         string                         `db:"due_date" json:"due_date"`
+	PaidDate        *string                        `db:"paid_date" json:"paid_date"`
+	Status          enums.InstallmentPaymentStatus `db:"status" json:"status"`
+	UpdatedBy       *string                        `db:"updated_by" json:"updated_by"`
+	UpdatedAt       *string                        `db:"updated_at" json:"updated_at"`
 }

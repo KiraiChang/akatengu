@@ -1,5 +1,5 @@
 -- name: GetInstallment :one
-SELECT installment_id, txn_id, ledger_id, description, total_amount,
+SELECT installment_id, installment_uuid, txn_id, ledger_id, description, total_amount,
        total_periods, amount_per_period, start_date, end_date,
        interest_rate, interest_type, status, note,
        updated_by, updated_at
@@ -11,7 +11,7 @@ WITH total AS (
     SELECT COUNT(*) AS cnt FROM installments WHERE merchant_id = @merchant_id
 )
 SELECT
-             i.installment_id, i.txn_id, i.ledger_id, i.description, i.total_amount,
+             i.installment_id, i.installment_uuid, i.txn_id, i.ledger_id, i.description, i.total_amount,
              i.total_periods, i.amount_per_period, i.start_date, i.end_date,
              i.interest_rate, i.interest_type, i.status, i.note,
              i.updated_by, i.updated_at,
@@ -22,7 +22,7 @@ SELECT
                             ON p.installment_id = i.installment_id AND p.status = 'PAID'
          WHERE i.merchant_id = @merchant_id
          GROUP BY
-             i.installment_id, i.txn_id, i.ledger_id, i.description, i.total_amount,
+             i.installment_id, i.installment_uuid, i.txn_id, i.ledger_id, i.description, i.total_amount,
              i.total_periods, i.amount_per_period, i.start_date, i.end_date,
              i.interest_rate, i.interest_type, i.status, i.note,
              i.updated_by, i.updated_at
@@ -30,7 +30,7 @@ SELECT
     LIMIT @limit OFFSET @offset;
 
 -- name: GetInstallmentPayment :one
-SELECT payment_id, installment_id, txn_id, period_no, amount,
+SELECT payment_id, payment_uuid, installment_id, installment_uuid, txn_id, period_no, amount,
        interest, due_date, paid_date, status,
        updated_by, updated_at
 FROM installment_payments
@@ -42,7 +42,7 @@ WITH total AS (
     FROM installment_payments AS p2
     WHERE p2.installment_id = @installment_id AND p2.merchant_id = @merchant_id
 )
-         SELECT p.payment_id, p.installment_id, p.txn_id, p.period_no, p.amount,
+         SELECT p.payment_id, p.payment_uuid, p.installment_id, p.installment_uuid, p.txn_id, p.period_no, p.amount,
                 p.interest, p.due_date, p.paid_date, p.status,
                 p.updated_by, p.updated_at,
                 total.cnt AS total
@@ -53,14 +53,14 @@ WITH total AS (
 
 -- name: InsertInstallment :execlastid
 INSERT INTO installments
-    (merchant_id, ledger_id, description, total_amount, total_periods,
+    (merchant_id, installment_uuid, ledger_id, description, total_amount, total_periods,
      amount_per_period, start_date, interest_rate, interest_type, status, note, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertInstallmentPayment :execlastid
 INSERT INTO installment_payments
-    (merchant_id, installment_id, period_no, amount, interest, due_date, status, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+    (merchant_id, payment_uuid, installment_id, installment_uuid, period_no, amount, interest, due_date, status, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateInstallmentTxn :exec
 UPDATE installments

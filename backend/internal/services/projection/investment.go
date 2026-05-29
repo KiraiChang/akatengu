@@ -6,6 +6,7 @@ import (
 	"akatengu/internal/model/db/projection"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
+	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"
@@ -142,7 +143,10 @@ func (s *InvestmentProjectionService) applyInvestmentBought(ctx context.Context,
 	// 業務邏輯：組裝 proj model
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
+	st.Movement.MovementUuid = ct.Event.EventUuid
+	st.Movement.InvestmentUuid = st.Investment.Uuid
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.EventUuid = ct.Event.EventUuid
 	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
@@ -150,11 +154,16 @@ func (s *InvestmentProjectionService) applyInvestmentBought(ctx context.Context,
 	}
 	if st.Investment.CostMethod.Is(enums.CostMethodAvg) {
 		st.Position.MerchantID = ct.MerchantID
+		st.Position.PositionUuid = uuidx.NewFromEvent(ct.Event.EventUuid, "position")
+		st.Position.InvestmentUuid = st.Investment.Uuid
 		st.Position.UpdatedBy = updatedBy
 		err = tx.Projection.InvestmentRepo.UpsertPosition(ctx, st.Position)
 	} else {
 		st.Lot.MerchantID = ct.MerchantID
+		st.Lot.LotUuid = uuidx.NewFromEvent(ct.Event.EventUuid, "lot")
+		st.Lot.InvestmentUuid = st.Investment.Uuid
 		st.Lot.MovementId = st.Movement.MovementId
+		st.Lot.MovementUuid = ct.Event.EventUuid
 		st.Lot.UpdatedBy = updatedBy
 		st.Lot.LotId, err = tx.Projection.InvestmentRepo.InsertLot(ctx, st.Lot)
 		if err != nil {
@@ -178,7 +187,10 @@ func (s *InvestmentProjectionService) applyInvestmentSold(ctx context.Context, t
 	// 業務邏輯：組裝 proj model
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
+	st.Movement.MovementUuid = ct.Event.EventUuid
+	st.Movement.InvestmentUuid = st.Investment.Uuid
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.EventUuid = ct.Event.EventUuid
 	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
@@ -194,7 +206,9 @@ func (s *InvestmentProjectionService) applyInvestmentSold(ctx context.Context, t
 	} else {
 		for index, lots := range st.LotDisposals {
 			lots.MerchantID = ct.MerchantID
+			lots.DisposalUuid = uuidx.NewFromEvent(ct.Event.EventUuid, fmt.Sprintf("disposal:%d", index))
 			lots.MovementId = st.Movement.MovementId
+			lots.MovementUuid = ct.Event.EventUuid
 			st.LotDisposals[index].Id, err = tx.Projection.InvestmentRepo.InsertLotDisposals(ctx, lots)
 			if err != nil {
 				return err
@@ -218,7 +232,10 @@ func (s *InvestmentProjectionService) applyStockSplit(ctx context.Context, tx ev
 	// 業務邏輯：組裝 proj model
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
+	st.Movement.MovementUuid = ct.Event.EventUuid
+	st.Movement.InvestmentUuid = st.Investment.Uuid
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.EventUuid = ct.Event.EventUuid
 	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
@@ -252,7 +269,10 @@ func (s *InvestmentProjectionService) applyDividendReceived(ctx context.Context,
 	// 業務邏輯：組裝 proj model
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
+	st.Movement.MovementUuid = ct.Event.EventUuid
+	st.Movement.InvestmentUuid = st.Investment.Uuid
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.EventUuid = ct.Event.EventUuid
 	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {
@@ -286,7 +306,10 @@ func (s *InvestmentProjectionService) applyUnrealizedMarked(ctx context.Context,
 	// 1. 插入 movement（MARK）
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	st.Movement.MerchantID = ct.MerchantID
+	st.Movement.MovementUuid = ct.Event.EventUuid
+	st.Movement.InvestmentUuid = st.Investment.Uuid
 	st.Movement.EventId = ct.Event.EventId
+	st.Movement.EventUuid = ct.Event.EventUuid
 	st.Movement.UpdatedBy = updatedBy
 	st.Movement.MovementId, err = tx.Projection.InvestmentRepo.InsertMovement(ctx, st.Movement)
 	if err != nil {

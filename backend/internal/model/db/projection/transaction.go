@@ -13,6 +13,9 @@ import (
 type Entry struct {
 	MerchantID       int64                  `db:"merchant_id" json:"merchant_id"`
 	EntryId          int64                  `db:"entry_id" json:"entry_id"`
+	EntryUuid        string                 `db:"entry_uuid" json:"entry_uuid"`
+	TxnUuid          string                 `db:"txn_uuid" json:"txn_uuid"`
+	LedgerUuid       string                 `db:"ledger_uuid" json:"ledger_uuid"`
 	TransactionId    int64                  `db:"txn_id" json:"txn_id"`
 	LedgerId         *int64                 `db:"ledger_id" json:"ledger_id"`
 	AccountId        string                 `db:"account_id" json:"account_id"`
@@ -31,6 +34,7 @@ type Entry struct {
 type Transaction struct {
 	MerchantID      int64                   `db:"merchant_id" json:"merchant_id"`
 	TransactionId   int64                   `db:"txn_id" json:"txn_id"`
+	TxnUuid         string                  `db:"txn_uuid" json:"txn_uuid"`
 	TransactionDate string                  `db:"txn_date" json:"txn_date"`
 	Description     string                  `db:"description" json:"description"`
 	TotalAmount     decimal.Decimal         `db:"total_amount" json:"total_amount"`

@@ -44,6 +44,7 @@ func (s *PrepaidProjectionService) applyCreated(ctx context.Context, tx event_st
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	prepaidID, err := tx.Projection.PrepaidRepo.InsertPrepaid(ctx, sqlcdb.InsertPrepaidParams{
 		MerchantID:       ct.MerchantID,
+		PrepaidUuid:      ct.Event.EventUuid,
 		AccountID:        p.AccountID,
 		ExpenseAccountID: p.ExpenseAccountID,
 		Name:             p.Name,

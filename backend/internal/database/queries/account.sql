@@ -37,14 +37,14 @@ WHERE a.parent_id = @parent_id AND a.merchant_id = @merchant_id
 ORDER BY a.account_id ASC;
 
 -- name: GetLedger :one
-SELECT ledger_id, account_id, institution, name, type,
+SELECT ledger_id, ledger_uuid, account_id, institution, name, type,
        account_no, currency, credit_limit, billing_day, due_day,
        is_active, note, version, updated_by, updated_at
 FROM ledger_accounts
 WHERE ledger_id = @ledger_id AND merchant_id = @merchant_id;
 
 -- name: GetAllLedgers :many
-SELECT ledger_id, account_id, institution, name, type,
+SELECT ledger_id, ledger_uuid, account_id, institution, name, type,
        account_no, currency, credit_limit, billing_day, due_day,
        is_active, note, version, updated_by, updated_at
 FROM ledger_accounts
@@ -64,7 +64,7 @@ WHERE merchant_id = @merchant_id
 ORDER BY account_id ASC;
 
 -- name: GetLedgerPaged :many
-SELECT ledger_id, account_id, institution, name, type,
+SELECT ledger_id, ledger_uuid, account_id, institution, name, type,
        account_no, currency, credit_limit, billing_day, due_day,
        is_active, note, version, updated_by, updated_at,
        COUNT(*) OVER() AS total
@@ -97,8 +97,8 @@ WHERE account_id = ? AND merchant_id = ? AND version = ?;
 
 -- name: CreateLedgerAccount :exec
 INSERT INTO ledger_accounts
-    (merchant_id, account_id, institution, name, type, account_no, currency, credit_limit, billing_day, due_day, is_active, note, version, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);
+    (merchant_id, ledger_uuid, account_id, institution, name, type, account_no, currency, credit_limit, billing_day, due_day, is_active, note, version, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);
 
 -- name: UpdateLedgerAccount :exec
 UPDATE ledger_accounts

@@ -7,10 +7,12 @@ import (
 	"akatengu/internal/model/db/projection"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
+	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/shopspring/decimal"
 )
@@ -72,7 +74,7 @@ func (s *TransactionProjectionService) applyCreated(ctx context.Context, tx even
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	if _, err := s.applyTransaction(ctx, tx, *p, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy); err != nil {
+	if _, err := s.applyTransaction(ctx, tx, *p, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, ""); err != nil {
 		return err
 	}
 
@@ -124,12 +126,12 @@ func (s *TransactionProjectionService) applyPeriodAnnualClosed(ctx context.Conte
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	closingTxnId, err := s.applyTransaction(ctx, tx, state.ClosedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	closingTxnId, err := s.applyTransaction(ctx, tx, state.ClosedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "closing")
 	if err != nil {
 		return err
 	}
 
-	openingTxnId, err := s.applyTransaction(ctx, tx, state.OpenedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	openingTxnId, err := s.applyTransaction(ctx, tx, state.OpenedTxn, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "opening")
 	if err != nil {
 		return err
 	}
@@ -154,12 +156,12 @@ func (s *TransactionProjectionService) applyPeriodAnnualReopened(ctx context.Con
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	reverseClosedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseClosedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID, updatedBy)
+	reverseClosedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseClosedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "reverse_closing")
 	if err != nil {
 		return err
 	}
 
-	reverseOpenedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseOpenedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID, updatedBy)
+	reverseOpenedTxnId, err := s.applyTransaction(ctx, tx, state.ReverseOpenedTxn, enums.TransactionStatusVoidRef.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "reverse_opening")
 	if err != nil {
 		return err
 	}
@@ -193,7 +195,7 @@ func (s *TransactionProjectionService) applyInvestmentBought(ctx context.Context
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	if err != nil {
 		return err
 	}
@@ -223,7 +225,7 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	if err != nil {
 		return err
 	}
@@ -245,7 +247,7 @@ func (s *TransactionProjectionService) applyInvestmentSold(ctx context.Context, 
 	return nil
 }
 
-func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx event_store.EventStoreRepositories, p payload.TransactionCreatedPayload, status enums.TransactionStatus, merchantID int64, updatedBy *string) (int64, error) {
+func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx event_store.EventStoreRepositories, p payload.TransactionCreatedPayload, status enums.TransactionStatus, merchantID int64, updatedBy *string, eventUUID string, txnQualifier string) (int64, error) {
 	totalDebit, totalCredit := decimal.Zero, decimal.Zero
 	for _, e := range p.Entries {
 		totalDebit = totalDebit.Add(e.Debit)
@@ -254,9 +256,12 @@ func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx 
 	if !(totalDebit.Sub(totalCredit)).IsZero() {
 		return 0, fmt.Errorf("debit != credit")
 	}
-	// 業務邏輯：組裝 proj model
+
+	txnUuid := uuidx.NewFromEvent(eventUUID, "txn:"+txnQualifier)
+
 	txnId, err := tx.Projection.TransactionRepo.InsertTxn(ctx, projection.Transaction{
 		MerchantID:      merchantID,
+		TxnUuid:         txnUuid,
 		TransactionDate: p.TransactionDate,
 		Description:     p.Description,
 		TotalAmount:     totalDebit,
@@ -279,6 +284,8 @@ func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx 
 		}
 		entries[i] = projection.Entry{
 			MerchantID:       merchantID,
+			EntryUuid:        uuidx.NewFromEvent(eventUUID, "entry:"+txnQualifier+":"+strconv.Itoa(i)),
+			TxnUuid:          txnUuid,
 			TransactionId:    txnId,
 			LedgerId:         e.LedgerId,
 			AccountId:        e.AccountId,
@@ -307,7 +314,7 @@ func (s *TransactionProjectionService) applyDevidendReceived(ctx context.Context
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if st.Transaction != nil {
-		txnId, err := s.applyTransaction(ctx, tx, *st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+		txnId, err := s.applyTransaction(ctx, tx, *st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 		if err != nil {
 			return err
 		}
@@ -326,7 +333,7 @@ func (s *TransactionProjectionService) applyInstallmentCreated(ctx context.Conte
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	if err != nil {
 		return err
 	}
@@ -340,7 +347,7 @@ func (s *TransactionProjectionService) applyInstallmentPeriodPaid(ctx context.Co
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	if err != nil {
 		return err
 	}
@@ -354,7 +361,7 @@ func (s *TransactionProjectionService) applyPrepaidCreated(ctx context.Context, 
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	if err != nil {
 		return err
 	}
@@ -373,17 +380,19 @@ func (s *TransactionProjectionService) applyPrepaidAmortized(ctx context.Context
 
 	amortAmount := payload.AmortizationAmount(st.Prepaid.TotalAmount, st.Prepaid.Periods, st.Prepaid.AmortizedPeriods, st.Prepaid.AmortizedAmount)
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	if err != nil {
 		return err
 	}
 	return tx.Projection.PrepaidRepo.InsertPrepaidAmortization(ctx, sqlcdb.InsertPrepaidAmortizationParams{
-		MerchantID: ct.MerchantID,
-		PrepaidID:  st.Prepaid.ID,
-		TxnID:      txnId,
-		PeriodDate: p.PeriodDate,
-		Amount:     amortAmount,
-		UpdatedBy:  updatedBy,
+		MerchantID:       ct.MerchantID,
+		AmortizationUuid: uuidx.NewFromEvent(ct.Event.EventUuid, "amortization"),
+		PrepaidUuid:      st.Prepaid.PrepaidUuid,
+		PrepaidID:        st.Prepaid.ID,
+		TxnID:            txnId,
+		PeriodDate:       p.PeriodDate,
+		Amount:           amortAmount,
+		UpdatedBy:        updatedBy,
 	})
 }
 
@@ -394,7 +403,7 @@ func (s *TransactionProjectionService) applyPrepaidDisposed(ctx context.Context,
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	_, err = s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	_, err = s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	return err
 }
 
@@ -405,7 +414,7 @@ func (s *TransactionProjectionService) applyAssetPurchased(ctx context.Context, 
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	if err != nil {
 		return err
 	}
@@ -424,17 +433,19 @@ func (s *TransactionProjectionService) applyAssetDepreciated(ctx context.Context
 
 	deprAmount := payload.DepreciationAmount(st.Asset.Cost, st.Asset.ResidualValue, st.Asset.UsefulLifeMonths, st.Asset.DepreciatedPeriods, st.Asset.TotalDepreciated)
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	if err != nil {
 		return err
 	}
 	return tx.Projection.FixedAssetRepo.InsertFixedAssetDepreciation(ctx, sqlcdb.InsertFixedAssetDepreciationParams{
-		MerchantID: ct.MerchantID,
-		AssetID:    st.Asset.ID,
-		TxnID:      txnId,
-		PeriodDate: p.PeriodDate,
-		Amount:     deprAmount,
-		UpdatedBy:  updatedBy,
+		MerchantID:       ct.MerchantID,
+		DepreciationUuid: uuidx.NewFromEvent(ct.Event.EventUuid, "depreciation"),
+		AssetUuid:        st.Asset.AssetUuid,
+		AssetID:          st.Asset.ID,
+		TxnID:            txnId,
+		PeriodDate:       p.PeriodDate,
+		Amount:           deprAmount,
+		UpdatedBy:        updatedBy,
 	})
 }
 
@@ -445,6 +456,6 @@ func (s *TransactionProjectionService) applyAssetDisposed(ctx context.Context, t
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	_, err = s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy)
+	_, err = s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	return err
 }

@@ -1,11 +1,11 @@
 -- name: InsertFixedAsset :one
 INSERT INTO fixed_assets (
-    merchant_id, name,
+    merchant_id, asset_uuid, name,
     asset_account_id, accum_depreciation_account_id, depreciation_expense_account_id,
     cost, residual_value, useful_life_months,
     depreciation_method, payment_type, purchase_date, updated_by
 ) VALUES (
-    @merchant_id, @name,
+    @merchant_id, @asset_uuid, @name,
     @asset_account_id, @accum_depreciation_account_id, @depreciation_expense_account_id,
     @cost, @residual_value, @useful_life_months,
     @depreciation_method, @payment_type, @purchase_date, @updated_by
@@ -43,9 +43,9 @@ WHERE id = @id AND merchant_id = @merchant_id;
 
 -- name: InsertFixedAssetDepreciation :exec
 INSERT INTO fixed_asset_depreciations (
-    merchant_id, asset_id, txn_id, period_date, amount, updated_by
+    merchant_id, depreciation_uuid, asset_uuid, asset_id, txn_id, period_date, amount, updated_by
 ) VALUES (
-    @merchant_id, @asset_id, @txn_id, @period_date, @amount, @updated_by
+    @merchant_id, @depreciation_uuid, @asset_uuid, @asset_id, @txn_id, @period_date, @amount, @updated_by
 );
 
 -- name: GetFixedAssetDepreciationsByAssetID :many

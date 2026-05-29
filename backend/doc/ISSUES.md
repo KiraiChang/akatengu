@@ -419,6 +419,26 @@
 
 ---
 
+### [ISSUE-018] 全量 Replay 後整數 FK 斷裂問題
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-05-29
+- **嚴重程度**：High
+- **位置**：所有 event sourcing projection 資料表
+- **描述**：
+  全量重播（TruncateProjections + 逐事件 Apply）後，SQLite AUTOINCREMENT 計數器未重置，
+  projection 記錄取得比原始更大的整數 ID。跨事件引用的整數 FK（如 `investment_lots.movement_id`、
+  `journal_entries.txn_id`、`prepaid_amortizations.prepaid_id` 等）因 ID 改變而無法對應到正確主檔，
+  讀模型關聯斷裂，財務報表資料不正確。
+- **影響範圍**：
+  所有依賴 replay 重建讀模型的商戶；以及多租戶情境下測試 replay 的場景。
+- **解決紀錄**：
+  為所有 projection 資料表新增程式端生成的 UUID 欄位（migration `20260529002_add_uuid_to_projections.sql`），
+  跨表引用改用 UUID FK（與整數 FK 並存）。UUID 從事件的 `event_uuid`（UUIDv7）以 `uuidx.NewFromEvent` 衍生，
+  確保相同事件 replay 產生相同 UUID，FK 關聯正確重建。詳見 ADR-018。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open

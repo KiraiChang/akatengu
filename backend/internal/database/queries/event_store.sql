@@ -65,13 +65,13 @@ WHERE event_id > @event_id AND aggregate_type = @aggregate_type AND merchant_id 
 ORDER BY event_id;
 
 -- name: GetSnapshot :one
-SELECT snapshot_id, merchant_id, aggregate_type, aggregate_id, at_version, state, created_at
+SELECT snapshot_id, snapshot_uuid, merchant_id, aggregate_type, aggregate_id, at_version, state, created_at
 FROM snapshots
 WHERE aggregate_type = @aggregate_type AND aggregate_id = @aggregate_id AND merchant_id = @merchant_id;
 
 -- name: UpsertSnapshot :exec
-INSERT INTO snapshots (merchant_id, aggregate_type, aggregate_id, at_version, state)
-VALUES (@merchant_id, @aggregate_type, @aggregate_id, @at_version, @state)
+INSERT INTO snapshots (merchant_id, snapshot_uuid, aggregate_type, aggregate_id, at_version, state)
+VALUES (@merchant_id, @snapshot_uuid, @aggregate_type, @aggregate_id, @at_version, @state)
 ON CONFLICT(aggregate_type, aggregate_id, merchant_id)
 DO UPDATE SET at_version = excluded.at_version, state = excluded.state;
 

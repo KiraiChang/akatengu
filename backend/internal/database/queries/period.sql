@@ -1,5 +1,5 @@
 -- name: GetPeriodByPeriod :one
-SELECT closing_id, period_type, period_start, period_end, status,
+SELECT closing_id, closing_uuid, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
        reopen_at, reopen_reason, updated_by, updated_at
 FROM period_closings
@@ -8,7 +8,7 @@ WHERE period_type = @period_type AND period_start = @period_start AND merchant_i
 -- name: GetPeriodPagedByType :many
 WITH total AS (SELECT COUNT(*) AS cnt FROM period_closings AS p2
                WHERE p2.period_type = @period_type AND p2.merchant_id = @merchant_id)
-SELECT closing_id, period_type, period_start, period_end, status,
+SELECT closing_id, closing_uuid, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
        reopen_at, reopen_reason, updated_by, updated_at,
        total.cnt AS total
@@ -19,14 +19,14 @@ ORDER BY period_end DESC
 OFFSET @offset;
 
 -- name: GetPeriodByID :one
-SELECT closing_id, period_type, period_start, period_end, status,
+SELECT closing_id, closing_uuid, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
        reopen_at, reopen_reason, updated_by, updated_at
 FROM period_closings
 WHERE closing_id = @closing_id AND merchant_id = @merchant_id;
 
 -- name: GetLatestClosedPeriod :one
-SELECT closing_id, period_type, period_start, period_end, status,
+SELECT closing_id, closing_uuid, period_type, period_start, period_end, status,
        opening_txn_id, closing_txn_id, snapshot, closed_at, note,
        reopen_at, reopen_reason, updated_by, updated_at
 FROM period_closings
@@ -67,8 +67,8 @@ WHERE ra.adjustment_type = 'UNRESOLVED'
 
 -- name: InsertPeriodClose :execlastid
 INSERT INTO period_closings
-    (merchant_id, period_type, period_start, period_end, status, note, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+    (merchant_id, closing_uuid, period_type, period_start, period_end, status, note, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdatePeriodCloseSnapshot :exec
 UPDATE period_closings

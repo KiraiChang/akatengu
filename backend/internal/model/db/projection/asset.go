@@ -9,6 +9,7 @@ import (
 //dbmap:sqlcdb=FixedAsset
 type FixedAsset struct {
 	ID                           int64                    `db:"id" json:"id"`
+	AssetUuid                    string                   `db:"asset_uuid" json:"asset_uuid"`
 	MerchantID                   int64                    `db:"merchant_id" json:"merchant_id"`
 	TxnID                        *int64                   `db:"txn_id" json:"txn_id"`
 	Name                         string                   `db:"name" json:"name"`
@@ -32,12 +33,14 @@ type FixedAsset struct {
 
 //dbmap:sqlcdb=FixedAssetDepreciation
 type FixedAssetDepreciation struct {
-	ID         int64           `db:"id" json:"id"`
-	MerchantID int64           `db:"merchant_id" json:"merchant_id"`
-	AssetID    int64           `db:"asset_id" json:"asset_id"`
-	TxnID      int64           `db:"txn_id" json:"txn_id"`
-	PeriodDate string          `db:"period_date" json:"period_date"`
-	Amount     decimal.Decimal `db:"amount" json:"amount"`
-	UpdatedBy  *string         `db:"updated_by" json:"updated_by"`
-	UpdatedAt  *string         `db:"updated_at" json:"updated_at"`
+	ID               int64           `db:"id" json:"id"`
+	DepreciationUuid string          `db:"depreciation_uuid" json:"depreciation_uuid"`
+	AssetUuid        string          `db:"asset_uuid" json:"asset_uuid"`
+	MerchantID       int64           `db:"merchant_id" json:"merchant_id"`
+	AssetID          int64           `db:"asset_id" json:"asset_id"`
+	TxnID            int64           `db:"txn_id" json:"txn_id"`
+	PeriodDate       string          `db:"period_date" json:"period_date"`
+	Amount           decimal.Decimal `db:"amount" json:"amount"`
+	UpdatedBy        *string         `db:"updated_by" json:"updated_by"`
+	UpdatedAt        *string         `db:"updated_at" json:"updated_at"`
 }

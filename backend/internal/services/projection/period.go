@@ -6,6 +6,7 @@ import (
 	"akatengu/internal/model/db/projection"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
+	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"
@@ -50,6 +51,7 @@ func (s *PeriodProjectionService) applyMonthStarted(ctx context.Context, tx even
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	_, err = tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, projection.PeriodClosing{
 		MerchantID:  ct.MerchantID,
+		ClosingUuid: ct.Event.EventUuid,
 		PeriodType:  enums.PeriodMonthly.Enum(),
 		PeriodStart: first,
 		PeriodEnd:   last,
@@ -87,6 +89,7 @@ func (s *PeriodProjectionService) applyMonthClosed(ctx context.Context, tx event
 	// 建立 下一期 period_closings 紀錄，status = open
 	if state.Next != nil {
 		state.Next.MerchantID = ct.MerchantID
+		state.Next.ClosingUuid = uuidx.NewFromEvent(ct.Event.EventUuid, "next_period")
 		state.Next.UpdatedBy = updatedBy
 		_, err := tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, *state.Next)
 		if err != nil {
@@ -131,6 +134,7 @@ func (s *PeriodProjectionService) applyAnnualStarted(ctx context.Context, tx eve
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	_, err = tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, projection.PeriodClosing{
 		MerchantID:  ct.MerchantID,
+		ClosingUuid: ct.Event.EventUuid,
 		PeriodType:  enums.PeriodAnnual.Enum(),
 		PeriodStart: first,
 		PeriodEnd:   last,
@@ -168,6 +172,7 @@ func (s *PeriodProjectionService) applyAnnualClosed(ctx context.Context, tx even
 	// 建立 下一期 period_closings 紀錄，status = open
 	if state.Next != nil {
 		state.Next.MerchantID = ct.MerchantID
+		state.Next.ClosingUuid = uuidx.NewFromEvent(ct.Event.EventUuid, "next_period")
 		state.Next.UpdatedBy = updatedBy
 		_, err := tx.Projection.PeriodCloseRepo.InsertPeriodClose(ctx, *state.Next)
 		if err != nil {

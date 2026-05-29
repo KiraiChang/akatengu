@@ -6,6 +6,7 @@ import (
 	"akatengu/internal/model/db/projection"
 	"context"
 	"fmt"
+	"log"
 )
 
 type sqlxTransactionRepo struct {
@@ -39,15 +40,24 @@ func (r *sqlxTransactionRepo) SysUpdateTxnStatus(ctx context.Context, txnId int6
 }
 
 func (r *sqlxTransactionRepo) UpsertJournalEntries(ctx context.Context, entries []projection.Entry) error {
-	for _, e := range entries {
-		if e.EntryId != 0 {
-			err := r.q.InsertJournalEntryWithID(ctx, e.ToInsertJournalEntryWithIDParams())
-			if err != nil {
+	for i := range entries {
+		if entries[i].LedgerId != nil && entries[i].LedgerUuid == "" {
+			ledger, err := r.q.GetLedger(ctx, sqlcdb.GetLedgerParams{
+				LedgerID:   *entries[i].LedgerId,
+				MerchantID: entries[i].MerchantID,
+			})
+			if err == nil {
+				entries[i].LedgerUuid = ledger.LedgerUuid
+			} else {
+				log.Printf("warn: UpsertJournalEntries lookup ledger_uuid for ledger_id=%d: %v", *entries[i].LedgerId, err)
+			}
+		}
+		if entries[i].EntryId != 0 {
+			if err := r.q.InsertJournalEntryWithID(ctx, entries[i].ToInsertJournalEntryWithIDParams()); err != nil {
 				return err
 			}
 		} else {
-			err := r.q.InsertJournalEntry(ctx, e.ToInsertJournalEntryParams())
-			if err != nil {
+			if err := r.q.InsertJournalEntry(ctx, entries[i].ToInsertJournalEntryParams()); err != nil {
 				return err
 			}
 		}

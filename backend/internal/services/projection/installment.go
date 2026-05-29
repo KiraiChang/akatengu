@@ -5,9 +5,11 @@ import (
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
+	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services/pipelines"
 	"context"
+	"fmt"
 )
 
 // ─────────────────────────────────────────
@@ -40,14 +42,18 @@ func (s *InstallmentProjectionService) applyCreated(ctx context.Context, tx even
 	}
 
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	installmentUuid := ct.Event.EventUuid
 	st.Installment.MerchantID = ct.MerchantID
+	st.Installment.InstallmentUuid = installmentUuid
 	st.Installment.UpdatedBy = updatedBy
 	st.Installment.InstallmentId, err = tx.Projection.InstallmentRepo.InsertInstallment(ctx, st.Installment)
 	if err != nil {
 		return err
 	}
-	for _, r := range st.InstallmentPayments {
+	for i, r := range st.InstallmentPayments {
 		r.MerchantID = ct.MerchantID
+		r.PaymentUuid = uuidx.NewFromEvent(ct.Event.EventUuid, fmt.Sprintf("payment:%d", i))
+		r.InstallmentUuid = installmentUuid
 		r.InstallmentId = st.Installment.InstallmentId
 		r.UpdatedBy = updatedBy
 		if _, err := tx.Projection.InstallmentRepo.InsertInstallmentPayment(ctx, r); err != nil {

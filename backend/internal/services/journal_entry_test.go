@@ -176,7 +176,7 @@ func testInvestmentUUID(id int64) string {
 func insertInvestment(t *testing.T, db *sqlx.DB, id int64, acctID, assetType, costMethod, ifrsCategory string) {
 	t.Helper()
 	_, err := db.ExecContext(testCtx(),
-		`INSERT INTO investments(investment_id, merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, creation_event_uuid)
+		`INSERT INTO investments(investment_id, merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, uuid)
 		 VALUES(?, ?, ?, ?, 'TWD', 'TEST', 'TestStock', ?, ?, 1, 1, ?)`,
 		id, testMID, acctID, assetType, costMethod, ifrsCategory, testInvestmentUUID(id),
 	)

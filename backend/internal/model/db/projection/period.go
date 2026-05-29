@@ -15,6 +15,7 @@ import (
 type PeriodClosing struct {
 	MerchantID   int64                  `db:"merchant_id" json:"merchant_id"`
 	ClosingId    int64                  `db:"closing_id" json:"closing_id"`
+	ClosingUuid  string                 `db:"closing_uuid" json:"closing_uuid"`
 	PeriodType   enums.PeriodType       `db:"period_type" json:"period_type"`
 	PeriodStart  string                 `db:"period_start" json:"period_start"`
 	PeriodEnd    string                 `db:"period_end" json:"period_end"`
