@@ -15,7 +15,7 @@ export interface Investment {
   version:             number;
   updated_by:          string | null;
   updated_at:          string | null;
-  creation_event_uuid: string;
+  uuid: string;
 }
 
 export interface InvestmentCreatedPayload {

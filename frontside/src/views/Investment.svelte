@@ -448,7 +448,7 @@
   async function openEditModal(inv: Investment): Promise<void> {
     await ensureAccounts();
     mode        = 'edit';
-    editId      = inv.creation_event_uuid;
+    editId      = inv.uuid;
     editVersion = inv.version;
     form = {
       account_id:    inv.account_id,
@@ -468,7 +468,7 @@
     await Promise.all([ensureLedgers(), ensureAccounts(), ensureConfigs()]);
     txnMode  = m;
     txnInvId    = inv.investment_id;
-    txnInvUUID  = inv.creation_event_uuid;
+    txnInvUUID  = inv.uuid;
     txnForm  = {
       date:          today(),
       quantity:      '',
@@ -1200,7 +1200,7 @@
         </div>
 
         {#if mode === 'edit'}
-          {@const inv = investments.find(i => i.creation_event_uuid === editId)}
+          {@const inv = investments.find(i => i.uuid === editId)}
           {#if inv}
             <div class="form-row" style="margin-top:8px;">
               <div class="form-group">

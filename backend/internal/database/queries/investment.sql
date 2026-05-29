@@ -1,22 +1,22 @@
 -- name: GetInvestment :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
        name, cost_method, ifrs_category, is_active, version,
-       updated_by, updated_at, creation_event_uuid
+       updated_by, updated_at, uuid
 FROM investments
 WHERE investment_id = @investment_id AND merchant_id = @merchant_id;
 
--- name: GetInvestmentByCreationEventUuid :one
+-- name: GetInvestmentByUuid :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
        name, cost_method, ifrs_category, is_active, version,
-       updated_by, updated_at, creation_event_uuid
+       updated_by, updated_at, uuid
 FROM investments
-WHERE creation_event_uuid = @creation_event_uuid AND merchant_id = @merchant_id;
+WHERE uuid = @uuid AND merchant_id = @merchant_id;
 
 -- name: GetInvestmentPaged :many
 WITH total AS (SELECT COUNT(*) AS cnt FROM investments WHERE merchant_id = @merchant_id)
 SELECT i.investment_id, i.account_id, i.asset_type, i.currency, i.symbol,
        i.name, i.cost_method, i.ifrs_category, i.is_active, i.version,
-       i.updated_by, i.updated_at, i.creation_event_uuid,
+       i.updated_by, i.updated_at, i.uuid,
        total.cnt AS total
 FROM investments AS i, total
 WHERE i.merchant_id = @merchant_id
@@ -27,7 +27,7 @@ OFFSET @offset;
 -- name: GetInvestmentBySymbol :one
 SELECT investment_id, account_id, asset_type, currency, symbol,
        name, cost_method, ifrs_category, is_active, version,
-       updated_by, updated_at, creation_event_uuid
+       updated_by, updated_at, uuid
 FROM investments
 WHERE symbol = @symbol AND currency = @currency AND merchant_id = @merchant_id;
 
@@ -59,7 +59,7 @@ OFFSET @offset;
 
 -- name: GetOpenLotDisposalsPaged :many
 WITH total AS (SELECT COUNT(*) AS cnt FROM investment_lot_disposals AS d2 WHERE d2.lot_id = @lot_id AND d2.merchant_id = @merchant_id)
-SELECT d.lot_id, movement_id, quantity, cost_basis, sale_proceeds, capital_gain,
+SELECT id, d.lot_id, movement_id, quantity, cost_basis, sale_proceeds, capital_gain,
        holding_period_days, disposal_date, txn_id,
        total.cnt AS total
 FROM investment_lot_disposals AS d, total
@@ -94,7 +94,7 @@ OFFSET @offset;
 
 -- name: CreateInvestment :exec
 INSERT INTO investments
-    (merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, updated_by, creation_event_uuid)
+    (merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, updated_by, uuid)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?);
 
 -- name: UpdateInvestment :exec

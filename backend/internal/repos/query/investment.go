@@ -159,14 +159,14 @@ func (r *sqlcdbInvestmentRepository) GetByCreationEventUuid(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	result, err := r.q.GetInvestmentByCreationEventUuid(ctx, sqlcdb.GetInvestmentByCreationEventUuidParams{
-		CreationEventUuid: uuid,
-		MerchantID:        merchantID,
+	result, err := r.q.GetInvestmentByUuid(ctx, sqlcdb.GetInvestmentByUuidParams{
+		Uuid:       uuid,
+		MerchantID: merchantID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return projection.InvestmentPtrFromGetInvestmentByCreationEventUuidRow(result), nil
+	return projection.InvestmentPtrFromGetInvestmentByUuidRow(result), nil
 }
 
 func (r *sqlcdbInvestmentRepository) GetBySymbol(ctx context.Context, symbol, currency string) (*projection.Investment, error) {

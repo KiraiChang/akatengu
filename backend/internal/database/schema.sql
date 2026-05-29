@@ -215,7 +215,7 @@ CREATE TABLE investments (
     version               INTEGER NOT NULL,
     updated_by            TEXT,
     updated_at            TEXT,
-    creation_event_uuid   TEXT    NOT NULL DEFAULT ''
+    uuid          TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE investment_lots (

@@ -58,17 +58,17 @@ func (s *InvestmentProjectionService) applyInvestmentCreated(ctx context.Context
 	}
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	if err := tx.Projection.InvestmentRepo.CreateInvestment(ctx, projection.Investment{
-		MerchantID:        ct.MerchantID,
-		AccountId:         p.AccountId,
-		AssetType:         p.AssetType,
-		Currency:          coalesce(p.Currency, "TWD"),
-		Symbol:            p.Symbol,
-		Name:              p.Name,
-		CostMethod:        p.CostMethod,
-		IFRSCategory:      ifrsCategory,
-		IsActive:          p.IsActive,
-		UpdatedBy:         updatedBy,
-		CreationEventUUID: ct.Event.EventUuid,
+		MerchantID:   ct.MerchantID,
+		AccountId:    p.AccountId,
+		AssetType:    p.AssetType,
+		Currency:     coalesce(p.Currency, "TWD"),
+		Symbol:       p.Symbol,
+		Name:         p.Name,
+		CostMethod:   p.CostMethod,
+		IFRSCategory: ifrsCategory,
+		IsActive:     p.IsActive,
+		UpdatedBy:    updatedBy,
+		Uuid:         ct.Event.EventUuid,
 	}); err != nil {
 		return err
 	}
