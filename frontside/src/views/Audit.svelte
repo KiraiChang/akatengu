@@ -7,7 +7,7 @@
 
   type AuditTab = 'versions' | 'events' | 'checkpoints' | 'snapshots';
 
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 10;
 
   let isLoading    = $state(true);
   let error        = $state('');
@@ -23,6 +23,7 @@
   let isLoadingEvents = $state(false);
   let isRebuilding    = $state(false);
   let rebuildMsg      = $state('');
+  let showConfirm     = $state(false);
 
   const eventTotalPages = $derived(Math.max(1, Math.ceil(eventTotal / PAGE_SIZE)));
 
@@ -60,7 +61,7 @@
   }
 
   async function rebuild(): Promise<void> {
-    if (!window.confirm('確定要重建所有 Projection？\n\n此操作將清除當前商戶的所有 projection 資料並全量重播事件。')) return;
+    showConfirm  = false;
     isRebuilding = true;
     rebuildMsg   = '';
     try {
@@ -86,7 +87,7 @@
   <h1 class="content-title">稽核查詢</h1>
   <button
     class="audit-rebuild-btn"
-    onclick={rebuild}
+    onclick={() => showConfirm = true}
     disabled={isRebuilding}
   >{isRebuilding ? '重建中…' : '重建 Projection'}</button>
 </div>
@@ -246,4 +247,28 @@
       </table>
     </div>
   </section>
+{/if}
+
+<!-- ── 重建確認 Modal ─────────────────────── -->
+{#if showConfirm}
+  <div class="modal-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showConfirm = false; }}>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="confirm-modal-title">確認重建 Projection</h2>
+        <button class="modal-close" onclick={() => showConfirm = false} aria-label="關閉">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:#c0bdb4;line-height:1.7;margin:0 0 8px;">
+          此操作將清除當前商戶的所有 projection 資料，並全量重播事件重建。
+        </p>
+        <p style="font-size:12px;color:#c07070;margin:0;">
+          此動作無法復原，請確認後繼續。
+        </p>
+      </div>
+      <div class="modal-footer" style="padding:0;margin-top:8px;">
+        <button class="btn-ghost" onclick={() => showConfirm = false}>取消</button>
+        <button class="btn-primary" onclick={() => void rebuild()}>確認重建</button>
+      </div>
+    </div>
+  </div>
 {/if}

@@ -19,6 +19,58 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-05-29｜Audit confirm window 實作與未來元件化方向
+
+#### 現況
+
+`Audit.svelte` 的「重建 Projection」危險操作改以 inline confirm modal 取代原本的 `window.confirm()`。
+結構：點按鈕 → `showConfirm = true` → modal 顯示 → 使用者點「確認重建」→ 呼叫 `rebuild()`。
+
+```svelte
+<!-- 觸發 -->
+<button onclick={() => showConfirm = true}>重建 Projection</button>
+
+<!-- modal -->
+{#if showConfirm}
+  <div class="modal-overlay" ...>
+    <div class="modal" ...>
+      ...
+      <button onclick={() => void rebuild()}>確認重建</button>
+    </div>
+  </div>
+{/if}
+```
+
+#### 抽共用元件的時機與介面草案
+
+當第二個頁面出現相同的「危險操作二次確認」需求時，從 inline 抽成 `src/components/ConfirmModal.svelte`：
+
+```typescript
+interface Props {
+  title:         string;
+  message:       string;
+  subMessage?:   string;      // 紅字警告用
+  confirmLabel?: string;      // 預設「確認」
+  onConfirm:     () => void;
+  onCancel:      () => void;
+}
+```
+
+使用方：
+
+```svelte
+<ConfirmModal
+  title="確認重建 Projection"
+  message="此操作將清除所有 projection 資料並全量重播事件。"
+  subMessage="此動作無法復原，請確認後繼續。"
+  confirmLabel="確認重建"
+  onConfirm={() => void rebuild()}
+  onCancel={() => showConfirm = false}
+/>
+```
+
+> 抽元件前先確認是否有第二個使用案例；單一使用點不值得抽（見 TODO.md）。
+
 ### 2026-05-26｜AccountSelect 根目錄層為空的根本原因與修法
 
 #### [DEBUG] 問題根源

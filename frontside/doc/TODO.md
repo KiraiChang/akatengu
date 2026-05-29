@@ -40,6 +40,7 @@
 ### 重構
 
 - [ ] ⬜ [Refactor] 報表查詢表單元件化 — 四份報表的查詢表單結構相似（日期輸入 + 查詢按鈕），可抽成 `ReportQueryBar.svelte` 共用元件
+- [ ] ⬜ [Refactor] 確認 Modal 元件化 — 目前 `Audit.svelte` 的「確認重建 Projection」confirm window 為 inline 實作；若其他頁面出現相同需求（危險操作二次確認），應抽成 `ConfirmModal.svelte` 共用元件，props：`title`、`message`、`confirmLabel`、`onConfirm`、`onCancel`
 
 ### 技術債
 
