@@ -76,6 +76,22 @@
 
 ---
 
+## 測試規範（Testing Standards）
+
+詳細規則、檔案結構範本與 Stub 原則見 **[doc/TESTING.md](doc/TESTING.md)**。
+
+| 層次 | 路徑 | 測試風格 |
+|------|------|----------|
+| Handler / Middleware | `internal/handler/**` | BDD：Ginkgo v2 + Gomega，三檔分離（suite / scenarios / spec） |
+| Services / Repos / Pkg | `internal/services/**`、`internal/repos/**`、`internal/pkg/**` | 標準 Go testing，table-driven |
+
+```bash
+go test ./...                                                        # 全套
+go test ./internal/handler/middleware/... -run TestMerchantSuite -v  # 指定 suite
+```
+
+---
+
 ## 驗證流程
 
 每次修改後依序執行：

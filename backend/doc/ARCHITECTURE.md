@@ -37,6 +37,7 @@
 | [ADR-016](#adr-016-分頁-api-實作規範) | 分頁 API 實作規範 | Accepted | 2026-05-25 |
 | [ADR-017](#adr-017-分錄組裝移至-pipeline-factory) | 分錄組裝移至 Pipeline Factory | Accepted | 2026-05-27 |
 | [ADR-018](#adr-018-event-sourcing-projection-全面加入-uuid-以確保-replay-正確性) | Event Sourcing Projection 全面加入 UUID 以確保 Replay 正確性 | Accepted | 2026-05-29 |
+| [ADR-019](#adr-019-handler--middleware-層採用-ginkgo-v2--gomega-撰寫-bdd-測試) | Handler / Middleware 層採用 Ginkgo v2 + Gomega 撰寫 BDD 測試 | Accepted | 2026-05-29 |
 
 ---
 
@@ -641,6 +642,36 @@
 - **後果**：
   - 正面：Replay 後所有跨表 UUID FK 關聯正確重建，不受 AUTOINCREMENT 計數器影響；UUID 從 event_uuid deterministic 衍生，同一事件重複 replay 結果完全一致（冪等）。
   - 負面：每次 INSERT 需設定多個 UUID 欄位，projection Apply 方法複雜度略增；`journal_entries.ledger_uuid` 需在 repo 層額外一次 SELECT lookup，有 N+1 查詢風險（實際影響很小，因 ledger 數量有限）。
+
+---
+
+## ADR-019 Handler / Middleware 層採用 Ginkgo v2 + Gomega 撰寫 BDD 測試
+
+- **狀態**：Accepted
+- **日期**：2026-05-29
+- **背景**：
+  Handler 與 Middleware 的測試情境通常由多個**前提條件組合**而成（如：token 有效 × merchant 存在 × role 符合），
+  傳統 `TestXxx_CaseName` 命名的標準 Go 測試在情境增多後，情境間的層次關係難以直觀表達，
+  閱讀測試報告也不易快速定位失敗點。
+  同層的 Services / Repos 層測試情境相對單一（給定 state，驗證副作用），table-driven 已足夠清晰，不需引入框架。
+
+- **決策**：
+  在 `internal/handler/` 目錄（含 `middleware/`）的測試中引入 **Ginkgo v2 + Gomega**：
+  - `Describe` → 測試對象（如 `MerchantAuth middleware`）
+  - `Context` → 前提條件分支（如「當 context 無 UserClaims」）
+  - `It` → 單一可驗證的預期行為
+  - `BeforeEach` → 每個 spec 前重設 stub 與 recorder 狀態
+  每個 handler/middleware package 須附一個 `xxx_suite_test.go`（Ginkgo bootstrap），與 spec 檔分離。
+  Services / Repos / Pkg 層維持標準 Go 測試（`testing.T` + table-driven），不引入框架。
+
+- **替代方案**：
+  - 全程使用標準 Go 測試：handler 層測試情境分支多，`TestXxx_Yyy_Zzz` 命名法在情境超過 3 個維度後難以閱讀，不採用。
+  - 全程使用 Ginkgo：Services 層測試情境較線性，引入 `Describe/Context/It` 反而增加樣板程式碼，over-engineering，不採用。
+  - testify/suite：BDD 語義不如 Ginkgo 鮮明（無 `Context/It` 巢狀），且需額外定義 suite struct，不採用。
+
+- **後果**：
+  - 正面：handler/middleware 測試報告以情境樹狀呈現，失敗點一眼定位；stub 狀態由 `BeforeEach` 管理，避免測試間污染。
+  - 負面：新增 handler/middleware 測試時需先建立 suite 檔案；`enumx.Enum` 型別的零值須寫 `T{}` 而非 `""`（已知），需注意 stub 方法返回值。
 
 ---
 
