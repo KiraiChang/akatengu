@@ -51,7 +51,7 @@
 .inst-payment-header,
 .inst-payment-item {
   display: grid;
-  grid-template-columns: 40px 110px 1fr 1fr 1fr 110px 70px 80px 90px auto;
+  grid-template-columns: 40px 110px 1fr 1fr 1fr 110px 70px 80px 90px 100px;
   gap: 0;
   align-items: center;
 }
