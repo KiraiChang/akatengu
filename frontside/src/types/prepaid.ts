@@ -2,6 +2,7 @@ export type PrepaidStatus = 'ACTIVE' | 'COMPLETED' | 'DISPOSED';
 
 export interface Prepaid {
   id:                 number;
+  prepaid_uuid:       string;
   merchant_id:        number;
   txn_id:             number | null;
   account_id:         string;
@@ -32,7 +33,7 @@ export interface PrepaidAmortization {
 export interface PrepaidCreatedPayload {
   account_id:         string;
   expense_account_id: string;
-  ledger_id:          number;
+  ledger_uuid:        string;
   name:               string;
   total_amount:       string;
   periods:            number;
@@ -42,12 +43,12 @@ export interface PrepaidCreatedPayload {
 }
 
 export interface PrepaidAmortizedPayload {
-  prepaid_id:  number;
-  period_date: string;
+  prepaid_uuid: string;
+  period_date:  string;
 }
 
 export interface PrepaidDisposedPayload {
-  prepaid_id:    number;
+  prepaid_uuid:  string;
   disposal_date: string;
   memo:          string;
 }

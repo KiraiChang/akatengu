@@ -84,19 +84,21 @@
   );
 
   // ── 攤提 Modal ──
-  let showAmortizeModal = $state(false);
-  let isAmortizing      = $state(false);
-  let amortizeError     = $state('');
-  let amortizePrepaidId = $state(0);
-  let amortizeDate      = $state('');
+  let showAmortizeModal  = $state(false);
+  let isAmortizing       = $state(false);
+  let amortizeError      = $state('');
+  let amortizePrepaidId  = $state(0);
+  let amortizePrepaidUUID = $state('');
+  let amortizeDate       = $state('');
 
   // ── 終止 Modal ──
-  let showDisposeModal = $state(false);
-  let isDisposing      = $state(false);
-  let disposeError     = $state('');
-  let disposePrepaidId = $state(0);
-  let disposeDate      = $state('');
-  let disposeMemo      = $state('');
+  let showDisposeModal  = $state(false);
+  let isDisposing       = $state(false);
+  let disposeError      = $state('');
+  let disposePrepaidId  = $state(0);
+  let disposePrepaidUUID = $state('');
+  let disposeDate       = $state('');
+  let disposeMemo       = $state('');
 
   $effect(() => {
     void load();
@@ -187,11 +189,12 @@
     isCreating  = true;
     createError = '';
     try {
+      const createLedger = activeLedgers.find(l => String(l.ledger_id) === createForm.ledger_id);
       await createPrepaid({
         name:               createForm.name.trim(),
         account_id:         createForm.account_id,
         expense_account_id: createForm.expense_account_id,
-        ledger_id:          parseInt(createForm.ledger_id, 10),
+        ledger_uuid:        createLedger?.ledger_uuid ?? '',
         total_amount:       createForm.total_amount,
         periods:            parseInt(createForm.periods, 10),
         start_date:         createForm.start_date,
@@ -209,10 +212,11 @@
 
   function openAmortizeModal(pp: Prepaid, e: MouseEvent): void {
     e.stopPropagation();
-    amortizePrepaidId = pp.id;
-    amortizeDate      = '';
-    amortizeError     = '';
-    showAmortizeModal  = true;
+    amortizePrepaidId   = pp.id;
+    amortizePrepaidUUID = pp.prepaid_uuid;
+    amortizeDate        = '';
+    amortizeError       = '';
+    showAmortizeModal   = true;
   }
 
   async function handleAmortize(e: Event): Promise<void> {
@@ -221,7 +225,7 @@
     isAmortizing  = true;
     amortizeError = '';
     try {
-      await amortizePrepaid({ prepaid_id: amortizePrepaidId, period_date: amortizeDate });
+      await amortizePrepaid({ prepaid_uuid: amortizePrepaidUUID, period_date: amortizeDate });
       showAmortizeModal = false;
       const next = new Map(amortMap);
       next.delete(amortizePrepaidId);
@@ -236,11 +240,12 @@
 
   function openDisposeModal(pp: Prepaid, e: MouseEvent): void {
     e.stopPropagation();
-    disposePrepaidId = pp.id;
-    disposeDate      = '';
-    disposeMemo      = '';
-    disposeError     = '';
-    showDisposeModal  = true;
+    disposePrepaidId   = pp.id;
+    disposePrepaidUUID = pp.prepaid_uuid;
+    disposeDate        = '';
+    disposeMemo        = '';
+    disposeError       = '';
+    showDisposeModal   = true;
   }
 
   async function handleDispose(e: Event): Promise<void> {
@@ -249,7 +254,7 @@
     isDisposing  = true;
     disposeError = '';
     try {
-      await disposePrepaid({ prepaid_id: disposePrepaidId, disposal_date: disposeDate, memo: disposeMemo.trim() });
+      await disposePrepaid({ prepaid_uuid: disposePrepaidUUID, disposal_date: disposeDate, memo: disposeMemo.trim() });
       showDisposeModal = false;
       await load();
     } catch (err) {
@@ -519,8 +524,8 @@
           <p class="query-error" role="alert" style="margin-bottom:16px;">{amortizeError}</p>
         {/if}
         <div class="form-group">
-          <label class="form-label" for="pp-amort-date">攤提日期 *</label>
-          <input id="pp-amort-date" class="form-input" type="date" bind:value={amortizeDate} required />
+          <label class="form-label" for="pp-amort-date">攤提月份 *</label>
+          <input id="pp-amort-date" class="form-input" type="month" bind:value={amortizeDate} required />
         </div>
         <div class="modal-footer" style="padding:0;margin-top:8px;">
           <button type="button" class="btn-ghost" onclick={() => { showAmortizeModal = false; }} disabled={isAmortizing}>取消</button>

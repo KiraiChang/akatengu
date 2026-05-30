@@ -100,6 +100,7 @@
   let isDepreciating = $state(false);
   let deprError      = $state('');
   let deprAssetId    = $state(0);
+  let deprAssetUUID  = $state('');
   let deprDate       = $state('');
 
   // ── 處分 Modal ──
@@ -116,6 +117,7 @@
   let isDisposing       = $state(false);
   let disposeError      = $state('');
   let disposeAssetId    = $state(0);
+  let disposeAssetUUID  = $state('');
   let disposeForm       = $state<DisposeForm>(emptyDisposeForm());
 
   const isDisposeValid = $derived(
@@ -212,6 +214,7 @@
     isPurchasing  = true;
     purchaseError = '';
     try {
+      const purchaseLedger = activeLedgers.find(l => String(l.ledger_id) === purchaseForm.ledger_id);
       await purchaseFixedAsset({
         name:                            purchaseForm.name.trim(),
         asset_account_id:                purchaseForm.asset_account_id,
@@ -221,7 +224,7 @@
         residual_value:                  purchaseForm.residual_value || '0',
         useful_life_months:              parseInt(purchaseForm.useful_life_months, 10),
         payment_type:                    purchaseForm.payment_type,
-        ledger_id:                       purchaseForm.payment_type === 'CASH' ? parseInt(purchaseForm.ledger_id, 10) : null,
+        ledger_uuid:                     purchaseForm.payment_type === 'CASH' ? (purchaseLedger?.ledger_uuid ?? null) : null,
         liability_account_id:            purchaseForm.payment_type === 'LEASE' ? purchaseForm.liability_account_id : '',
         purchase_date:                   purchaseForm.purchase_date,
         memo:                            purchaseForm.memo.trim(),
@@ -239,6 +242,7 @@
   function openDeprModal(asset: FixedAsset, e: MouseEvent): void {
     e.stopPropagation();
     deprAssetId   = asset.id;
+    deprAssetUUID = asset.asset_uuid;
     deprDate      = '';
     deprError     = '';
     showDeprModal = true;
@@ -250,7 +254,7 @@
     isDepreciating = true;
     deprError      = '';
     try {
-      await depreciateFixedAsset({ asset_id: deprAssetId, period_date: deprDate });
+      await depreciateFixedAsset({ asset_uuid: deprAssetUUID, period_date: deprDate });
       showDeprModal = false;
       const next = new Map(deprMap);
       next.delete(deprAssetId);
@@ -266,9 +270,10 @@
   async function openDisposeModal(asset: FixedAsset, e: MouseEvent): Promise<void> {
     e.stopPropagation();
     await Promise.all([ensureAccounts(), ensureLedgers()]);
-    disposeAssetId = asset.id;
-    disposeForm    = emptyDisposeForm();
-    disposeError   = '';
+    disposeAssetId   = asset.id;
+    disposeAssetUUID = asset.asset_uuid;
+    disposeForm      = emptyDisposeForm();
+    disposeError     = '';
     showDisposeModal = true;
   }
 
@@ -278,14 +283,15 @@
     isDisposing  = true;
     disposeError = '';
     try {
+      const proceedsLedger = activeLedgers.find(l => String(l.ledger_id) === disposeForm.proceeds_ledger_id);
       await disposeFixedAsset({
-        asset_id:           disposeAssetId,
-        disposal_date:      disposeForm.disposal_date,
-        proceeds:           disposeForm.proceeds || '0',
-        proceeds_ledger_id: disposeForm.proceeds_ledger_id !== '' ? parseInt(disposeForm.proceeds_ledger_id, 10) : null,
-        gain_account_id:    disposeForm.gain_account_id,
-        loss_account_id:    disposeForm.loss_account_id,
-        memo:               disposeForm.memo.trim(),
+        asset_uuid:           disposeAssetUUID,
+        disposal_date:        disposeForm.disposal_date,
+        proceeds:             disposeForm.proceeds || '0',
+        proceeds_ledger_uuid: proceedsLedger?.ledger_uuid ?? null,
+        gain_account_id:      disposeForm.gain_account_id,
+        loss_account_id:      disposeForm.loss_account_id,
+        memo:                 disposeForm.memo.trim(),
       });
       showDisposeModal = false;
       await load();
@@ -585,8 +591,8 @@
           <p class="query-error" role="alert" style="margin-bottom:16px;">{deprError}</p>
         {/if}
         <div class="form-group">
-          <label class="form-label" for="fa-depr-date">折舊日期 *</label>
-          <input id="fa-depr-date" class="form-input" type="date" bind:value={deprDate} required />
+          <label class="form-label" for="fa-depr-date">折舊月份 *</label>
+          <input id="fa-depr-date" class="form-input" type="month" bind:value={deprDate} required />
         </div>
         <div class="modal-footer" style="padding:0;margin-top:8px;">
           <button type="button" class="btn-ghost" onclick={() => { showDeprModal = false; }} disabled={isDepreciating}>取消</button>

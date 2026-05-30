@@ -4,6 +4,7 @@ export type FixedAssetStatus   = 'ACTIVE' | 'DISPOSED';
 
 export interface FixedAsset {
   id:                              number;
+  asset_uuid:                      string;
   merchant_id:                     number;
   txn_id:                          number | null;
   name:                            string;
@@ -45,7 +46,7 @@ export interface AssetPurchasedPayload {
   residual_value:                  string;
   useful_life_months:              number;
   payment_type:                    AssetPaymentType;
-  ledger_id:                       number | null;
+  ledger_uuid:                     string | null;
   liability_account_id:            string;
   purchase_date:                   string;
   memo:                            string;
@@ -53,16 +54,16 @@ export interface AssetPurchasedPayload {
 }
 
 export interface AssetDepreciatedPayload {
-  asset_id:    number;
+  asset_uuid:  string;
   period_date: string;
 }
 
 export interface AssetDisposedPayload {
-  asset_id:           number;
-  disposal_date:      string;
-  proceeds:           string;
-  proceeds_ledger_id: number | null;
-  gain_account_id:    string;
-  loss_account_id:    string;
-  memo:               string;
+  asset_uuid:           string;
+  disposal_date:        string;
+  proceeds:             string;
+  proceeds_ledger_uuid: string | null;
+  gain_account_id:      string;
+  loss_account_id:      string;
+  memo:                 string;
 }
