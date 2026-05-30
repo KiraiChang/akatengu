@@ -17,6 +17,9 @@ UPDATE fixed_assets SET txn_id = @txn_id WHERE id = @id AND merchant_id = @merch
 -- name: GetFixedAssetByID :one
 SELECT * FROM fixed_assets WHERE id = @id AND merchant_id = @merchant_id;
 
+-- name: GetFixedAssetByUUID :one
+SELECT * FROM fixed_assets WHERE asset_uuid = @asset_uuid AND merchant_id = @merchant_id;
+
 -- name: GetActiveFixedAssetsByMerchant :many
 SELECT * FROM fixed_assets WHERE merchant_id = @merchant_id AND status = 'ACTIVE' ORDER BY id ASC;
 

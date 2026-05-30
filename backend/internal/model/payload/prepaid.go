@@ -12,7 +12,7 @@ import (
 type PrepaidCreatedPayload struct {
 	AccountID        string          `json:"account_id"`         // 預付科目，如 1104-01
 	ExpenseAccountID string          `json:"expense_account_id"` // 費用科目，如 5101-01
-	LedgerID         int64           `json:"ledger_id"`          // 付款帳戶
+	LedgerUUID       string          `json:"ledger_uuid"`        // 付款帳戶
 	Name             string          `json:"name"`               // 描述，如「保險費 2026-05 ～ 2027-04」
 	TotalAmount      decimal.Decimal `json:"total_amount"`       // 預付總金額
 	Periods          int64           `json:"periods"`            // 攤提期數（月）
@@ -29,8 +29,8 @@ func (p PrepaidCreatedPayload) Validate() error {
 	if p.ExpenseAccountID == "" {
 		errs = append(errs, "expense_account_id is required")
 	}
-	if p.LedgerID <= 0 {
-		errs = append(errs, "ledger_id is required")
+	if p.LedgerUUID == "" {
+		errs = append(errs, "ledger_uuid is required")
 	}
 	if p.Name == "" {
 		errs = append(errs, "name is required")
@@ -49,14 +49,14 @@ func (p PrepaidCreatedPayload) Validate() error {
 
 // PrepaidAmortizedPayload 執行一期攤提
 type PrepaidAmortizedPayload struct {
-	PrepaidID  int64  `json:"prepaid_id"`
-	PeriodDate string `json:"period_date"` // 攤提月份 YYYY-MM
+	PrepaidUUID string `json:"prepaid_uuid"`
+	PeriodDate  string `json:"period_date"` // 攤提月份 YYYY-MM
 }
 
 func (p PrepaidAmortizedPayload) Validate() error {
 	var errs []string
-	if p.PrepaidID <= 0 {
-		errs = append(errs, "prepaid_id is required")
+	if p.PrepaidUUID == "" {
+		errs = append(errs, "prepaid_uuid is required")
 	}
 	if p.PeriodDate == "" {
 		errs = append(errs, "period_date is required")
@@ -66,15 +66,15 @@ func (p PrepaidAmortizedPayload) Validate() error {
 
 // PrepaidDisposedPayload 提前終止預付費用（一次認列剩餘金額）
 type PrepaidDisposedPayload struct {
-	PrepaidID  int64  `json:"prepaid_id"`
+	PrepaidUUID  string `json:"prepaid_uuid"`
 	DisposalDate string `json:"disposal_date"` // YYYY-MM-DD
-	Memo        string `json:"memo,omitempty"`
+	Memo         string `json:"memo,omitempty"`
 }
 
 func (p PrepaidDisposedPayload) Validate() error {
 	var errs []string
-	if p.PrepaidID <= 0 {
-		errs = append(errs, "prepaid_id is required")
+	if p.PrepaidUUID == "" {
+		errs = append(errs, "prepaid_uuid is required")
 	}
 	if p.DisposalDate == "" {
 		errs = append(errs, "disposal_date is required")

@@ -13,6 +13,9 @@ UPDATE prepaids SET txn_id = @txn_id WHERE id = @id AND merchant_id = @merchant_
 -- name: GetPrepaidByID :one
 SELECT * FROM prepaids WHERE id = @id AND merchant_id = @merchant_id;
 
+-- name: GetPrepaidByUUID :one
+SELECT * FROM prepaids WHERE prepaid_uuid = @prepaid_uuid AND merchant_id = @merchant_id;
+
 -- name: GetActivePrepaidsByMerchant :many
 SELECT * FROM prepaids WHERE merchant_id = @merchant_id AND status = 'ACTIVE' ORDER BY id ASC;
 

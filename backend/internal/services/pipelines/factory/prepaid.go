@@ -30,7 +30,7 @@ func (e *eventPrepaidCreatedProjector) Project(ctx context.Context, ct *pipeline
 		return err
 	}
 
-	ledger, err := e.query.Account.GetLedger(ctx, p.LedgerID)
+	ledger, err := e.query.Account.GetLedgerByUuid(ctx, p.LedgerUUID)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (e *eventPrepaidAmortizedProjector) Project(ctx context.Context, ct *pipeli
 		return err
 	}
 
-	prepaid, err := e.query.Prepaid.GetPrepaidByID(ctx, p.PrepaidID)
+	prepaid, err := e.query.Prepaid.GetPrepaidByUUID(ctx, p.PrepaidUUID)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (e *eventPrepaidDisposedProjector) Project(ctx context.Context, ct *pipelin
 	p := ct.Payload
 	c := ct.State
 
-	prepaid, err := e.query.Prepaid.GetPrepaidByID(ctx, p.PrepaidID)
+	prepaid, err := e.query.Prepaid.GetPrepaidByUUID(ctx, p.PrepaidUUID)
 	if err != nil {
 		return err
 	}

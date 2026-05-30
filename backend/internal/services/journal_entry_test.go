@@ -376,6 +376,28 @@ func queryLastInstallmentUUID(t *testing.T, db *sqlx.DB) string {
 	return uuid
 }
 
+func queryLastPrepaidUUID(t *testing.T, db *sqlx.DB) string {
+	t.Helper()
+	var uuid string
+	err := db.GetContext(testCtx(), &uuid,
+		`SELECT prepaid_uuid FROM prepaids WHERE merchant_id=? ORDER BY id DESC LIMIT 1`, testMID)
+	if err != nil {
+		t.Fatalf("queryLastPrepaidUUID: %v", err)
+	}
+	return uuid
+}
+
+func queryLastAssetUUID(t *testing.T, db *sqlx.DB) string {
+	t.Helper()
+	var uuid string
+	err := db.GetContext(testCtx(), &uuid,
+		`SELECT asset_uuid FROM fixed_assets WHERE merchant_id=? ORDER BY id DESC LIMIT 1`, testMID)
+	if err != nil {
+		t.Fatalf("queryLastAssetUUID: %v", err)
+	}
+	return uuid
+}
+
 type rbScanRow struct {
 	Debit  float64 `db:"debit_total"`
 	Credit float64 `db:"credit_total"`
@@ -472,7 +494,7 @@ func TestPrepaidCreated(t *testing.T) {
 	a.do(event_types.EventPrepaidCreated.Enum(), payload.PrepaidCreatedPayload{
 		AccountID:        "1104-01",
 		ExpenseAccountID: "5201-01",
-		LedgerID:         1,
+		LedgerUUID:       testLedgerUUID(1),
 		Name:             "人壽保險費 2026",
 		TotalAmount:      dec("12000"),
 		Periods:          12,
@@ -511,17 +533,17 @@ func TestPrepaidAmortized(t *testing.T) {
 	a.do(event_types.EventPrepaidCreated.Enum(), payload.PrepaidCreatedPayload{
 		AccountID:        "1104-01",
 		ExpenseAccountID: "5201-01",
-		LedgerID:         1,
+		LedgerUUID:       testLedgerUUID(1),
 		Name:             "人壽保險費 2026",
 		TotalAmount:      dec("12000"),
 		Periods:          12,
 		StartDate:        "2026-05-01",
 	})
-	prepaidID := queryLastPrepaidID(t, db)
+	prepaidUUID := queryLastPrepaidUUID(t, db)
 
 	a.do(event_types.EventPrepaidAmortized.Enum(), payload.PrepaidAmortizedPayload{
-		PrepaidID:  prepaidID,
-		PeriodDate: "2026-06",
+		PrepaidUUID: prepaidUUID,
+		PeriodDate:  "2026-06",
 	})
 
 	// AmortizationAmount(12000, 12, 0, 0) = 12000/12 truncate(6) = 1000
@@ -555,22 +577,22 @@ func TestPrepaidDisposed(t *testing.T) {
 	a.do(event_types.EventPrepaidCreated.Enum(), payload.PrepaidCreatedPayload{
 		AccountID:        "1104-01",
 		ExpenseAccountID: "5201-01",
-		LedgerID:         1,
+		LedgerUUID:       testLedgerUUID(1),
 		Name:             "人壽保險費 2026",
 		TotalAmount:      dec("12000"),
 		Periods:          12,
 		StartDate:        "2026-05-01",
 	})
-	prepaidID := queryLastPrepaidID(t, db)
+	prepaidUUID := queryLastPrepaidUUID(t, db)
 
 	a.do(event_types.EventPrepaidAmortized.Enum(), payload.PrepaidAmortizedPayload{
-		PrepaidID:  prepaidID,
-		PeriodDate: "2026-06",
+		PrepaidUUID: prepaidUUID,
+		PeriodDate:  "2026-06",
 	})
 
 	// dispose remaining 11000 (12000 - 1000)
 	a.do(event_types.EventPrepaidDisposed.Enum(), payload.PrepaidDisposedPayload{
-		PrepaidID:    prepaidID,
+		PrepaidUUID:  prepaidUUID,
 		DisposalDate: "2026-06-15",
 	})
 
@@ -599,7 +621,7 @@ func TestAssetPurchased_Cash(t *testing.T) {
 
 	svc := newSvc(db)
 	a := newAppender(t, svc, testCtx(), "asset-cash-1")
-	ledgerID := int64(1)
+	ledgerUUID := testLedgerUUID(1)
 	a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
 		Name:                         "辦公電腦",
 		AssetAccountID:               "1201-04",
@@ -609,7 +631,7 @@ func TestAssetPurchased_Cash(t *testing.T) {
 		ResidualValue:                dec("0"),
 		UsefulLifeMonths:             60,
 		PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-		LedgerID:                     &ledgerID,
+		LedgerUUID:                   &ledgerUUID,
 		PurchaseDate:                 "2026-05-01",
 	})
 
@@ -674,7 +696,7 @@ func TestAssetDepreciated(t *testing.T) {
 
 	svc := newSvc(db)
 	a := newAppender(t, svc, testCtx(), "asset-depr-1")
-	ledgerID := int64(1)
+	ledgerUUID := testLedgerUUID(1)
 	a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
 		Name:                         "辦公電腦",
 		AssetAccountID:               "1201-04",
@@ -684,13 +706,13 @@ func TestAssetDepreciated(t *testing.T) {
 		ResidualValue:                dec("0"),
 		UsefulLifeMonths:             60,
 		PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-		LedgerID:                     &ledgerID,
+		LedgerUUID:                   &ledgerUUID,
 		PurchaseDate:                 "2026-05-01",
 	})
-	assetID := queryLastAssetID(t, db)
+	assetUUID := queryLastAssetUUID(t, db)
 
 	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{
-		AssetID:    assetID,
+		AssetUUID:  assetUUID,
 		PeriodDate: "2026-06",
 	})
 
@@ -721,7 +743,7 @@ func TestAssetDisposed_Gain(t *testing.T) {
 
 	svc := newSvc(db)
 	a := newAppender(t, svc, testCtx(), "asset-gain-1")
-	ledgerID := int64(1)
+	ledgerUUID := testLedgerUUID(1)
 
 	a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
 		Name:                         "辦公電腦",
@@ -732,24 +754,23 @@ func TestAssetDisposed_Gain(t *testing.T) {
 		ResidualValue:                dec("0"),
 		UsefulLifeMonths:             60,
 		PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-		LedgerID:                     &ledgerID,
+		LedgerUUID:                   &ledgerUUID,
 		PurchaseDate:                 "2026-05-01",
 	})
-	assetID := queryLastAssetID(t, db)
+	assetUUID := queryLastAssetUUID(t, db)
 
 	// 2 depreciation periods → totalDepreciated = 4000
-	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{AssetID: assetID, PeriodDate: "2026-05"})
-	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{AssetID: assetID, PeriodDate: "2026-06"})
+	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{AssetUUID: assetUUID, PeriodDate: "2026-05"})
+	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{AssetUUID: assetUUID, PeriodDate: "2026-06"})
 
 	// bookValue = 120000 - 4000 = 116000; proceeds = 124000; gain = 8000
-	proceeds := int64(1)
 	a.do(event_types.EventAssetDisposed.Enum(), payload.AssetDisposedPayload{
-		AssetID:          assetID,
-		DisposalDate:     "2026-06-30",
-		Proceeds:         dec("124000"),
-		ProceedsLedgerID: &proceeds,
-		GainAccountID:    "4205",
-		LossAccountID:    "5601",
+		AssetUUID:          assetUUID,
+		DisposalDate:       "2026-06-30",
+		Proceeds:           dec("124000"),
+		ProceedsLedgerUUID: &ledgerUUID,
+		GainAccountID:      "4205",
+		LossAccountID:      "5601",
 	})
 
 	txn := queryLastTxn(t, db)
@@ -782,7 +803,7 @@ func TestAssetDisposed_Loss(t *testing.T) {
 
 	svc := newSvc(db)
 	a := newAppender(t, svc, testCtx(), "asset-loss-1")
-	ledgerID := int64(1)
+	ledgerUUID := testLedgerUUID(1)
 
 	a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
 		Name:                         "辦公電腦",
@@ -793,23 +814,22 @@ func TestAssetDisposed_Loss(t *testing.T) {
 		ResidualValue:                dec("0"),
 		UsefulLifeMonths:             60,
 		PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-		LedgerID:                     &ledgerID,
+		LedgerUUID:                   &ledgerUUID,
 		PurchaseDate:                 "2026-05-01",
 	})
-	assetID := queryLastAssetID(t, db)
+	assetUUID := queryLastAssetUUID(t, db)
 
-	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{AssetID: assetID, PeriodDate: "2026-05"})
-	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{AssetID: assetID, PeriodDate: "2026-06"})
+	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{AssetUUID: assetUUID, PeriodDate: "2026-05"})
+	a.do(event_types.EventAssetDepreciated.Enum(), payload.AssetDepreciatedPayload{AssetUUID: assetUUID, PeriodDate: "2026-06"})
 
 	// bookValue = 116000; proceeds = 100000; loss = 16000
-	proceeds := int64(1)
 	a.do(event_types.EventAssetDisposed.Enum(), payload.AssetDisposedPayload{
-		AssetID:          assetID,
-		DisposalDate:     "2026-06-30",
-		Proceeds:         dec("100000"),
-		ProceedsLedgerID: &proceeds,
-		GainAccountID:    "4205",
-		LossAccountID:    "5601",
+		AssetUUID:          assetUUID,
+		DisposalDate:       "2026-06-30",
+		Proceeds:           dec("100000"),
+		ProceedsLedgerUUID: &ledgerUUID,
+		GainAccountID:      "4205",
+		LossAccountID:      "5601",
 	})
 
 	txn := queryLastTxn(t, db)

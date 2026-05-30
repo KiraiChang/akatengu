@@ -10,6 +10,7 @@ import (
 
 type PrepaidQueryRepo interface {
 	GetPrepaidByID(ctx context.Context, id int64) (*projection.Prepaid, error)
+	GetPrepaidByUUID(ctx context.Context, uuid string) (*projection.Prepaid, error)
 	GetActivePrepaidsByMerchant(ctx context.Context) ([]projection.Prepaid, error)
 	GetAllPrepaidsByMerchant(ctx context.Context) ([]projection.Prepaid, error)
 	GetPrepaidAmortizationsByPrepaidID(ctx context.Context, prepaidID int64) ([]projection.PrepaidAmortization, error)
@@ -27,6 +28,24 @@ func (r *sqlcdbPrepaidRepo) GetPrepaidByID(ctx context.Context, id int64) (*proj
 	row, err := r.q.GetPrepaidByID(ctx, sqlcdb.GetPrepaidByIDParams{
 		ID:         id,
 		MerchantID: merchantID,
+	})
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return projection.PrepaidPtrFromPrepaid(row), nil
+}
+
+func (r *sqlcdbPrepaidRepo) GetPrepaidByUUID(ctx context.Context, uuid string) (*projection.Prepaid, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetPrepaidByUUID(ctx, sqlcdb.GetPrepaidByUUIDParams{
+		PrepaidUuid: uuid,
+		MerchantID:  merchantID,
 	})
 	if err == sql.ErrNoRows {
 		return nil, nil

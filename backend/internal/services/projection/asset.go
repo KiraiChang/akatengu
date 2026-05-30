@@ -61,6 +61,7 @@ func (s *FixedAssetProjectionService) applyPurchased(ctx context.Context, tx eve
 		return err
 	}
 	st.AssetID = assetID
+	st.AssetUUID = ct.Event.EventUuid
 	return nil
 }
 

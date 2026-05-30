@@ -58,6 +58,7 @@ func (s *PrepaidProjectionService) applyCreated(ctx context.Context, tx event_st
 	}
 
 	st.PrepaidID = prepaidID
+	st.PrepaidUUID = ct.Event.EventUuid
 	return nil
 }
 

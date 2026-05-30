@@ -10,6 +10,7 @@ import (
 
 type FixedAssetQueryRepo interface {
 	GetFixedAssetByID(ctx context.Context, id int64) (*projection.FixedAsset, error)
+	GetFixedAssetByUUID(ctx context.Context, uuid string) (*projection.FixedAsset, error)
 	GetActiveFixedAssetsByMerchant(ctx context.Context) ([]projection.FixedAsset, error)
 	GetAllFixedAssetsByMerchant(ctx context.Context) ([]projection.FixedAsset, error)
 	GetFixedAssetDepreciationsByAssetID(ctx context.Context, assetID int64) ([]projection.FixedAssetDepreciation, error)
@@ -26,6 +27,24 @@ func (r *sqlcdbFixedAssetRepo) GetFixedAssetByID(ctx context.Context, id int64) 
 	}
 	row, err := r.q.GetFixedAssetByID(ctx, sqlcdb.GetFixedAssetByIDParams{
 		ID:         id,
+		MerchantID: merchantID,
+	})
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return projection.FixedAssetPtrFromFixedAsset(row), nil
+}
+
+func (r *sqlcdbFixedAssetRepo) GetFixedAssetByUUID(ctx context.Context, uuid string) (*projection.FixedAsset, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetFixedAssetByUUID(ctx, sqlcdb.GetFixedAssetByUUIDParams{
+		AssetUuid:  uuid,
 		MerchantID: merchantID,
 	})
 	if err == sql.ErrNoRows {

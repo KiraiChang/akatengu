@@ -33,7 +33,7 @@ func (e *eventAssetPurchasedProjector) Project(ctx context.Context, ct *pipeline
 	}
 
 	if p.PaymentType == enums.AssetPaymentTypeCash.Enum() {
-		ledger, err := e.query.Account.GetLedger(ctx, *p.LedgerID)
+		ledger, err := e.query.Account.GetLedgerByUuid(ctx, *p.LedgerUUID)
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ func (e *eventAssetDepreciatedProjector) Project(ctx context.Context, ct *pipeli
 		return err
 	}
 
-	asset, err := e.query.FixedAsset.GetFixedAssetByID(ctx, p.AssetID)
+	asset, err := e.query.FixedAsset.GetFixedAssetByUUID(ctx, p.AssetUUID)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (e *eventAssetDisposedProjector) Project(ctx context.Context, ct *pipelines
 	p := ct.Payload
 	c := ct.State
 
-	asset, err := e.query.FixedAsset.GetFixedAssetByID(ctx, p.AssetID)
+	asset, err := e.query.FixedAsset.GetFixedAssetByUUID(ctx, p.AssetUUID)
 	if err != nil {
 		return err
 	}
@@ -131,8 +131,8 @@ func (e *eventAssetDisposedProjector) Project(ctx context.Context, ct *pipelines
 	}
 	c.Asset = asset
 
-	if p.Proceeds.GreaterThan(decimal.Zero) && p.ProceedsLedgerID != nil {
-		ledger, err := e.query.Account.GetLedger(ctx, *p.ProceedsLedgerID)
+	if p.Proceeds.GreaterThan(decimal.Zero) && p.ProceedsLedgerUUID != nil {
+		ledger, err := e.query.Account.GetLedgerByUuid(ctx, *p.ProceedsLedgerUUID)
 		if err != nil {
 			return err
 		}

@@ -8,7 +8,8 @@ import (
 // AssetPurchasedState 購入固定資產時所需的狀態
 type AssetPurchasedState struct {
 	Ledger      *projection.LedgerAccount         // CASH：付款帳戶；LEASE：nil
-	AssetID     int64                             // populated by FixedAssetProjectionService.applyPurchased
+	AssetID     int64                             // populated by FixedAssetProjectionService.applyPurchased; used internally by TransactionProjectionService
+	AssetUUID   string                            // populated by FixedAssetProjectionService.applyPurchased; event UUID of the created asset
 	Transaction payload.TransactionCreatedPayload // populated by factory/pipeline; read by TransactionProjectionService and AccountBalanceRealtimeProjection
 }
 

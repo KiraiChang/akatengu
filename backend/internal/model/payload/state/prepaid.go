@@ -8,7 +8,8 @@ import (
 // PrepaidCreatedState 建立預付費用時所需的狀態
 type PrepaidCreatedState struct {
 	Ledger      *projection.LedgerAccount
-	PrepaidID   int64                             // populated by PrepaidProjectionService.applyCreated
+	PrepaidID   int64                             // populated by PrepaidProjectionService.applyCreated; used internally by TransactionProjectionService
+	PrepaidUUID string                            // populated by PrepaidProjectionService.applyCreated; event UUID of the created prepaid
 	Transaction payload.TransactionCreatedPayload // populated by factory/pipeline; read by TransactionProjectionService and AccountBalanceRealtimeProjection
 }
 
