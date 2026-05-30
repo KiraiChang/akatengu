@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -19,20 +20,33 @@ var initEnumsOnce sync.Once
 // The DB is closed automatically when the test ends.
 func NewTestDB(t *testing.T) *sqlx.DB {
 	t.Helper()
+	db, closeDB := newTestDBInner(t.Fatalf)
+	t.Cleanup(closeDB)
+	return db
+}
+
+// NewTestDBGinkgo is the Ginkgo-compatible variant: the caller must register
+// cleanup with DeferCleanup(closeDB) or call closeDB() in AfterEach.
+func NewTestDBGinkgo() (*sqlx.DB, func()) {
+	return newTestDBInner(func(format string, args ...any) {
+		panic(fmt.Sprintf("testutil.NewTestDBGinkgo: "+format, args...))
+	})
+}
+
+func newTestDBInner(fatalf func(string, ...any)) (*sqlx.DB, func()) {
 	initEnumsOnce.Do(enums.InitEnums)
 	db, err := sqlx.Open("sqlite", ":memory:")
 	if err != nil {
-		t.Fatalf("open test db: %v", err)
+		fatalf("open test db: %v", err)
 	}
 	if err := database.RunMigrations(context.Background(), db, zap.NewNop()); err != nil {
 		db.Close()
-		t.Fatalf("run migrations: %v", err)
+		fatalf("run migrations: %v", err)
 	}
 	seeder := database.NewSQLFileSeeder("accounts", "accounts.sql")
 	if err := seeder.Seed(context.Background(), db.DB); err != nil {
 		db.Close()
-		t.Fatalf("seed accounts: %v", err)
+		fatalf("seed accounts: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
-	return db
+	return db, func() { db.Close() }
 }
