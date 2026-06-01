@@ -15,6 +15,20 @@ type AssetPurchasedState struct {
 
 func (s AssetPurchasedState) GetTransaction() payload.TransactionCreatedPayload { return s.Transaction }
 
+// AssetPurchasedWithInstallmentState 以分期購入固定資產時所需的狀態
+type AssetPurchasedWithInstallmentState struct {
+	AssetID                        int64
+	AssetUUID                      string
+	Installment                    *projection.Installment
+	InstallmentPayments            []*projection.InstallmentPayment
+	SysAccountAssetPrepaidInterest string
+	Transaction                    payload.TransactionCreatedPayload
+}
+
+func (s AssetPurchasedWithInstallmentState) GetTransaction() payload.TransactionCreatedPayload {
+	return s.Transaction
+}
+
 // AssetDepreciatedState 執行折舊時所需的狀態
 type AssetDepreciatedState struct {
 	Asset       *projection.FixedAsset

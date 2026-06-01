@@ -19,8 +19,9 @@ type AssetPaymentType = enumx.Enum[assetPaymentTypeVal]
 type assetPaymentTypeVal string
 
 const (
-	AssetPaymentTypeCash  assetPaymentTypeVal = "CASH"
-	AssetPaymentTypeLease assetPaymentTypeVal = "LEASE"
+	AssetPaymentTypeCash        assetPaymentTypeVal = "CASH"
+	AssetPaymentTypeLease       assetPaymentTypeVal = "LEASE"
+	AssetPaymentTypeInstallment assetPaymentTypeVal = "INSTALLMENT"
 )
 
 // PrepaidStatus 預付費用狀態

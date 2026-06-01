@@ -47,6 +47,93 @@ func (p PrepaidCreatedPayload) Validate() error {
 	return joinErrors(errs)
 }
 
+// PrepaidCreatedWithInstallmentPayload 以信用卡分期支付預付費用
+type PrepaidCreatedWithInstallmentPayload struct {
+	AccountID        string                  `json:"account_id"`
+	ExpenseAccountID string                  `json:"expense_account_id"`
+	Name             string                  `json:"name"`
+	TotalAmount      decimal.Decimal         `json:"total_amount"`
+	Periods          int64                   `json:"periods"`
+	StartDate        string                  `json:"start_date"`
+	Memo             string                  `json:"memo,omitempty"`
+	Note             string                  `json:"note,omitempty"`
+	Installment      InstallmentTermsPayload `json:"installment"`
+}
+
+func (p PrepaidCreatedWithInstallmentPayload) Validate() error {
+	var errs []string
+	if p.AccountID == "" {
+		errs = append(errs, "account_id is required")
+	}
+	if p.ExpenseAccountID == "" {
+		errs = append(errs, "expense_account_id is required")
+	}
+	if p.Name == "" {
+		errs = append(errs, "name is required")
+	}
+	if p.TotalAmount.LessThanOrEqual(decimal.Zero) {
+		errs = append(errs, "total_amount must be greater than zero")
+	}
+	if p.Periods <= 0 {
+		errs = append(errs, "periods must be greater than zero")
+	}
+	if p.StartDate == "" {
+		errs = append(errs, "start_date is required")
+	}
+	if err := p.Installment.Validate(); err != nil {
+		errs = append(errs, err.Error())
+	}
+	return joinErrors(errs)
+}
+
+// ToInstallmentPayload 組合完整的 InstallmentCreatedPayload，以預付科目與總金額填入 AccountId / Amount。
+func (p PrepaidCreatedWithInstallmentPayload) ToInstallmentPayload() InstallmentCreatedPayload {
+	return InstallmentCreatedPayload{
+		Amount:           p.TotalAmount,
+		InstallmentCount: p.Installment.InstallmentCount,
+		StartDate:        p.Installment.StartDate,
+		InterestType:     p.Installment.InterestType,
+		AnnualRate:       p.Installment.AnnualRate,
+		AccountId:        p.AccountID,
+		LedgerUuid:       p.Installment.LedgerUuid,
+		Memo:             p.Installment.Memo,
+		Note:             p.Installment.Note,
+	}
+}
+
+// BuildPrepaidCreatedWithInstallmentTransaction 組合預付費用分期支付的會計分錄。
+// 借方預付科目標記 Operating；信用卡貸方不標記（此時無實際現金流出）。
+func BuildPrepaidCreatedWithInstallmentTransaction(p PrepaidCreatedWithInstallmentPayload, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
+	cfOperating := enums.CashFlowCategoryOperating.Enum()
+	ip := p.ToInstallmentPayload()
+	var entries []TransactionEntryPayload
+	switch ip.InterestType.Val() {
+	case enums.InterestTypeFree:
+		entries = []TransactionEntryPayload{
+			{AccountId: p.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.TotalAmount},
+		}
+	case enums.InterestTypeFixedRate:
+		interest := decimal.Zero
+		for _, pmt := range payments {
+			interest = interest.Add(pmt.Interest)
+		}
+		entries = []TransactionEntryPayload{
+			{AccountId: p.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: sysAccountAssetPrepaidInterest, Debit: interest, Credit: decimal.Zero},
+			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.TotalAmount.Add(interest)},
+		}
+	default:
+		return TransactionCreatedPayload{}, fmt.Errorf("invalid interest type: %s", ip.InterestType.Val())
+	}
+	return TransactionCreatedPayload{
+		TransactionDate: p.StartDate,
+		Description:     fmt.Sprintf("預付費用分期支付 %s", p.Name),
+		Currency:        "TWD",
+		Entries:         entries,
+	}, nil
+}
+
 // PrepaidAmortizedPayload 執行一期攤提
 type PrepaidAmortizedPayload struct {
 	PrepaidUUID string `json:"prepaid_uuid"`

@@ -38,6 +38,7 @@
 | [ADR-017](#adr-017-分錄組裝移至-pipeline-factory) | 分錄組裝移至 Pipeline Factory | Accepted | 2026-05-27 |
 | [ADR-018](#adr-018-event-sourcing-projection-全面加入-uuid-以確保-replay-正確性) | Event Sourcing Projection 全面加入 UUID 以確保 Replay 正確性 | Accepted | 2026-05-29 |
 | [ADR-019](#adr-019-handler--middleware-層採用-ginkgo-v2--gomega-撰寫-bdd-測試) | Handler / Middleware 層採用 Ginkgo v2 + Gomega 撰寫 BDD 測試 | Accepted | 2026-05-29 |
+| [ADR-020](#adr-020-fixedasset--prepaid-嵌入-installment-的事件設計策略) | FixedAsset / Prepaid 嵌入 Installment 的事件設計策略 | Accepted | 2026-06-01 |
 
 ---
 
@@ -672,6 +673,35 @@
 - **後果**：
   - 正面：handler/middleware 測試報告以情境樹狀呈現，失敗點一眼定位；stub 狀態由 `BeforeEach` 管理，避免測試間污染。
   - 負面：新增 handler/middleware 測試時需先建立 suite 檔案；`enumx.Enum` 型別的零值須寫 `T{}` 而非 `""`（已知），需注意 stub 方法返回值。
+
+---
+
+## ADR-020 FixedAsset / Prepaid 嵌入 Installment 的事件設計策略
+
+- **狀態**：Accepted
+- **日期**：2026-06-01
+- **背景**：
+  FixedAsset 與 Prepaid 支援現金（CASH）與租賃（LEASE）兩種付款方式。
+  信用卡分期（Installment）屬於第三種付款方式，在單一 Event Append 中需同時建立 FixedAsset/Prepaid 與 Installment 主檔及還款明細。
+
+- **決策**：
+  新增獨立 Event Type（`asset.purchased_with_installment`、`prepaid.created_with_installment`），不修改現有事件：
+
+  1. **新增 `InstallmentTermsPayload`**：只帶付款條件（期數、信用卡 ledger_uuid、利率類型等），金額與科目由主體 payload 提供，避免重複宣告。
+  2. **UUID 衍生策略**：主體（Asset/Prepaid）UUID = `ct.Event.EventUuid`；Installment UUID = `uuidx.NewFromEvent(eventUUID, "installment")`；Payment UUID = `uuidx.NewFromEvent(eventUUID, "payment:N")`，確保 Replay 冪等。
+  3. **CashFlowCategory 分離設定**：不重用 `BuildInstallmentCreatedTransaction`（無 CF 標記），而是新增專屬 builder：
+     - `BuildAssetPurchasedWithInstallmentTransaction`：借方資產科目標記 `INVESTING`（與現金購入一致），貸方信用卡不標記（此時無實際現金流出）
+     - `BuildPrepaidCreatedWithInstallmentTransaction`：借方預付科目標記 `OPERATING`，貸方信用卡不標記
+     - 各期還款由現有 `EventInstallmentPeriodPaid` 處理，借方信用卡還款標記 `FINANCING`（不變）
+  4. **Projection 擴充**：`FixedAssetProjectionService`、`PrepaidProjectionService`、`InstallmentProjectionService` 各新增 switch case 處理新事件，三者獨立、無執行順序依賴。
+
+- **替代方案**：
+  - **修改現有 `AssetPurchasedPayload`，新增 `INSTALLMENT` 分支**：現有 payload 已有 CASH/LEASE 兩種形態，嵌入 Installment 資料後 struct 膨脹且 Validate 邏輯複雜，破壞現有 event replay，不採用。
+  - **前端分兩步驟送出（先 Asset，再 Installment）**：兩個獨立事件無法原子性完成，若第二步失敗資產已建立卻缺少分期記錄，帳務不一致，不採用。
+
+- **後果**：
+  - 正面：現有 event/payload/pipeline 一律不動（開放封閉原則）；CF 報表 Investing/Operating/Financing 分類與現金購入一致；Replay 冪等（UUID 確定性衍生）。
+  - 負面：`InsertFixedAssetParams.PaymentType` 新增 `INSTALLMENT` 常數，若既有報表按 payment_type 分組統計需注意此新值；新事件的 Installment UUID 與主體 UUID 不同，查詢時需透過 `uuidx.NewFromEvent` 反推（無獨立索引）。
 
 ---
 

@@ -15,6 +15,20 @@ type PrepaidCreatedState struct {
 
 func (s PrepaidCreatedState) GetTransaction() payload.TransactionCreatedPayload { return s.Transaction }
 
+// PrepaidCreatedWithInstallmentState 以分期支付預付費用時所需的狀態
+type PrepaidCreatedWithInstallmentState struct {
+	PrepaidID                      int64
+	PrepaidUUID                    string
+	Installment                    *projection.Installment
+	InstallmentPayments            []*projection.InstallmentPayment
+	SysAccountAssetPrepaidInterest string
+	Transaction                    payload.TransactionCreatedPayload
+}
+
+func (s PrepaidCreatedWithInstallmentState) GetTransaction() payload.TransactionCreatedPayload {
+	return s.Transaction
+}
+
 // PrepaidAmortizedState 執行攤提時所需的狀態
 type PrepaidAmortizedState struct {
 	Prepaid     *projection.Prepaid

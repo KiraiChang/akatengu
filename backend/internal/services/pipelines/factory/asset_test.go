@@ -3,6 +3,7 @@ package factory
 import (
 	"akatengu/internal/enums"
 	"akatengu/internal/handler/response/model"
+	"akatengu/internal/model/db"
 	"akatengu/internal/model/db/projection"
 	"akatengu/internal/model/payload/state"
 	"akatengu/internal/model/request/cmd"
@@ -17,6 +18,8 @@ import (
 
 // 確保 state 套件被識別為使用（type assertion 在閉包內）
 var _ *state.AssetPurchasedState
+var _ *state.AssetPurchasedWithInstallmentState
+var _ *state.PrepaidCreatedWithInstallmentState
 
 // ─────────────────────────────────────────
 // Stubs
@@ -53,6 +56,17 @@ func (s *stubAccountRepo) GetLedgerByUuid(_ context.Context, _ string) (*project
 }
 
 var _ query.AccountRepo = (*stubAccountRepo)(nil)
+
+type stubSysRepo struct {
+	codes    []db.SysAccount
+	codesErr error
+}
+
+func (s *stubSysRepo) GetSysAccount(_ context.Context) ([]db.SysAccount, error) {
+	return s.codes, s.codesErr
+}
+
+var _ query.SysRepo = (*stubSysRepo)(nil)
 
 type stubFixedAssetRepo struct {
 	asset    *projection.FixedAsset
@@ -112,6 +126,21 @@ func newStubQueryRepo(period *stubPeriodRepo, account *stubAccountRepo, fa *stub
 		Period:     period,
 		Account:    account,
 		FixedAsset: fa,
+	}
+}
+
+func newStubQueryRepoWithSys(period *stubPeriodRepo, account *stubAccountRepo, fa *stubFixedAssetRepo, sys *stubSysRepo) *query.Repo {
+	return &query.Repo{
+		Period:     period,
+		Account:    account,
+		FixedAsset: fa,
+		Sys:        sys,
+	}
+}
+
+func sysCodesWithPrepaidInterest(sysCode string) []db.SysAccount {
+	return []db.SysAccount{
+		{SysCode: "SYS:ASSET:PREPAID_INTEREST", AccountId: sysCode},
 	}
 }
 
@@ -187,6 +216,66 @@ var _ = Describe("EventAssetDepreciated Pipeline", func() {
 			} else {
 				Expect(err).NotTo(HaveOccurred())
 				st, ok := result.State.(*state.AssetDepreciatedState)
+				Expect(ok).To(BeTrue())
+				if s.checkState != nil {
+					s.checkState(st)
+				}
+			}
+		})
+	}
+})
+
+var _ = Describe("EventAssetPurchasedWithInstallment Pipeline", func() {
+	for _, s := range buildAssetPurchasedWithInstallmentScenarios() {
+		s := s
+		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
+
+		It(label, func() {
+			accountStub := &stubAccountRepo{ledger: s.ledger, ledgerErr: s.ledgerErr}
+			periodStub := &stubPeriodRepo{period: s.period, periodErr: s.periodErr}
+			faStub := &stubFixedAssetRepo{}
+			sysStub := &stubSysRepo{codes: sysCodesWithPrepaidInterest(s.sysCode)}
+			q := newStubQueryRepoWithSys(periodStub, accountStub, faStub, sysStub)
+
+			pipeline := NewEventAssetPurchasedWithInstallmentPipeline(q)
+			result, err := pipeline.Run(testCtx(), appendCmd(s.payload))
+
+			if s.wantErrContain != "" {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(s.wantErrContain))
+			} else {
+				Expect(err).NotTo(HaveOccurred())
+				st, ok := result.State.(*state.AssetPurchasedWithInstallmentState)
+				Expect(ok).To(BeTrue())
+				if s.checkState != nil {
+					s.checkState(st)
+				}
+			}
+		})
+	}
+})
+
+var _ = Describe("EventPrepaidCreatedWithInstallment Pipeline", func() {
+	for _, s := range buildPrepaidCreatedWithInstallmentScenarios() {
+		s := s
+		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
+
+		It(label, func() {
+			accountStub := &stubAccountRepo{ledger: s.ledger, ledgerErr: s.ledgerErr}
+			periodStub := &stubPeriodRepo{period: s.period, periodErr: s.periodErr}
+			faStub := &stubFixedAssetRepo{}
+			sysStub := &stubSysRepo{codes: sysCodesWithPrepaidInterest(s.sysCode)}
+			q := newStubQueryRepoWithSys(periodStub, accountStub, faStub, sysStub)
+
+			pipeline := NewEventPrepaidCreatedWithInstallmentPipeline(q)
+			result, err := pipeline.Run(testCtx(), appendCmd(s.payload))
+
+			if s.wantErrContain != "" {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring(s.wantErrContain))
+			} else {
+				Expect(err).NotTo(HaveOccurred())
+				st, ok := result.State.(*state.PrepaidCreatedWithInstallmentState)
 				Expect(ok).To(BeTrue())
 				if s.checkState != nil {
 					s.checkState(st)

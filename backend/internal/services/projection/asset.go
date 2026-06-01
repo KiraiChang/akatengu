@@ -23,6 +23,8 @@ func (s *FixedAssetProjectionService) Apply(ctx context.Context, tx event_store.
 	switch t.Val() {
 	case event_types.EventAssetPurchased:
 		return s.applyPurchased(ctx, tx, ct)
+	case event_types.EventAssetPurchasedWithInstallment:
+		return s.applyPurchasedWithInstallment(ctx, tx, ct)
 	case event_types.EventAssetDepreciated:
 		return s.applyDepreciated(ctx, tx, ct)
 	case event_types.EventAssetDisposed:
@@ -54,6 +56,40 @@ func (s *FixedAssetProjectionService) applyPurchased(ctx context.Context, tx eve
 		UsefulLifeMonths:             p.UsefulLifeMonths,
 		DepreciationMethod:           enums.DepreciationMethodStraightLine.Enum(),
 		PaymentType:                  p.PaymentType,
+		PurchaseDate:                 p.PurchaseDate,
+		UpdatedBy:                    updatedBy,
+	})
+	if err != nil {
+		return err
+	}
+	st.AssetID = assetID
+	st.AssetUUID = ct.Event.EventUuid
+	return nil
+}
+
+func (s *FixedAssetProjectionService) applyPurchasedWithInstallment(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	p, err := checkAndGetPayload[payload.AssetPurchasedWithInstallmentPayload](ct)
+	if err != nil {
+		return err
+	}
+	st, err := checkAndGetState[state.AssetPurchasedWithInstallmentState](ct)
+	if err != nil {
+		return err
+	}
+
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	assetID, err := tx.Projection.FixedAssetRepo.InsertFixedAsset(ctx, sqlcdb.InsertFixedAssetParams{
+		MerchantID:                   ct.MerchantID,
+		AssetUuid:                    ct.Event.EventUuid,
+		Name:                         p.Name,
+		AssetAccountID:               p.AssetAccountID,
+		AccumDepreciationAccountID:   p.AccumDepreciationAccountID,
+		DepreciationExpenseAccountID: p.DepreciationExpenseAccountID,
+		Cost:                         p.Cost,
+		ResidualValue:                p.ResidualValue,
+		UsefulLifeMonths:             p.UsefulLifeMonths,
+		DepreciationMethod:           enums.DepreciationMethodStraightLine.Enum(),
+		PaymentType:                  enums.AssetPaymentTypeInstallment.Enum(),
 		PurchaseDate:                 p.PurchaseDate,
 		UpdatedBy:                    updatedBy,
 	})

@@ -63,6 +63,101 @@ func (p AssetPurchasedPayload) Validate() error {
 	return joinErrors(errs)
 }
 
+// AssetPurchasedWithInstallmentPayload 以信用卡分期購入固定資產
+type AssetPurchasedWithInstallmentPayload struct {
+	Name                         string                         `json:"name"`
+	AssetAccountID               string                         `json:"asset_account_id"`
+	AccumDepreciationAccountID   string                         `json:"accum_depreciation_account_id"`
+	DepreciationExpenseAccountID string                         `json:"depreciation_expense_account_id"`
+	Cost                         decimal.Decimal                `json:"cost"`
+	ResidualValue                decimal.Decimal                `json:"residual_value"`
+	UsefulLifeMonths             int64                          `json:"useful_life_months"`
+	PurchaseDate                 string                         `json:"purchase_date"`
+	Memo                         string                         `json:"memo,omitempty"`
+	Note                         string                         `json:"note,omitempty"`
+	Installment                  InstallmentTermsPayload        `json:"installment"`
+}
+
+func (p AssetPurchasedWithInstallmentPayload) Validate() error {
+	var errs []string
+	if p.Name == "" {
+		errs = append(errs, "name is required")
+	}
+	if p.AssetAccountID == "" {
+		errs = append(errs, "asset_account_id is required")
+	}
+	if p.AccumDepreciationAccountID == "" {
+		errs = append(errs, "accum_depreciation_account_id is required")
+	}
+	if p.DepreciationExpenseAccountID == "" {
+		errs = append(errs, "depreciation_expense_account_id is required")
+	}
+	if p.Cost.LessThanOrEqual(decimal.Zero) {
+		errs = append(errs, "cost must be greater than zero")
+	}
+	if p.ResidualValue.LessThan(decimal.Zero) {
+		errs = append(errs, "residual_value must be >= 0")
+	}
+	if p.UsefulLifeMonths <= 0 {
+		errs = append(errs, "useful_life_months must be greater than zero")
+	}
+	if p.PurchaseDate == "" {
+		errs = append(errs, "purchase_date is required")
+	}
+	if err := p.Installment.Validate(); err != nil {
+		errs = append(errs, err.Error())
+	}
+	return joinErrors(errs)
+}
+
+// ToInstallmentPayload 組合完整的 InstallmentCreatedPayload，以資產科目與成本填入 AccountId / Amount。
+func (p AssetPurchasedWithInstallmentPayload) ToInstallmentPayload() InstallmentCreatedPayload {
+	return InstallmentCreatedPayload{
+		Amount:           p.Cost,
+		InstallmentCount: p.Installment.InstallmentCount,
+		StartDate:        p.Installment.StartDate,
+		InterestType:     p.Installment.InterestType,
+		AnnualRate:       p.Installment.AnnualRate,
+		AccountId:        p.AssetAccountID,
+		LedgerUuid:       p.Installment.LedgerUuid,
+		Memo:             p.Installment.Memo,
+		Note:             p.Installment.Note,
+	}
+}
+
+// BuildAssetPurchasedWithInstallmentTransaction 組合固定資產分期購入的會計分錄。
+// 借方資產科目標記 Investing；信用卡貸方不標記（此時無實際現金流出）。
+func BuildAssetPurchasedWithInstallmentTransaction(p AssetPurchasedWithInstallmentPayload, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
+	cfInvesting := enums.CashFlowCategoryInvesting.Enum()
+	ip := p.ToInstallmentPayload()
+	var entries []TransactionEntryPayload
+	switch ip.InterestType.Val() {
+	case enums.InterestTypeFree:
+		entries = []TransactionEntryPayload{
+			{AccountId: p.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.Cost},
+		}
+	case enums.InterestTypeFixedRate:
+		interest := decimal.Zero
+		for _, pmt := range payments {
+			interest = interest.Add(pmt.Interest)
+		}
+		entries = []TransactionEntryPayload{
+			{AccountId: p.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: sysAccountAssetPrepaidInterest, Debit: interest, Credit: decimal.Zero},
+			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.Cost.Add(interest)},
+		}
+	default:
+		return TransactionCreatedPayload{}, fmt.Errorf("invalid interest type: %s", ip.InterestType.Val())
+	}
+	return TransactionCreatedPayload{
+		TransactionDate: p.PurchaseDate,
+		Description:     fmt.Sprintf("固定資產分期購入 %s", p.Name),
+		Currency:        "TWD",
+		Entries:         entries,
+	}, nil
+}
+
 // AssetDepreciatedPayload 執行一期折舊
 type AssetDepreciatedPayload struct {
 	AssetUUID  string `json:"asset_uuid"`

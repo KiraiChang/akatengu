@@ -2,6 +2,7 @@ package factory
 
 import (
 	"akatengu/internal/enums"
+	"akatengu/internal/enums/sys_codes"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
 	"akatengu/internal/repos/query"
@@ -129,5 +130,67 @@ func (e *eventPrepaidDisposedProjector) Project(ctx context.Context, ct *pipelin
 func NewEventPrepaidDisposedPipeline(query *query.Repo) *pipelines.TypedPipeline[state.PrepaidDisposedState, payload.PrepaidDisposedPayload] {
 	return pipelines.NewType[state.PrepaidDisposedState, payload.PrepaidDisposedPayload](&eventPrepaidDisposedProjector{query}, func() *state.PrepaidDisposedState {
 		return &state.PrepaidDisposedState{}
+	})
+}
+
+// ------------------------------
+// EventPrepaidCreatedWithInstallment
+// ------------------------------
+
+type eventPrepaidCreatedWithInstallmentProjector struct {
+	query *query.Repo
+}
+
+func (e *eventPrepaidCreatedWithInstallmentProjector) Project(ctx context.Context, ct *pipelines.Context[state.PrepaidCreatedWithInstallmentState, payload.PrepaidCreatedWithInstallmentPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+
+	p := ct.Payload
+	c := ct.State
+
+	if err := validPeriodMonthlyStatus(ctx, p.StartDate, e.query, enums.PeriodTypeStatusOpen.Enum()); err != nil {
+		return err
+	}
+
+	ledger, err := e.query.Account.GetLedgerByUuid(ctx, p.Installment.LedgerUuid)
+	if err != nil {
+		return err
+	}
+	if ledger == nil {
+		return fmt.Errorf("ledger not found")
+	}
+
+	ip := p.ToInstallmentPayload()
+	inst, err := ip.CreateInstallment()
+	if err != nil {
+		return err
+	}
+	c.Installment = inst
+
+	payments, err := ip.CreatePayments()
+	if err != nil {
+		return err
+	}
+	c.InstallmentPayments = payments
+
+	code, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountAssetPrepaidInterest.Enum())
+	if err != nil {
+		return err
+	}
+	c.SysAccountAssetPrepaidInterest = code
+
+	txn, err := payload.BuildPrepaidCreatedWithInstallmentTransaction(p, ledger, c.SysAccountAssetPrepaidInterest, c.InstallmentPayments)
+	if err != nil {
+		return err
+	}
+	c.Transaction = txn
+
+	return nil
+}
+
+func NewEventPrepaidCreatedWithInstallmentPipeline(query *query.Repo) *pipelines.TypedPipeline[state.PrepaidCreatedWithInstallmentState, payload.PrepaidCreatedWithInstallmentPayload] {
+	return pipelines.NewType[state.PrepaidCreatedWithInstallmentState, payload.PrepaidCreatedWithInstallmentPayload](&eventPrepaidCreatedWithInstallmentProjector{query}, func() *state.PrepaidCreatedWithInstallmentState {
+		return &state.PrepaidCreatedWithInstallmentState{}
 	})
 }

@@ -2,6 +2,7 @@ package factory
 
 import (
 	"akatengu/internal/enums"
+	"akatengu/internal/enums/sys_codes"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/payload/state"
 	"akatengu/internal/repos/query"
@@ -150,5 +151,67 @@ func (e *eventAssetDisposedProjector) Project(ctx context.Context, ct *pipelines
 func NewEventAssetDisposedPipeline(query *query.Repo) *pipelines.TypedPipeline[state.AssetDisposedState, payload.AssetDisposedPayload] {
 	return pipelines.NewType[state.AssetDisposedState, payload.AssetDisposedPayload](&eventAssetDisposedProjector{query}, func() *state.AssetDisposedState {
 		return &state.AssetDisposedState{}
+	})
+}
+
+// ------------------------------
+// EventAssetPurchasedWithInstallment
+// ------------------------------
+
+type eventAssetPurchasedWithInstallmentProjector struct {
+	query *query.Repo
+}
+
+func (e *eventAssetPurchasedWithInstallmentProjector) Project(ctx context.Context, ct *pipelines.Context[state.AssetPurchasedWithInstallmentState, payload.AssetPurchasedWithInstallmentPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+
+	p := ct.Payload
+	c := ct.State
+
+	if err := validPeriodMonthlyStatus(ctx, p.PurchaseDate, e.query, enums.PeriodTypeStatusOpen.Enum()); err != nil {
+		return err
+	}
+
+	ledger, err := e.query.Account.GetLedgerByUuid(ctx, p.Installment.LedgerUuid)
+	if err != nil {
+		return err
+	}
+	if ledger == nil {
+		return fmt.Errorf("ledger not found")
+	}
+
+	ip := p.ToInstallmentPayload()
+	inst, err := ip.CreateInstallment()
+	if err != nil {
+		return err
+	}
+	c.Installment = inst
+
+	payments, err := ip.CreatePayments()
+	if err != nil {
+		return err
+	}
+	c.InstallmentPayments = payments
+
+	code, err := getSysAccountCode(ctx, e.query.Sys, sys_codes.SysAccountAssetPrepaidInterest.Enum())
+	if err != nil {
+		return err
+	}
+	c.SysAccountAssetPrepaidInterest = code
+
+	txn, err := payload.BuildAssetPurchasedWithInstallmentTransaction(p, ledger, c.SysAccountAssetPrepaidInterest, c.InstallmentPayments)
+	if err != nil {
+		return err
+	}
+	c.Transaction = txn
+
+	return nil
+}
+
+func NewEventAssetPurchasedWithInstallmentPipeline(query *query.Repo) *pipelines.TypedPipeline[state.AssetPurchasedWithInstallmentState, payload.AssetPurchasedWithInstallmentPayload] {
+	return pipelines.NewType[state.AssetPurchasedWithInstallmentState, payload.AssetPurchasedWithInstallmentPayload](&eventAssetPurchasedWithInstallmentProjector{query}, func() *state.AssetPurchasedWithInstallmentState {
+		return &state.AssetPurchasedWithInstallmentState{}
 	})
 }

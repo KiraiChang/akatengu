@@ -59,10 +59,15 @@ func (s *TransactionProjectionService) Apply(ctx context.Context, tx event_store
 
 	case event_types.EventAssetPurchased:
 		return s.applyAssetPurchased(ctx, tx, ct)
+	case event_types.EventAssetPurchasedWithInstallment:
+		return s.applyAssetPurchasedWithInstallment(ctx, tx, ct)
 	case event_types.EventAssetDepreciated:
 		return s.applyAssetDepreciated(ctx, tx, ct)
 	case event_types.EventAssetDisposed:
 		return s.applyAssetDisposed(ctx, tx, ct)
+
+	case event_types.EventPrepaidCreatedWithInstallment:
+		return s.applyPrepaidCreatedWithInstallment(ctx, tx, ct)
 	}
 	return nil
 }
@@ -458,4 +463,38 @@ func (s *TransactionProjectionService) applyAssetDisposed(ctx context.Context, t
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
 	_, err = s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
 	return err
+}
+
+func (s *TransactionProjectionService) applyAssetPurchasedWithInstallment(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	st, err := checkAndGetState[state.AssetPurchasedWithInstallmentState](ct)
+	if err != nil {
+		return err
+	}
+
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
+	if err != nil {
+		return err
+	}
+	if err := tx.Projection.FixedAssetRepo.UpdateFixedAssetTxn(ctx, st.AssetID, ct.MerchantID, txnId); err != nil {
+		return err
+	}
+	return tx.Projection.InstallmentRepo.UpdateInstallmentTxn(ctx, st.Installment.InstallmentId, txnId, updatedBy)
+}
+
+func (s *TransactionProjectionService) applyPrepaidCreatedWithInstallment(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	st, err := checkAndGetState[state.PrepaidCreatedWithInstallmentState](ct)
+	if err != nil {
+		return err
+	}
+
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	txnId, err := s.applyTransaction(ctx, tx, st.Transaction, enums.TransactionStatusActive.Enum(), ct.MerchantID, updatedBy, ct.Event.EventUuid, "")
+	if err != nil {
+		return err
+	}
+	if err := tx.Projection.PrepaidRepo.UpdatePrepaidTxn(ctx, st.PrepaidID, ct.MerchantID, txnId); err != nil {
+		return err
+	}
+	return tx.Projection.InstallmentRepo.UpdateInstallmentTxn(ctx, st.Installment.InstallmentId, txnId, updatedBy)
 }

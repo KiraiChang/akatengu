@@ -10,6 +10,39 @@ import (
 )
 
 // ─────────────────────────────────────────
+// InstallmentTermsPayload
+// ─────────────────────────────────────────
+
+// InstallmentTermsPayload 分期付款條件（嵌入 AssetPurchasedWithInstallment / PrepaidCreatedWithInstallment）
+// Amount 與 AccountId 由主體（Asset/Prepaid）提供，此處只記錄付款條件。
+type InstallmentTermsPayload struct {
+	InstallmentCount int64              `json:"installment_count"`
+	StartDate        string             `json:"start_date"`
+	InterestType     enums.InterestType `json:"interest_type"`
+	AnnualRate       decimal.Decimal    `json:"annual_rate,omitempty"`
+	LedgerUuid       string             `json:"ledger_uuid"`
+	Memo             string             `json:"memo,omitempty"`
+	Note             string             `json:"note,omitempty"`
+}
+
+func (p InstallmentTermsPayload) Validate() error {
+	var errs []string
+	if p.InstallmentCount <= 0 {
+		errs = append(errs, "installment_count is required")
+	}
+	if p.StartDate == "" {
+		errs = append(errs, "start_date is required")
+	}
+	if p.LedgerUuid == "" {
+		errs = append(errs, "ledger_uuid is required")
+	}
+	if !p.InterestType.In(enums.AllInterestType()...) {
+		errs = append(errs, "interest_type is required")
+	}
+	return joinErrors(errs)
+}
+
+// ─────────────────────────────────────────
 // InstallmentCreatedPayload
 // ─────────────────────────────────────────
 

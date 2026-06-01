@@ -82,11 +82,13 @@ func (p *registry) register(query *query.Repo) {
 
 	// Prepaid
 	p.rules[event_types.EventPrepaidCreated.Enum()] = NewEventPrepaidCreatedPipeline(query)
+	p.rules[event_types.EventPrepaidCreatedWithInstallment.Enum()] = NewEventPrepaidCreatedWithInstallmentPipeline(query)
 	p.rules[event_types.EventPrepaidAmortized.Enum()] = NewEventPrepaidAmortizedPipeline(query)
 	p.rules[event_types.EventPrepaidDisposed.Enum()] = NewEventPrepaidDisposedPipeline(query)
 
 	// Fixed Asset
 	p.rules[event_types.EventAssetPurchased.Enum()] = NewEventAssetPurchasedPipeline(query)
+	p.rules[event_types.EventAssetPurchasedWithInstallment.Enum()] = NewEventAssetPurchasedWithInstallmentPipeline(query)
 	p.rules[event_types.EventAssetDepreciated.Enum()] = NewEventAssetDepreciatedPipeline(query)
 	p.rules[event_types.EventAssetDisposed.Enum()] = NewEventAssetDisposedPipeline(query)
 }

@@ -23,6 +23,8 @@ func (s *PrepaidProjectionService) Apply(ctx context.Context, tx event_store.Eve
 	switch t.Val() {
 	case event_types.EventPrepaidCreated:
 		return s.applyCreated(ctx, tx, ct)
+	case event_types.EventPrepaidCreatedWithInstallment:
+		return s.applyCreatedWithInstallment(ctx, tx, ct)
 	case event_types.EventPrepaidAmortized:
 		return s.applyAmortized(ctx, tx, ct)
 	case event_types.EventPrepaidDisposed:
@@ -37,6 +39,37 @@ func (s *PrepaidProjectionService) applyCreated(ctx context.Context, tx event_st
 		return err
 	}
 	st, err := checkAndGetState[state.PrepaidCreatedState](ct)
+	if err != nil {
+		return err
+	}
+
+	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	prepaidID, err := tx.Projection.PrepaidRepo.InsertPrepaid(ctx, sqlcdb.InsertPrepaidParams{
+		MerchantID:       ct.MerchantID,
+		PrepaidUuid:      ct.Event.EventUuid,
+		AccountID:        p.AccountID,
+		ExpenseAccountID: p.ExpenseAccountID,
+		Name:             p.Name,
+		TotalAmount:      p.TotalAmount,
+		Periods:          p.Periods,
+		StartDate:        p.StartDate,
+		UpdatedBy:        updatedBy,
+	})
+	if err != nil {
+		return err
+	}
+
+	st.PrepaidID = prepaidID
+	st.PrepaidUUID = ct.Event.EventUuid
+	return nil
+}
+
+func (s *PrepaidProjectionService) applyCreatedWithInstallment(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
+	p, err := checkAndGetPayload[payload.PrepaidCreatedWithInstallmentPayload](ct)
+	if err != nil {
+		return err
+	}
+	st, err := checkAndGetState[state.PrepaidCreatedWithInstallmentState](ct)
 	if err != nil {
 		return err
 	}

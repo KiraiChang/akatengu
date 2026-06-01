@@ -52,10 +52,15 @@ func (s *AccountBalanceRealtimeProjection) Apply(ctx context.Context, tx event_s
 
 	case event_types.EventAssetPurchased:
 		return applyStateTransaction[state.AssetPurchasedState](s, ctx, tx, ct)
+	case event_types.EventAssetPurchasedWithInstallment:
+		return applyStateTransaction[state.AssetPurchasedWithInstallmentState](s, ctx, tx, ct)
 	case event_types.EventAssetDepreciated:
 		return applyStateTransaction[state.AssetDepreciatedState](s, ctx, tx, ct)
 	case event_types.EventAssetDisposed:
 		return applyStateTransaction[state.AssetDisposedState](s, ctx, tx, ct)
+
+	case event_types.EventPrepaidCreatedWithInstallment:
+		return applyStateTransaction[state.PrepaidCreatedWithInstallmentState](s, ctx, tx, ct)
 
 	case event_types.EventPeriodAnnualClosed:
 		return s.applyPeriodAnnualClosed(ctx, tx, ct)
