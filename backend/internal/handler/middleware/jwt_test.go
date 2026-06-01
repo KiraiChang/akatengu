@@ -1,40 +1,48 @@
 package middleware
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	"akatengu/internal/model/db"
 	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/pkg/jwt"
-	"errors"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
-// stubJwtService 實作 JwtService 供測試使用
+// ─────────────────────────────────────────
+// Stubs
+// ─────────────────────────────────────────
+
 type stubJwtService struct {
 	claims *jwt.Claims
 	err    error
 }
 
 func (s *stubJwtService) GenerateToken(_ *db.User) (string, error) { return "", nil }
-func (s *stubJwtService) GenerateTokenWithMerchant(user *db.User, merchantID int64, role string) (string, error) {
+func (s *stubJwtService) GenerateTokenWithMerchant(_ *db.User, _ int64, _ string) (string, error) {
 	return "", nil
 }
 func (s *stubJwtService) VerifyToken(_ string) (*jwt.Claims, error) {
 	return s.claims, s.err
 }
 
-func jwtRequest(method, target, authHeader string) *http.Request {
-	r := httptest.NewRequest(method, target, nil)
+// ─────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────
+
+func jwtRequest(authHeader string) *http.Request {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	if authHeader != "" {
 		r.Header.Set("Authorization", authHeader)
 	}
 	return r
 }
 
-// next handler：把 context 裡的 claims 寫到回應 header 方便斷言
-func claimsCapture(t *testing.T) (http.HandlerFunc, func() *jwt.Claims) {
-	t.Helper()
+func claimsCapture() (http.HandlerFunc, func() *jwt.Claims) {
 	var got *jwt.Claims
 	h := func(w http.ResponseWriter, r *http.Request) {
 		got, _ = r.Context().Value(ctxkey.UserClaims).(*jwt.Claims)
@@ -43,155 +51,50 @@ func claimsCapture(t *testing.T) (http.HandlerFunc, func() *jwt.Claims) {
 	return h, func() *jwt.Claims { return got }
 }
 
-// ── Authorization header 缺失 ─────────────────────────────────────
+// ─────────────────────────────────────────
+// Spec runner
+// ─────────────────────────────────────────
 
-func TestJwtMiddleware_MissingAuthHeader(t *testing.T) {
-	svc := &stubJwtService{}
-	mw := Jwt(svc)(okHandler("ok"))
+var _ = Describe("Jwt middleware", func() {
+	for _, s := range jwtScenarios {
+		s := s
+		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
 
-	w := httptest.NewRecorder()
-	mw.ServeHTTP(w, jwtRequest("GET", "/", ""))
+		It(label, func() {
+			svc := &stubJwtService{claims: s.stubClaims, err: s.stubErr}
+			next, getClaims := claimsCapture()
+			rec := httptest.NewRecorder()
 
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("want 401, got %d", w.Code)
-	}
-	assertBodyContains(t, w, "missing token")
-}
+			Jwt(svc)(next).ServeHTTP(rec, jwtRequest(s.authHeader))
 
-// ── scheme 不是 Bearer ────────────────────────────────────────────
-
-func TestJwtMiddleware_NonBearerScheme(t *testing.T) {
-	svc := &stubJwtService{}
-	mw := Jwt(svc)(okHandler("ok"))
-
-	w := httptest.NewRecorder()
-	mw.ServeHTTP(w, jwtRequest("GET", "/", "Token sometoken"))
-
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("want 401, got %d", w.Code)
-	}
-	assertBodyContains(t, w, "invalid token")
-}
-
-// ── 只有 "Bearer"，缺少 token ─────────────────────────────────────
-
-func TestJwtMiddleware_BearerOnly_NoToken(t *testing.T) {
-	svc := &stubJwtService{}
-	mw := Jwt(svc)(okHandler("ok"))
-
-	w := httptest.NewRecorder()
-	mw.ServeHTTP(w, jwtRequest("GET", "/", "Bearer"))
-
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("want 401, got %d", w.Code)
-	}
-	assertBodyContains(t, w, "invalid token")
-}
-
-// ── Bearer + 多餘欄位 ─────────────────────────────────────────────
-
-func TestJwtMiddleware_TooManyParts(t *testing.T) {
-	svc := &stubJwtService{}
-	mw := Jwt(svc)(okHandler("ok"))
-
-	w := httptest.NewRecorder()
-	mw.ServeHTTP(w, jwtRequest("GET", "/", "Bearer token extra"))
-
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("want 401, got %d", w.Code)
-	}
-	assertBodyContains(t, w, "invalid token")
-}
-
-// ── VerifyToken 回傳錯誤 ──────────────────────────────────────────
-
-func TestJwtMiddleware_InvalidToken(t *testing.T) {
-	svc := &stubJwtService{err: errors.New("unauthorized")}
-	mw := Jwt(svc)(okHandler("ok"))
-
-	w := httptest.NewRecorder()
-	mw.ServeHTTP(w, jwtRequest("GET", "/", "Bearer badtoken"))
-
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("want 401, got %d", w.Code)
-	}
-	assertBodyContains(t, w, "unauthorized")
-}
-
-// ── 有效 token：通過並注入 claims ─────────────────────────────────
-
-func TestJwtMiddleware_ValidToken_PassThrough(t *testing.T) {
-	want := &jwt.Claims{UserID: 7, UserName: "alice"}
-	svc := &stubJwtService{claims: want}
-
-	next, getClaims := claimsCapture(t)
-	mw := Jwt(svc)(next)
-
-	w := httptest.NewRecorder()
-	mw.ServeHTTP(w, jwtRequest("GET", "/", "Bearer validtoken"))
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("want 200, got %d", w.Code)
-	}
-	got := getClaims()
-	if got == nil {
-		t.Fatal("claims not set in context")
-	}
-	if got.UserID != want.UserID {
-		t.Errorf("UserID: want %d, got %d", want.UserID, got.UserID)
-	}
-	if got.UserName != want.UserName {
-		t.Errorf("UserName: want %q, got %q", want.UserName, got.UserName)
-	}
-}
-
-// ── 整合：使用真實 JwtService 產生 token 後通過 middleware ────────
-
-func TestJwtMiddleware_RealToken_PassThrough(t *testing.T) {
-	jwtSvc := jwt.NewJWT("test-secret")
-	user := &db.User{UserId: 99, Username: "realuser"}
-	token, err := jwtSvc.GenerateToken(user)
-	if err != nil {
-		t.Fatalf("GenerateToken: %v", err)
+			Expect(rec.Code).To(Equal(s.wantCode))
+			if s.wantBody != "" {
+				Expect(rec.Body.String()).To(ContainSubstring(s.wantBody))
+			}
+			if s.stubClaims != nil {
+				got := getClaims()
+				Expect(got).NotTo(BeNil())
+				Expect(got.UserID).To(Equal(s.stubClaims.UserID))
+				Expect(got.UserName).To(Equal(s.stubClaims.UserName))
+			}
+		})
 	}
 
-	next, getClaims := claimsCapture(t)
-	mw := Jwt(jwtSvc)(next)
+	Context("整合：使用真實 JwtService", func() {
+		It("GIVEN 以真實 JwtService 產生有效 token\n  WHEN 請求帶上此 token\n  THEN 放行並將正確 UserID 注入 context，回傳 200", func() {
+			jwtSvc := jwt.NewJWT("test-secret")
+			user := &db.User{UserId: 99, Username: "realuser"}
+			token, err := jwtSvc.GenerateToken(user)
+			Expect(err).NotTo(HaveOccurred())
 
-	w := httptest.NewRecorder()
-	mw.ServeHTTP(w, jwtRequest("GET", "/", "Bearer "+token))
+			next, getClaims := claimsCapture()
+			rec := httptest.NewRecorder()
+			Jwt(jwtSvc)(next).ServeHTTP(rec, jwtRequest("Bearer "+token))
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("want 200, got %d", w.Code)
-	}
-	got := getClaims()
-	if got == nil {
-		t.Fatal("claims not set in context")
-	}
-	if got.UserID != user.UserId {
-		t.Errorf("UserID: want %d, got %d", user.UserId, got.UserID)
-	}
-}
-
-// ── helpers ───────────────────────────────────────────────────────
-
-func assertBodyContains(t *testing.T, w *httptest.ResponseRecorder, substr string) {
-	t.Helper()
-	body := w.Body.String()
-	if len(body) == 0 || !contains(body, substr) {
-		t.Errorf("body = %q, want it to contain %q", body, substr)
-	}
-}
-
-func contains(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(s) > 0 && stringContains(s, sub))
-}
-
-func stringContains(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
-}
+			Expect(rec.Code).To(Equal(http.StatusOK))
+			got := getClaims()
+			Expect(got).NotTo(BeNil())
+			Expect(got.UserID).To(Equal(user.UserId))
+		})
+	})
+})
