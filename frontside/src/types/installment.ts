@@ -54,3 +54,13 @@ export interface InstallmentPeriodPaidPayload {
   paid_date:        string;
   paid_ledger_uuid: string;
 }
+
+export interface InstallmentTermsPayload {
+  installment_count: number;
+  start_date:        string;
+  interest_type:     InterestType;
+  annual_rate:       string;
+  ledger_uuid:       string;
+  memo:              string;
+  note:              string;
+}

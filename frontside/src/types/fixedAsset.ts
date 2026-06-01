@@ -1,5 +1,5 @@
 export type DepreciationMethod = 'STRAIGHT_LINE';
-export type AssetPaymentType   = 'CASH' | 'LEASE';
+export type AssetPaymentType   = 'CASH' | 'LEASE' | 'INSTALLMENT';
 export type FixedAssetStatus   = 'ACTIVE' | 'DISPOSED';
 
 export interface FixedAsset {
@@ -56,6 +56,22 @@ export interface AssetPurchasedPayload {
 export interface AssetDepreciatedPayload {
   asset_uuid:  string;
   period_date: string;
+}
+
+import type { InstallmentTermsPayload } from './installment';
+
+export interface AssetPurchasedWithInstallmentPayload {
+  name:                            string;
+  asset_account_id:                string;
+  accum_depreciation_account_id:   string;
+  depreciation_expense_account_id: string;
+  cost:                            string;
+  residual_value:                  string;
+  useful_life_months:              number;
+  purchase_date:                   string;
+  memo:                            string;
+  note:                            string;
+  installment:                     InstallmentTermsPayload;
 }
 
 export interface AssetDisposedPayload {

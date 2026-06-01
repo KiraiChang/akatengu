@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getAllFixedAssets, getFixedAssetDepreciations, purchaseFixedAsset, depreciateFixedAsset, disposeFixedAsset } from '../api/fixedAsset';
+  import { getAllFixedAssets, getFixedAssetDepreciations, purchaseFixedAsset, purchaseFixedAssetWithInstallment, depreciateFixedAsset, disposeFixedAsset } from '../api/fixedAsset';
   import { getAccountAll } from '../api/account';
   import { getLedgerAccountAll } from '../api/ledger';
   import { getEntries } from '../api/transaction';
@@ -7,6 +7,8 @@
   import LedgerSelect from '../components/LedgerSelect.svelte';
   import TxnEntryPanel from '../components/TxnEntryPanel.svelte';
   import type { FixedAsset, FixedAssetDepreciation, FixedAssetStatus, AssetPaymentType } from '../types/fixedAsset';
+  import InstallmentTermsSection from '../components/InstallmentTermsSection.svelte';
+  import type { InterestType } from '../types/installment';
   import type { Entry } from '../types/transaction';
   import type { Account } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
@@ -22,11 +24,12 @@
   };
 
   const PAYMENT_LABELS: Record<AssetPaymentType, string> = {
-    CASH:  '現金',
-    LEASE: '租賃',
+    CASH:        '現金',
+    LEASE:       '租賃',
+    INSTALLMENT: '分期',
   };
 
-  const PAYMENT_TYPES: AssetPaymentType[] = ['CASH', 'LEASE'];
+  const PAYMENT_TYPES: AssetPaymentType[] = ['CASH', 'LEASE', 'INSTALLMENT'];
 
   // ── 列表 ──
   let assets    = $state<FixedAsset[]>([]);
@@ -75,6 +78,10 @@
     purchase_date:                   string;
     memo:                            string;
     note:                            string;
+    installment_count:               string;
+    installment_start_date:          string;
+    interest_type:                   InterestType;
+    annual_rate:                     string;
   }
 
   let showPurchaseModal = $state(false);
@@ -91,8 +98,13 @@
     parseInt(purchaseForm.useful_life_months, 10)         > 0 &&
     purchaseForm.purchase_date                            !== '' &&
     (purchaseForm.payment_type === 'CASH'
-      ? purchaseForm.ledger_id          !== ''
-      : purchaseForm.liability_account_id !== '')
+      ? purchaseForm.ledger_id !== ''
+      : purchaseForm.payment_type === 'LEASE'
+        ? purchaseForm.liability_account_id !== ''
+        : purchaseForm.ledger_id                                !== '' &&
+          parseInt(purchaseForm.installment_count, 10)          > 0 &&
+          purchaseForm.installment_start_date                   !== '' &&
+          (purchaseForm.interest_type !== 'FIXED_RATE' || parseFloat(purchaseForm.annual_rate) > 0))
   );
 
   // ── 折舊 Modal ──
@@ -215,21 +227,45 @@
     purchaseError = '';
     try {
       const purchaseLedger = activeLedgers.find(l => String(l.ledger_id) === purchaseForm.ledger_id);
-      await purchaseFixedAsset({
-        name:                            purchaseForm.name.trim(),
-        asset_account_id:                purchaseForm.asset_account_id,
-        accum_depreciation_account_id:   purchaseForm.accum_depreciation_account_id,
-        depreciation_expense_account_id: purchaseForm.depreciation_expense_account_id,
-        cost:                            purchaseForm.cost,
-        residual_value:                  purchaseForm.residual_value || '0',
-        useful_life_months:              parseInt(purchaseForm.useful_life_months, 10),
-        payment_type:                    purchaseForm.payment_type,
-        ledger_uuid:                     purchaseForm.payment_type === 'CASH' ? (purchaseLedger?.ledger_uuid ?? null) : null,
-        liability_account_id:            purchaseForm.payment_type === 'LEASE' ? purchaseForm.liability_account_id : '',
-        purchase_date:                   purchaseForm.purchase_date,
-        memo:                            purchaseForm.memo.trim(),
-        note:                            purchaseForm.note.trim(),
-      });
+      if (purchaseForm.payment_type === 'INSTALLMENT') {
+        await purchaseFixedAssetWithInstallment({
+          name:                            purchaseForm.name.trim(),
+          asset_account_id:                purchaseForm.asset_account_id,
+          accum_depreciation_account_id:   purchaseForm.accum_depreciation_account_id,
+          depreciation_expense_account_id: purchaseForm.depreciation_expense_account_id,
+          cost:                            purchaseForm.cost,
+          residual_value:                  purchaseForm.residual_value || '0',
+          useful_life_months:              parseInt(purchaseForm.useful_life_months, 10),
+          purchase_date:                   purchaseForm.purchase_date,
+          memo:                            purchaseForm.memo.trim(),
+          note:                            purchaseForm.note.trim(),
+          installment: {
+            installment_count: parseInt(purchaseForm.installment_count, 10),
+            start_date:        purchaseForm.installment_start_date,
+            interest_type:     purchaseForm.interest_type,
+            annual_rate:       purchaseForm.interest_type === 'FIXED_RATE' ? purchaseForm.annual_rate : '0',
+            ledger_uuid:       purchaseLedger?.ledger_uuid ?? '',
+            memo:              purchaseForm.memo.trim(),
+            note:              purchaseForm.note.trim(),
+          },
+        });
+      } else {
+        await purchaseFixedAsset({
+          name:                            purchaseForm.name.trim(),
+          asset_account_id:                purchaseForm.asset_account_id,
+          accum_depreciation_account_id:   purchaseForm.accum_depreciation_account_id,
+          depreciation_expense_account_id: purchaseForm.depreciation_expense_account_id,
+          cost:                            purchaseForm.cost,
+          residual_value:                  purchaseForm.residual_value || '0',
+          useful_life_months:              parseInt(purchaseForm.useful_life_months, 10),
+          payment_type:                    purchaseForm.payment_type,
+          ledger_uuid:                     purchaseForm.payment_type === 'CASH' ? (purchaseLedger?.ledger_uuid ?? null) : null,
+          liability_account_id:            purchaseForm.payment_type === 'LEASE' ? purchaseForm.liability_account_id : '',
+          purchase_date:                   purchaseForm.purchase_date,
+          memo:                            purchaseForm.memo.trim(),
+          note:                            purchaseForm.note.trim(),
+        });
+      }
       showPurchaseModal = false;
       await load();
     } catch (err) {
@@ -303,7 +339,7 @@
   }
 
   function emptyPurchaseForm(): PurchaseForm {
-    return { name: '', asset_account_id: '', accum_depreciation_account_id: '', depreciation_expense_account_id: '', cost: '', residual_value: '0', useful_life_months: '', payment_type: 'CASH', ledger_id: '', liability_account_id: '', purchase_date: '', memo: '', note: '' };
+    return { name: '', asset_account_id: '', accum_depreciation_account_id: '', depreciation_expense_account_id: '', cost: '', residual_value: '0', useful_life_months: '', payment_type: 'CASH', ledger_id: '', liability_account_id: '', purchase_date: '', memo: '', note: '', installment_count: '', installment_start_date: '', interest_type: 'FREE', annual_rate: '' };
   }
 
   function emptyDisposeForm(): DisposeForm {
@@ -551,11 +587,23 @@
             <span class="form-label">付款帳戶 *</span>
             <LedgerSelect ledgers={activeLedgers} value={purchaseForm.ledger_id} onselect={(id) => { purchaseForm.ledger_id = id; }} />
           </div>
-        {:else}
+        {:else if purchaseForm.payment_type === 'LEASE'}
           <div class="form-group">
             <label class="form-label" for="fa-liability">應付科目 *</label>
             <AccountSelect {accounts} value={purchaseForm.liability_account_id} placeholder="選擇應付科目…" onselect={(id) => { purchaseForm.liability_account_id = id; }} />
           </div>
+        {:else}
+          <div class="form-group">
+            <span class="form-label">信用卡帳戶 *</span>
+            <LedgerSelect ledgers={activeLedgers} value={purchaseForm.ledger_id} onselect={(id) => { purchaseForm.ledger_id = id; }} />
+          </div>
+          <InstallmentTermsSection
+            idPrefix="fa"
+            bind:installmentCount={purchaseForm.installment_count}
+            bind:startDate={purchaseForm.installment_start_date}
+            bind:interestType={purchaseForm.interest_type}
+            bind:annualRate={purchaseForm.annual_rate}
+          />
         {/if}
         <div class="form-group">
           <label class="form-label" for="fa-purchase-date">購入日期 *</label>

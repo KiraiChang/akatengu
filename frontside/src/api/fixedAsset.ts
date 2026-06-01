@@ -4,6 +4,7 @@ import type {
   FixedAsset,
   FixedAssetDepreciation,
   AssetPurchasedPayload,
+  AssetPurchasedWithInstallmentPayload,
   AssetDepreciatedPayload,
   AssetDisposedPayload,
 } from '../types/fixedAsset';
@@ -33,6 +34,18 @@ export const purchaseFixedAsset = async (payload: AssetPurchasedPayload): Promis
     aggregate_id:     '',
     expected_version: version,
     event_type:       'asset.purchased',
+    payload,
+    metadata:         {},
+  });
+};
+
+export const purchaseFixedAssetWithInstallment = async (payload: AssetPurchasedWithInstallmentPayload): Promise<void> => {
+  const version = await getAggregateVersion('TRANSACTION', '');
+  await appendEvent<AssetPurchasedWithInstallmentPayload>({
+    aggregate_type:   'TRANSACTION',
+    aggregate_id:     '',
+    expected_version: version,
+    event_type:       'asset.purchased_with_installment',
     payload,
     metadata:         {},
   });

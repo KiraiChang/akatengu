@@ -8,6 +8,7 @@
   import { type NewAccountForm, emptyNewAccountForm } from '../components/NewAccountFormSection.svelte';
   import { type NewLedgerForm, emptyNewLedgerForm } from '../components/NewLedgerFormSection.svelte';
   import LedgerSelectSection from '../components/LedgerSelectSection.svelte';
+  import InstallmentTermsSection from '../components/InstallmentTermsSection.svelte';
   import TxnEntryPanel from '../components/TxnEntryPanel.svelte';
   import type { Installment, InstallmentPayment, InstallmentStatus, InstallmentPaymentStatus, InterestType, InstallmentCreatedPayload } from '../types/installment';
   import type { Entry } from '../types/transaction';
@@ -39,7 +40,6 @@
     PAID:    'inst-pay-paid',
   };
 
-  const INTEREST_TYPES: InterestType[] = ['FREE', 'FIXED_RATE'];
   const INTEREST_LABELS: Record<InterestType, string> = {
     FREE:       '免息',
     FIXED_RATE: '固定利率',
@@ -735,64 +735,27 @@
           />
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="c-amount">總金額 *</label>
-            <input
-              id="c-amount"
-              class="form-input"
-              type="number"
-              min="0.01"
-              step="any"
-              bind:value={createForm.amount}
-              placeholder="0.00"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="c-count">期數 *</label>
-            <input
-              id="c-count"
-              class="form-input"
-              type="number"
-              min="1"
-              step="1"
-              bind:value={createForm.installment_count}
-              placeholder="12"
-              required
-            />
-          </div>
+        <div class="form-group">
+          <label class="form-label" for="c-amount">總金額 *</label>
+          <input
+            id="c-amount"
+            class="form-input"
+            type="number"
+            min="0.01"
+            step="any"
+            bind:value={createForm.amount}
+            placeholder="0.00"
+            required
+          />
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="c-start">第一期到期日 *</label>
-            <input id="c-start" class="form-input" type="date" bind:value={createForm.start_date} required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="c-interest-type">利息類型 *</label>
-            <select id="c-interest-type" class="form-select" bind:value={createForm.interest_type}>
-              {#each INTEREST_TYPES as t}
-                <option value={t}>{INTEREST_LABELS[t]}</option>
-              {/each}
-            </select>
-          </div>
-        </div>
-
-        {#if createForm.interest_type === 'FIXED_RATE'}
-          <div class="form-group">
-            <label class="form-label" for="c-rate">年利率（%）*</label>
-            <input
-              id="c-rate"
-              class="form-input"
-              type="number"
-              min="0.01"
-              step="any"
-              bind:value={createForm.annual_rate}
-              placeholder="例：12.5"
-            />
-          </div>
-        {/if}
+        <InstallmentTermsSection
+          idPrefix="c"
+          bind:installmentCount={createForm.installment_count}
+          bind:startDate={createForm.start_date}
+          bind:interestType={createForm.interest_type}
+          bind:annualRate={createForm.annual_rate}
+        />
 
         <LedgerSelectSection
           ledgers={activeLedgers}

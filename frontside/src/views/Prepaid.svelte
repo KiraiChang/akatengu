@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getAllPrepaids, getPrepaidAmortizations, createPrepaid, amortizePrepaid, disposePrepaid } from '../api/prepaid';
+  import { getAllPrepaids, getPrepaidAmortizations, createPrepaid, createPrepaidWithInstallment, amortizePrepaid, disposePrepaid } from '../api/prepaid';
   import { getAccountAll } from '../api/account';
   import { getLedgerAccountAll } from '../api/ledger';
   import { getEntries } from '../api/transaction';
@@ -7,9 +7,19 @@
   import LedgerSelect from '../components/LedgerSelect.svelte';
   import TxnEntryPanel from '../components/TxnEntryPanel.svelte';
   import type { Prepaid, PrepaidAmortization, PrepaidStatus } from '../types/prepaid';
+  import InstallmentTermsSection from '../components/InstallmentTermsSection.svelte';
+  import type { InterestType } from '../types/installment';
   import type { Entry } from '../types/transaction';
   import type { Account } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
+
+  type PrepaidPaymentType = 'CASH' | 'INSTALLMENT';
+
+  const PAYMENT_LABELS: Record<PrepaidPaymentType, string> = {
+    CASH:        '現金',
+    INSTALLMENT: '分期',
+  };
+  const PAYMENT_TYPES: PrepaidPaymentType[] = ['CASH', 'INSTALLMENT'];
 
   const STATUS_LABELS: Record<PrepaidStatus, string> = {
     ACTIVE:    '進行中',
@@ -57,15 +67,20 @@
 
   // ── 新增預付費用 Modal ──
   interface CreateForm {
-    name:               string;
-    account_id:         string;
-    expense_account_id: string;
-    ledger_id:          string;
-    total_amount:       string;
-    periods:            string;
-    start_date:         string;
-    memo:               string;
-    note:               string;
+    name:                   string;
+    account_id:             string;
+    expense_account_id:     string;
+    ledger_id:              string;
+    total_amount:           string;
+    periods:                string;
+    start_date:             string;
+    memo:                   string;
+    note:                   string;
+    payment_type:           PrepaidPaymentType;
+    installment_count:      string;
+    installment_start_date: string;
+    interest_type:          InterestType;
+    annual_rate:            string;
   }
 
   let showCreateModal = $state(false);
@@ -77,10 +92,15 @@
     createForm.name.trim()              !== '' &&
     createForm.account_id               !== '' &&
     createForm.expense_account_id       !== '' &&
-    createForm.ledger_id                !== '' &&
     parseFloat(createForm.total_amount) > 0 &&
     parseInt(createForm.periods, 10)    > 0 &&
-    createForm.start_date               !== ''
+    createForm.start_date               !== '' &&
+    (createForm.payment_type === 'CASH'
+      ? createForm.ledger_id !== ''
+      : createForm.ledger_id                                !== '' &&
+        parseInt(createForm.installment_count, 10)          > 0 &&
+        createForm.installment_start_date                   !== '' &&
+        (createForm.interest_type !== 'FIXED_RATE' || parseFloat(createForm.annual_rate) > 0))
   );
 
   // ── 攤提 Modal ──
@@ -190,17 +210,39 @@
     createError = '';
     try {
       const createLedger = activeLedgers.find(l => String(l.ledger_id) === createForm.ledger_id);
-      await createPrepaid({
-        name:               createForm.name.trim(),
-        account_id:         createForm.account_id,
-        expense_account_id: createForm.expense_account_id,
-        ledger_uuid:        createLedger?.ledger_uuid ?? '',
-        total_amount:       createForm.total_amount,
-        periods:            parseInt(createForm.periods, 10),
-        start_date:         createForm.start_date,
-        memo:               createForm.memo.trim(),
-        note:               createForm.note.trim(),
-      });
+      if (createForm.payment_type === 'INSTALLMENT') {
+        await createPrepaidWithInstallment({
+          name:               createForm.name.trim(),
+          account_id:         createForm.account_id,
+          expense_account_id: createForm.expense_account_id,
+          total_amount:       createForm.total_amount,
+          periods:            parseInt(createForm.periods, 10),
+          start_date:         createForm.start_date,
+          memo:               createForm.memo.trim(),
+          note:               createForm.note.trim(),
+          installment: {
+            installment_count: parseInt(createForm.installment_count, 10),
+            start_date:        createForm.installment_start_date,
+            interest_type:     createForm.interest_type,
+            annual_rate:       createForm.interest_type === 'FIXED_RATE' ? createForm.annual_rate : '0',
+            ledger_uuid:       createLedger?.ledger_uuid ?? '',
+            memo:              createForm.memo.trim(),
+            note:              createForm.note.trim(),
+          },
+        });
+      } else {
+        await createPrepaid({
+          name:               createForm.name.trim(),
+          account_id:         createForm.account_id,
+          expense_account_id: createForm.expense_account_id,
+          ledger_uuid:        createLedger?.ledger_uuid ?? '',
+          total_amount:       createForm.total_amount,
+          periods:            parseInt(createForm.periods, 10),
+          start_date:         createForm.start_date,
+          memo:               createForm.memo.trim(),
+          note:               createForm.note.trim(),
+        });
+      }
       showCreateModal = false;
       await load();
     } catch (err) {
@@ -265,7 +307,7 @@
   }
 
   function emptyCreateForm(): CreateForm {
-    return { name: '', account_id: '', expense_account_id: '', ledger_id: '', total_amount: '', periods: '', start_date: '', memo: '', note: '' };
+    return { name: '', account_id: '', expense_account_id: '', ledger_id: '', total_amount: '', periods: '', start_date: '', memo: '', note: '', payment_type: 'CASH', installment_count: '', installment_start_date: '', interest_type: 'FREE', annual_rate: '' };
   }
 
   function fmtAmt(val: string): string {
@@ -491,9 +533,31 @@
           <input id="pp-start" class="form-input" type="date" bind:value={createForm.start_date} required />
         </div>
         <div class="form-group">
-          <span class="form-label">付款帳戶 *</span>
-          <LedgerSelect ledgers={activeLedgers} value={createForm.ledger_id} onselect={(id) => { createForm.ledger_id = id; }} />
+          <label class="form-label" for="pp-payment-type">付款方式 *</label>
+          <select id="pp-payment-type" class="form-select" bind:value={createForm.payment_type}>
+            {#each PAYMENT_TYPES as pt}
+              <option value={pt}>{PAYMENT_LABELS[pt]}</option>
+            {/each}
+          </select>
         </div>
+        {#if createForm.payment_type === 'CASH'}
+          <div class="form-group">
+            <span class="form-label">付款帳戶 *</span>
+            <LedgerSelect ledgers={activeLedgers} value={createForm.ledger_id} onselect={(id) => { createForm.ledger_id = id; }} />
+          </div>
+        {:else}
+          <div class="form-group">
+            <span class="form-label">信用卡帳戶 *</span>
+            <LedgerSelect ledgers={activeLedgers} value={createForm.ledger_id} onselect={(id) => { createForm.ledger_id = id; }} />
+          </div>
+          <InstallmentTermsSection
+            idPrefix="pp"
+            bind:installmentCount={createForm.installment_count}
+            bind:startDate={createForm.installment_start_date}
+            bind:interestType={createForm.interest_type}
+            bind:annualRate={createForm.annual_rate}
+          />
+        {/if}
         <div class="form-group">
           <label class="form-label" for="pp-memo">說明</label>
           <input id="pp-memo" class="form-input" type="text" bind:value={createForm.memo} placeholder="選填" />

@@ -4,6 +4,7 @@ import type {
   Prepaid,
   PrepaidAmortization,
   PrepaidCreatedPayload,
+  PrepaidCreatedWithInstallmentPayload,
   PrepaidAmortizedPayload,
   PrepaidDisposedPayload,
 } from '../types/prepaid';
@@ -33,6 +34,18 @@ export const createPrepaid = async (payload: PrepaidCreatedPayload): Promise<voi
     aggregate_id:     '',
     expected_version: version,
     event_type:       'prepaid.created',
+    payload,
+    metadata:         {},
+  });
+};
+
+export const createPrepaidWithInstallment = async (payload: PrepaidCreatedWithInstallmentPayload): Promise<void> => {
+  const version = await getAggregateVersion('TRANSACTION', '');
+  await appendEvent<PrepaidCreatedWithInstallmentPayload>({
+    aggregate_type:   'TRANSACTION',
+    aggregate_id:     '',
+    expected_version: version,
+    event_type:       'prepaid.created_with_installment',
     payload,
     metadata:         {},
   });

@@ -42,6 +42,20 @@ export interface PrepaidCreatedPayload {
   note:               string;
 }
 
+import type { InstallmentTermsPayload } from './installment';
+
+export interface PrepaidCreatedWithInstallmentPayload {
+  account_id:         string;
+  expense_account_id: string;
+  name:               string;
+  total_amount:       string;
+  periods:            number;
+  start_date:         string;
+  memo:               string;
+  note:               string;
+  installment:        InstallmentTermsPayload;
+}
+
 export interface PrepaidAmortizedPayload {
   prepaid_uuid: string;
   period_date:  string;
