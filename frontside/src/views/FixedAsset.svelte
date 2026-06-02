@@ -12,6 +12,8 @@
   import type { Entry } from '../types/transaction';
   import type { Account } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
+  import { getAllFixedAssetCategories, createFixedAssetCategory, updateFixedAssetCategory, deleteFixedAssetCategory } from '../api/fixedAssetCategory';
+  import type { FixedAssetCategory } from '../types/fixedAssetCategory';
 
   const STATUS_LABELS: Record<FixedAssetStatus, string> = {
     ACTIVE:   '使用中',
@@ -138,8 +140,48 @@
     disposeForm.loss_account_id !== ''
   );
 
+  // ── 類別管理 ──
+  interface CatForm {
+    name:                            string;
+    asset_account_id:                string;
+    accum_depreciation_account_id:   string;
+    depreciation_expense_account_id: string;
+  }
+
+  let categories         = $state<FixedAssetCategory[]>([]);
+  let isCatLoading       = $state(false);
+  let catError           = $state('');
+  let showCatCreateModal = $state(false);
+  let isCreatingCat      = $state(false);
+  let catCreateError     = $state('');
+  let catCreateForm      = $state<CatForm>(emptyCatForm());
+  let showCatEditModal   = $state(false);
+  let isUpdatingCat      = $state(false);
+  let catEditError       = $state('');
+  let editingCat         = $state<FixedAssetCategory | null>(null);
+  let catEditForm        = $state<CatForm>(emptyCatForm());
+  let showCatCloseModal  = $state(false);
+  let isClosingCat       = $state(false);
+  let catCloseError      = $state('');
+  let closingCat         = $state<FixedAssetCategory | null>(null);
+
+  const isCatCreateValid = $derived(
+    catCreateForm.name.trim()                              !== '' &&
+    catCreateForm.asset_account_id                         !== '' &&
+    catCreateForm.accum_depreciation_account_id            !== '' &&
+    catCreateForm.depreciation_expense_account_id          !== ''
+  );
+
+  const isCatEditValid = $derived(
+    catEditForm.name.trim()                              !== '' &&
+    catEditForm.asset_account_id                         !== '' &&
+    catEditForm.accum_depreciation_account_id            !== '' &&
+    catEditForm.depreciation_expense_account_id          !== ''
+  );
+
   $effect(() => {
     void load();
+    void loadCategories();
   });
 
   async function load(): Promise<void> {
@@ -354,6 +396,107 @@
   function progressPct(asset: FixedAsset): number {
     return asset.useful_life_months === 0 ? 0 : Math.round((asset.depreciated_periods / asset.useful_life_months) * 100);
   }
+
+  function emptyCatForm(): CatForm {
+    return { name: '', asset_account_id: '', accum_depreciation_account_id: '', depreciation_expense_account_id: '' };
+  }
+
+  async function loadCategories(): Promise<void> {
+    isCatLoading = true;
+    catError     = '';
+    try {
+      categories = await getAllFixedAssetCategories();
+    } catch (err) {
+      catError = err instanceof Error ? err.message : '查詢失敗，請稍後再試。';
+    } finally {
+      isCatLoading = false;
+    }
+  }
+
+  async function openCatCreateModal(): Promise<void> {
+    catCreateForm  = emptyCatForm();
+    catCreateError = '';
+    await ensureAccounts();
+    showCatCreateModal = true;
+  }
+
+  async function handleCatCreate(e: Event): Promise<void> {
+    e.preventDefault();
+    if (!isCatCreateValid) return;
+    isCreatingCat  = true;
+    catCreateError = '';
+    try {
+      await createFixedAssetCategory({
+        name:                            catCreateForm.name.trim(),
+        asset_account_id:                catCreateForm.asset_account_id,
+        accum_depreciation_account_id:   catCreateForm.accum_depreciation_account_id,
+        depreciation_expense_account_id: catCreateForm.depreciation_expense_account_id,
+      });
+      showCatCreateModal = false;
+      await loadCategories();
+    } catch (err) {
+      catCreateError = err instanceof Error ? err.message : '新增失敗，請稍後再試。';
+    } finally {
+      isCreatingCat = false;
+    }
+  }
+
+  async function openCatEditModal(cat: FixedAssetCategory): Promise<void> {
+    editingCat  = cat;
+    catEditForm = {
+      name:                            cat.name,
+      asset_account_id:                cat.asset_account_id,
+      accum_depreciation_account_id:   cat.accum_depreciation_account_id,
+      depreciation_expense_account_id: cat.depreciation_expense_account_id,
+    };
+    catEditError = '';
+    await ensureAccounts();
+    showCatEditModal = true;
+  }
+
+  async function handleCatEdit(e: Event): Promise<void> {
+    e.preventDefault();
+    if (!isCatEditValid || !editingCat) return;
+    isUpdatingCat  = true;
+    catEditError   = '';
+    try {
+      await updateFixedAssetCategory(editingCat.category_uuid, {
+        expected_version:                editingCat.version,
+        name:                            catEditForm.name.trim(),
+        asset_account_id:                catEditForm.asset_account_id,
+        accum_depreciation_account_id:   catEditForm.accum_depreciation_account_id,
+        depreciation_expense_account_id: catEditForm.depreciation_expense_account_id,
+      });
+      showCatEditModal = false;
+      await loadCategories();
+    } catch (err) {
+      catEditError = err instanceof Error ? err.message : '修改失敗，請稍後再試。';
+    } finally {
+      isUpdatingCat = false;
+    }
+  }
+
+  function openCatCloseModal(cat: FixedAssetCategory): void {
+    closingCat    = cat;
+    catCloseError = '';
+    showCatCloseModal = true;
+  }
+
+  async function handleCatClose(e: Event): Promise<void> {
+    e.preventDefault();
+    if (!closingCat) return;
+    isClosingCat  = true;
+    catCloseError = '';
+    try {
+      await deleteFixedAssetCategory(closingCat.category_uuid, closingCat.version);
+      showCatCloseModal = false;
+      await loadCategories();
+    } catch (err) {
+      catCloseError = err instanceof Error ? err.message : '關閉失敗，請稍後再試。';
+    } finally {
+      isClosingCat = false;
+    }
+  }
 </script>
 
 <div class="content-header">
@@ -530,6 +673,91 @@
   </div>
 </section>
 
+<section class="section">
+  <header class="section-header">
+    <h2 class="section-title">固定資產類別</h2>
+    <div style="display:flex;align-items:center;gap:16px;">
+      {#if isCatLoading}
+        <span class="query-loading"><span class="spinner" aria-hidden="true"></span>載入中</span>
+      {/if}
+      <button class="section-action" onclick={openCatCreateModal}>＋ 新增類別</button>
+    </div>
+  </header>
+
+  {#if catError}
+    <p class="query-error" role="alert">{catError}</p>
+  {/if}
+
+  <div class="table-wrap fa-cat-table-wrap">
+    <table class="data-table" aria-label="固定資產類別">
+      <thead>
+        <tr>
+          <th>名稱</th>
+          <th>資產科目</th>
+          <th>累計折舊科目</th>
+          <th>折舊費用科目</th>
+          <th class="hidden md:table-cell">更新者</th>
+          <th class="hidden md:table-cell">更新時間</th>
+          <th>狀態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#if isCatLoading && categories.length === 0}
+          <tr><td colspan="7" class="table-empty">載入中...</td></tr>
+        {:else if categories.length === 0}
+          <tr><td colspan="7" class="table-empty">無資料</td></tr>
+        {:else}
+          {#each categories as cat (cat.id)}
+            <tr>
+              <td>{cat.name}</td>
+              <td class="mono" style="font-size:11px;">{cat.asset_account_id}</td>
+              <td class="mono" style="font-size:11px;">{cat.accum_depreciation_account_id}</td>
+              <td class="mono" style="font-size:11px;">{cat.depreciation_expense_account_id}</td>
+              <td class="hidden md:table-cell">{cat.updated_by ?? '—'}</td>
+              <td class="hidden md:table-cell">{cat.updated_at ?? '—'}</td>
+              <td>
+                <span class="badge {cat.is_active ? 'fa-cat-status-active' : 'fa-cat-status-closed'}">{cat.is_active ? '使用中' : '已關閉'}</span>
+                {#if cat.is_active}
+                  <button type="button" class="btn-ghost" style="padding:1px 6px;font-size:10px;margin-left:4px;" onclick={() => openCatEditModal(cat)}>修改</button>
+                  <button type="button" class="btn-ghost" style="padding:1px 6px;font-size:10px;margin-left:4px;" onclick={() => openCatCloseModal(cat)}>關閉</button>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        {/if}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="fa-cat-card-list">
+    {#if isCatLoading && categories.length === 0}
+      <div class="table-empty">載入中...</div>
+    {:else if categories.length === 0}
+      <div class="table-empty">無資料</div>
+    {:else}
+      {#each categories as cat (cat.id)}
+        <div class="fa-cat-card">
+          <div class="fa-cat-card-head">
+            <span class="fa-cat-card-title">{cat.name}</span>
+            <span class="badge {cat.is_active ? 'fa-cat-status-active' : 'fa-cat-status-closed'}">{cat.is_active ? '使用中' : '已關閉'}</span>
+          </div>
+          <div class="fa-cat-card-accts">
+            <span>資產 {cat.asset_account_id}</span>
+            <span>累折 {cat.accum_depreciation_account_id}</span>
+            <span>折費 {cat.depreciation_expense_account_id}</span>
+          </div>
+          {#if cat.is_active}
+            <div class="fa-cat-card-footer">
+              <button type="button" class="btn-ghost" style="padding:1px 6px;font-size:10px;" onclick={() => openCatEditModal(cat)}>修改</button>
+              <button type="button" class="btn-ghost" style="padding:1px 6px;font-size:10px;" onclick={() => openCatCloseModal(cat)}>關閉</button>
+            </div>
+          {/if}
+        </div>
+      {/each}
+    {/if}
+  </div>
+</section>
+
 <!-- ── 新增固定資產 Modal ──────────────────── -->
 {#if showPurchaseModal}
   <div class="modal-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showPurchaseModal = false; }}>
@@ -692,6 +920,102 @@
         <div class="modal-footer" style="padding:0;margin-top:8px;">
           <button type="button" class="btn-ghost" onclick={() => { showDisposeModal = false; }} disabled={isDisposing}>取消</button>
           <button type="submit" class="btn-primary" disabled={isDisposing || !isDisposeValid}>{isDisposing ? '處理中…' : '確認處分'}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- ── 新增類別 Modal ──────────────────────── -->
+{#if showCatCreateModal}
+  <div class="modal-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showCatCreateModal = false; }}>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="fa-cat-create-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="fa-cat-create-title">新增固定資產類別</h2>
+        <button class="modal-close" onclick={() => { showCatCreateModal = false; }} aria-label="關閉">×</button>
+      </div>
+      <form class="modal-body" onsubmit={handleCatCreate}>
+        {#if catCreateError}
+          <p class="query-error" role="alert" style="margin-bottom:16px;">{catCreateError}</p>
+        {/if}
+        <div class="form-group">
+          <label class="form-label" for="fa-cat-name">名稱 *</label>
+          <input id="fa-cat-name" class="form-input" type="text" bind:value={catCreateForm.name} placeholder="例：辦公設備" required />
+        </div>
+        <div class="form-group">
+          <span class="form-label">資產科目 *</span>
+          <AccountSelect {accounts} value={catCreateForm.asset_account_id} placeholder="選擇資產科目…" onselect={(id) => { catCreateForm.asset_account_id = id; }} />
+        </div>
+        <div class="form-group">
+          <span class="form-label">累計折舊科目 *</span>
+          <AccountSelect {accounts} value={catCreateForm.accum_depreciation_account_id} placeholder="選擇累計折舊科目…" onselect={(id) => { catCreateForm.accum_depreciation_account_id = id; }} />
+        </div>
+        <div class="form-group">
+          <span class="form-label">折舊費用科目 *</span>
+          <AccountSelect {accounts} value={catCreateForm.depreciation_expense_account_id} placeholder="選擇折舊費用科目…" onselect={(id) => { catCreateForm.depreciation_expense_account_id = id; }} />
+        </div>
+        <div class="modal-footer" style="padding:0;margin-top:8px;">
+          <button type="button" class="btn-ghost" onclick={() => { showCatCreateModal = false; }} disabled={isCreatingCat}>取消</button>
+          <button type="submit" class="btn-primary" disabled={isCreatingCat || !isCatCreateValid}>{isCreatingCat ? '建立中…' : '建立類別'}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- ── 修改類別 Modal ──────────────────────── -->
+{#if showCatEditModal}
+  <div class="modal-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showCatEditModal = false; }}>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="fa-cat-edit-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="fa-cat-edit-title">修改固定資產類別</h2>
+        <button class="modal-close" onclick={() => { showCatEditModal = false; }} aria-label="關閉">×</button>
+      </div>
+      <form class="modal-body" onsubmit={handleCatEdit}>
+        {#if catEditError}
+          <p class="query-error" role="alert" style="margin-bottom:16px;">{catEditError}</p>
+        {/if}
+        <div class="form-group">
+          <label class="form-label" for="fa-cat-edit-name">名稱 *</label>
+          <input id="fa-cat-edit-name" class="form-input" type="text" bind:value={catEditForm.name} required />
+        </div>
+        <div class="form-group">
+          <span class="form-label">資產科目 *</span>
+          <AccountSelect {accounts} value={catEditForm.asset_account_id} placeholder="選擇資產科目…" onselect={(id) => { catEditForm.asset_account_id = id; }} />
+        </div>
+        <div class="form-group">
+          <span class="form-label">累計折舊科目 *</span>
+          <AccountSelect {accounts} value={catEditForm.accum_depreciation_account_id} placeholder="選擇累計折舊科目…" onselect={(id) => { catEditForm.accum_depreciation_account_id = id; }} />
+        </div>
+        <div class="form-group">
+          <span class="form-label">折舊費用科目 *</span>
+          <AccountSelect {accounts} value={catEditForm.depreciation_expense_account_id} placeholder="選擇折舊費用科目…" onselect={(id) => { catEditForm.depreciation_expense_account_id = id; }} />
+        </div>
+        <div class="modal-footer" style="padding:0;margin-top:8px;">
+          <button type="button" class="btn-ghost" onclick={() => { showCatEditModal = false; }} disabled={isUpdatingCat}>取消</button>
+          <button type="submit" class="btn-primary" disabled={isUpdatingCat || !isCatEditValid}>{isUpdatingCat ? '更新中…' : '儲存修改'}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- ── 關閉類別 Modal ──────────────────────── -->
+{#if showCatCloseModal}
+  <div class="modal-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) showCatCloseModal = false; }}>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="fa-cat-close-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="fa-cat-close-title">關閉固定資產類別</h2>
+        <button class="modal-close" onclick={() => { showCatCloseModal = false; }} aria-label="關閉">×</button>
+      </div>
+      <form class="modal-body" onsubmit={handleCatClose}>
+        {#if catCloseError}
+          <p class="query-error" role="alert" style="margin-bottom:16px;">{catCloseError}</p>
+        {/if}
+        <p style="font-size:13px;color:#c0bdb4;margin-bottom:16px;">確定要關閉類別「{closingCat?.name}」？關閉後將無法用於新增資產。</p>
+        <div class="modal-footer" style="padding:0;margin-top:8px;">
+          <button type="button" class="btn-ghost" onclick={() => { showCatCloseModal = false; }} disabled={isClosingCat}>取消</button>
+          <button type="submit" class="btn-primary" disabled={isClosingCat}>{isClosingCat ? '處理中…' : '確認關閉'}</button>
         </div>
       </form>
     </div>

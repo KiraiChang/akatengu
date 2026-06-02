@@ -150,3 +150,62 @@
   align-items: center;
   margin-top: 10px;
 }
+
+/* ── Category status badges ───────────────── */
+
+.fa-cat-status-active { color: #6ab88a; border-color: rgba(106,184,138,0.3); background: rgba(106,184,138,0.05); }
+.fa-cat-status-closed { color: #5c6278; border-color: rgba(92,98,120,0.3);   background: rgba(92,98,120,0.05); }
+
+/* ── Category table / card responsive ────── */
+
+@media (min-width: 768px) {
+  .fa-cat-card-list { display: none; }
+}
+
+@media (max-width: 767px) {
+  .fa-cat-table-wrap { display: none; }
+}
+
+/* ── Category mobile card ─────────────────── */
+
+.fa-cat-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.fa-cat-card {
+  border: 1px solid #1e2230;
+  background: rgba(13, 15, 24, 0.6);
+  padding: 14px 16px;
+}
+
+.fa-cat-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.fa-cat-card-title {
+  font-size: 13px;
+  color: #e8e5dc;
+  letter-spacing: 0.03em;
+}
+
+.fa-cat-card-accts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #5c6278;
+  margin-bottom: 10px;
+}
+
+.fa-cat-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
