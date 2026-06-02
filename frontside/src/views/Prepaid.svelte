@@ -3,8 +3,9 @@
   import { getAccountAll } from '../api/account';
   import { getLedgerAccountAll } from '../api/ledger';
   import { getEntries } from '../api/transaction';
-  import AccountSelect from '../components/AccountSelect.svelte';
   import LedgerSelect from '../components/LedgerSelect.svelte';
+  import { getAllPrepaidCategories } from '../api/prepaidCategory';
+  import type { PrepaidCategory } from '../types/prepaidCategory';
   import TxnEntryPanel from '../components/TxnEntryPanel.svelte';
   import type { Prepaid, PrepaidAmortization, PrepaidStatus } from '../types/prepaid';
   import InstallmentTermsSection from '../components/InstallmentTermsSection.svelte';
@@ -61,15 +62,16 @@
   let amortEntriesMap      = $state(new Map<number, EntriesState>());
 
   // ── 共用資料 ──
-  let accounts = $state<Account[]>([]);
-  let ledgers  = $state<LedgerAccount[]>([]);
-  const activeLedgers = $derived(ledgers.filter(l => l.is_active));
+  let accounts            = $state<Account[]>([]);
+  let ledgers             = $state<LedgerAccount[]>([]);
+  let ppCategories        = $state<PrepaidCategory[]>([]);
+  const activeLedgers     = $derived(ledgers.filter(l => l.is_active));
+  const activePpCategories = $derived(ppCategories.filter(c => c.is_active));
 
   // ── 新增預付費用 Modal ──
   interface CreateForm {
     name:                   string;
-    account_id:             string;
-    expense_account_id:     string;
+    category_uuid:          string;
     ledger_id:              string;
     total_amount:           string;
     periods:                string;
@@ -90,8 +92,7 @@
 
   const isCreateValid = $derived(
     createForm.name.trim()              !== '' &&
-    createForm.account_id               !== '' &&
-    createForm.expense_account_id       !== '' &&
+    createForm.category_uuid            !== '' &&
     parseFloat(createForm.total_amount) > 0 &&
     parseInt(createForm.periods, 10)    > 0 &&
     createForm.start_date               !== '' &&
@@ -160,6 +161,10 @@
     if (ledgers.length === 0) { try { ledgers = await getLedgerAccountAll(); } catch { /* 非致命 */ } }
   }
 
+  async function ensurePpCategories(): Promise<void> {
+    if (ppCategories.length === 0) { try { ppCategories = await getAllPrepaidCategories(); } catch { /* 非致命 */ } }
+  }
+
   async function toggleMainEntry(pp: Prepaid, e: MouseEvent): Promise<void> {
     e.stopPropagation();
     if (!pp.txn_id) return;
@@ -199,7 +204,7 @@
   async function openCreateModal(): Promise<void> {
     createForm  = emptyCreateForm();
     createError = '';
-    await Promise.all([ensureAccounts(), ensureLedgers()]);
+    await Promise.all([ensureLedgers(), ensurePpCategories()]);
     showCreateModal = true;
   }
 
@@ -212,14 +217,13 @@
       const createLedger = activeLedgers.find(l => String(l.ledger_id) === createForm.ledger_id);
       if (createForm.payment_type === 'INSTALLMENT') {
         await createPrepaidWithInstallment({
-          name:               createForm.name.trim(),
-          account_id:         createForm.account_id,
-          expense_account_id: createForm.expense_account_id,
-          total_amount:       createForm.total_amount,
-          periods:            parseInt(createForm.periods, 10),
-          start_date:         createForm.start_date,
-          memo:               createForm.memo.trim(),
-          note:               createForm.note.trim(),
+          category_uuid: createForm.category_uuid,
+          name:          createForm.name.trim(),
+          total_amount:  createForm.total_amount,
+          periods:       parseInt(createForm.periods, 10),
+          start_date:    createForm.start_date,
+          memo:          createForm.memo.trim(),
+          note:          createForm.note.trim(),
           installment: {
             installment_count: parseInt(createForm.installment_count, 10),
             start_date:        createForm.installment_start_date,
@@ -232,15 +236,14 @@
         });
       } else {
         await createPrepaid({
-          name:               createForm.name.trim(),
-          account_id:         createForm.account_id,
-          expense_account_id: createForm.expense_account_id,
-          ledger_uuid:        createLedger?.ledger_uuid ?? '',
-          total_amount:       createForm.total_amount,
-          periods:            parseInt(createForm.periods, 10),
-          start_date:         createForm.start_date,
-          memo:               createForm.memo.trim(),
-          note:               createForm.note.trim(),
+          category_uuid: createForm.category_uuid,
+          ledger_uuid:   createLedger?.ledger_uuid ?? '',
+          name:          createForm.name.trim(),
+          total_amount:  createForm.total_amount,
+          periods:       parseInt(createForm.periods, 10),
+          start_date:    createForm.start_date,
+          memo:          createForm.memo.trim(),
+          note:          createForm.note.trim(),
         });
       }
       showCreateModal = false;
@@ -307,7 +310,7 @@
   }
 
   function emptyCreateForm(): CreateForm {
-    return { name: '', account_id: '', expense_account_id: '', ledger_id: '', total_amount: '', periods: '', start_date: '', memo: '', note: '', payment_type: 'CASH', installment_count: '', installment_start_date: '', interest_type: 'FREE', annual_rate: '' };
+    return { name: '', category_uuid: '', ledger_id: '', total_amount: '', periods: '', start_date: '', memo: '', note: '', payment_type: 'CASH', installment_count: '', installment_start_date: '', interest_type: 'FREE', annual_rate: '' };
   }
 
   function fmtAmt(val: string): string {
@@ -512,12 +515,13 @@
           <input id="pp-name" class="form-input" type="text" bind:value={createForm.name} placeholder="例：辦公室租金預付" required />
         </div>
         <div class="form-group">
-          <label class="form-label" for="pp-account">預付費用科目 *</label>
-          <AccountSelect {accounts} value={createForm.account_id} placeholder="選擇預付費用資產科目…" onselect={(id) => { createForm.account_id = id; }} />
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pp-expense">費用科目 *</label>
-          <AccountSelect {accounts} value={createForm.expense_account_id} placeholder="選擇攤提費用科目…" onselect={(id) => { createForm.expense_account_id = id; }} />
+          <label class="form-label" for="pp-category">預付費用類別 *</label>
+          <select id="pp-category" class="form-select" bind:value={createForm.category_uuid} required>
+            <option value="" disabled>選擇預付費用類別…</option>
+            {#each activePpCategories as cat (cat.category_uuid)}
+              <option value={cat.category_uuid}>{cat.name}</option>
+            {/each}
+          </select>
         </div>
         <div class="form-row">
           <div class="form-group">

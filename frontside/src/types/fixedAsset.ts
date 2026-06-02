@@ -38,19 +38,17 @@ export interface FixedAssetDepreciation {
 }
 
 export interface AssetPurchasedPayload {
-  name:                            string;
-  asset_account_id:                string;
-  accum_depreciation_account_id:   string;
-  depreciation_expense_account_id: string;
-  cost:                            string;
-  residual_value:                  string;
-  useful_life_months:              number;
-  payment_type:                    AssetPaymentType;
-  ledger_uuid:                     string | null;
-  liability_account_id:            string;
-  purchase_date:                   string;
-  memo:                            string;
-  note:                            string;
+  category_uuid:        string;
+  name:                 string;
+  cost:                 string;
+  residual_value:       string;
+  useful_life_months:   number;
+  payment_type:         AssetPaymentType;
+  ledger_uuid:          string | null;
+  liability_account_id: string;
+  purchase_date:        string;
+  memo:                 string;
+  note:                 string;
 }
 
 export interface AssetDepreciatedPayload {
@@ -61,17 +59,15 @@ export interface AssetDepreciatedPayload {
 import type { InstallmentTermsPayload } from './installment';
 
 export interface AssetPurchasedWithInstallmentPayload {
-  name:                            string;
-  asset_account_id:                string;
-  accum_depreciation_account_id:   string;
-  depreciation_expense_account_id: string;
-  cost:                            string;
-  residual_value:                  string;
-  useful_life_months:              number;
-  purchase_date:                   string;
-  memo:                            string;
-  note:                            string;
-  installment:                     InstallmentTermsPayload;
+  category_uuid:      string;
+  name:               string;
+  cost:               string;
+  residual_value:     string;
+  useful_life_months: number;
+  purchase_date:      string;
+  memo:               string;
+  note:               string;
+  installment:        InstallmentTermsPayload;
 }
 
 export interface AssetDisposedPayload {
