@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getAssetTypeConfigs, updateAssetTypeConfig } from '../api/setting';
   import { getAccountAll } from '../api/account';
-  import AccountSelect from '../components/AccountSelect.svelte';
+  import AccountSelect from './AccountSelect.svelte';
   import type { AssetTypeAccountConfigResult, AssetType, UpdateAssetTypePayload } from '../types/setting';
   import type { Account } from '../types/account';
 
@@ -128,11 +128,6 @@
     return accountMap.get(id)?.name ?? id;
   }
 </script>
-
-<div class="content-header">
-  <h1 class="content-title">資產類型設定</h1>
-  <span class="content-date">共 {ALL_ASSET_TYPES.length} 種類型</span>
-</div>
 
 {#if error}
   <p class="query-error" role="alert">{error}</p>

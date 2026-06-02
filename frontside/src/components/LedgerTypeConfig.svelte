@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getLedgerAccountTypeConfigs, updateLedgerAccountTypeConfig } from '../api/setting';
   import { getAccountAll } from '../api/account';
-  import AccountSelect from '../components/AccountSelect.svelte';
+  import AccountSelect from './AccountSelect.svelte';
   import type { LedgerAccountTypeConfigResult, LedgerAccountType } from '../types/setting';
   import type { Account } from '../types/account';
 
@@ -69,11 +69,6 @@
     }
   }
 </script>
-
-<div class="content-header">
-  <h1 class="content-title">帳戶類型設定</h1>
-  <span class="content-date">共 {ALL_LEDGER_TYPES.length} 種類型</span>
-</div>
 
 {#if error}
   <p class="query-error" role="alert">{error}</p>

@@ -22,8 +22,6 @@
   import CashFlowStatement  from '../views/CashFlowStatement.svelte';
   import EquityStatement    from '../views/EquityStatement.svelte';
   import Settings           from '../views/Settings.svelte';
-  import LedgerTypeConfig   from '../views/LedgerTypeConfig.svelte';
-  import AssetTypeConfig    from '../views/AssetTypeConfig.svelte';
   import Prepaid            from '../views/Prepaid.svelte';
   import FixedAsset         from '../views/FixedAsset.svelte';
   import Template           from '../views/Template.svelte';
@@ -55,8 +53,6 @@
     ]},
     { label: '系統設定', path: '/home/settings', key: 'settings', children: [
       { label: '系統科目對應', path: '/home/settings' },
-      { label: '帳戶類型設定', path: '/home/settings/ledger-type' },
-      { label: '資產類型設定', path: '/home/settings/asset-type' },
       { label: '範本管理',     path: '/home/settings/template' },
       { label: '稽核查詢',     path: '/home/settings/audit' },
       { label: '匯率管理',     path: '/home/settings/exchange-rate' },
@@ -81,8 +77,6 @@
     '/home/prepaid':                  Prepaid,
     '/home/fixed-asset':              FixedAsset,
     '/home/settings':                 Settings,
-    '/home/settings/ledger-type':     LedgerTypeConfig,
-    '/home/settings/asset-type':      AssetTypeConfig,
     '/home/settings/template':        Template,
     '/home/settings/audit':           Audit,
     '/home/settings/exchange-rate':   ExchangeRate,
