@@ -518,7 +518,7 @@ CREATE TABLE fixed_assets (
     residual_value                  REAL    NOT NULL DEFAULT 0,
     useful_life_months              INTEGER NOT NULL,
     depreciation_method             TEXT    NOT NULL DEFAULT 'STRAIGHT_LINE' CHECK(depreciation_method IN ('STRAIGHT_LINE')),
-    payment_type                    TEXT    NOT NULL CHECK(payment_type IN ('CASH','LEASE')),
+    payment_type                    TEXT    NOT NULL CHECK(payment_type IN ('CASH','LEASE','INSTALLMENT')),
     total_depreciated               REAL    NOT NULL DEFAULT 0,
     depreciated_periods             INTEGER NOT NULL DEFAULT 0,
     purchase_date                   TEXT    NOT NULL,
@@ -581,3 +581,30 @@ WHERE t.status = 'ACTIVE'
   AND a.is_summary = 0
   AND a.type IN ('INCOME', 'EXPENSE')
 GROUP BY je.merchant_id, substr(t.txn_date, 1, 7);
+
+CREATE TABLE fixed_asset_categories (
+    id                              INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_uuid                   TEXT    NOT NULL UNIQUE,
+    merchant_id                     INTEGER NOT NULL,
+    name                            TEXT    NOT NULL,
+    asset_account_id                TEXT    NOT NULL,
+    accum_depreciation_account_id   TEXT    NOT NULL,
+    depreciation_expense_account_id TEXT    NOT NULL,
+    is_active                       INTEGER NOT NULL DEFAULT 1,
+    updated_by                      TEXT,
+    updated_at                      TEXT    NOT NULL DEFAULT (datetime('now')),
+    version                         INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE prepaid_categories (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_uuid      TEXT    NOT NULL UNIQUE,
+    merchant_id        INTEGER NOT NULL,
+    name               TEXT    NOT NULL,
+    account_id         TEXT    NOT NULL,
+    expense_account_id TEXT    NOT NULL,
+    is_active          INTEGER NOT NULL DEFAULT 1,
+    updated_by         TEXT,
+    updated_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+    version            INTEGER NOT NULL DEFAULT 1
+);

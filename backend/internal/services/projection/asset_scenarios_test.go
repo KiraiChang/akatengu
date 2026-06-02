@@ -115,33 +115,33 @@ func buildDisposedScenarios() []assetProjDisposedScenario {
 // Payload helpers（在 Describe 時呼叫，enum registry 已就緒）
 // ─────────────────────────────────────────
 
+// testProjFACategoryUUID 是 projection 整合測試使用的固定資產類別 UUID。
+// 對應帳戶：資產 1201-04、累折 1201-99、折舊費用 5501-03。
+const testProjFACategoryUUID = "test-proj-fa-cat-uuid"
+
 func leasePurchasedPayload() payload.AssetPurchasedPayload {
 	return payload.AssetPurchasedPayload{
-		Name:                         "辦公設備",
-		AssetAccountID:               "1201-04",
-		AccumDepreciationAccountID:   "1201-99",
-		DepreciationExpenseAccountID: "5501-03",
-		Cost:                         dec("120000"),
-		ResidualValue:                decimal.Zero,
-		UsefulLifeMonths:             60,
-		PaymentType:                  enums.AssetPaymentTypeLease.Enum(),
-		LiabilityAccountID:           "2202-02",
-		PurchaseDate:                 "2026-05-01",
+		CategoryUUID:       testProjFACategoryUUID,
+		Name:               "辦公設備",
+		Cost:               dec("120000"),
+		ResidualValue:      decimal.Zero,
+		UsefulLifeMonths:   60,
+		PaymentType:        enums.AssetPaymentTypeLease.Enum(),
+		LiabilityAccountID: "2202-02",
+		PurchaseDate:       "2026-05-01",
 	}
 }
 
 func cashPurchasedPayload(ledgerUUID string) payload.AssetPurchasedPayload {
 	return payload.AssetPurchasedPayload{
-		Name:                         "辦公設備",
-		AssetAccountID:               "1201-04",
-		AccumDepreciationAccountID:   "1201-99",
-		DepreciationExpenseAccountID: "5501-03",
-		Cost:                         dec("120000"),
-		ResidualValue:                decimal.Zero,
-		UsefulLifeMonths:             60,
-		PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-		LedgerUUID:                   &ledgerUUID,
-		PurchaseDate:                 "2026-05-01",
+		CategoryUUID:     testProjFACategoryUUID,
+		Name:             "辦公設備",
+		Cost:             dec("120000"),
+		ResidualValue:    decimal.Zero,
+		UsefulLifeMonths: 60,
+		PaymentType:      enums.AssetPaymentTypeCash.Enum(),
+		LedgerUUID:       &ledgerUUID,
+		PurchaseDate:     "2026-05-01",
 	}
 }
 

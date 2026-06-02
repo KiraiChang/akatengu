@@ -86,11 +86,21 @@ func (p *registry) register(query *query.Repo) {
 	p.rules[event_types.EventPrepaidAmortized.Enum()] = NewEventPrepaidAmortizedPipeline(query)
 	p.rules[event_types.EventPrepaidDisposed.Enum()] = NewEventPrepaidDisposedPipeline(query)
 
+	// Prepaid Category
+	p.rules[event_types.EventPrepaidCategoryCreated.Enum()] = NewEventPrepaidCategoryCreatedPipeline()
+	p.rules[event_types.EventPrepaidCategoryUpdated.Enum()] = NewEventPrepaidCategoryUpdatedPipeline(query)
+	p.rules[event_types.EventPrepaidCategoryDeleted.Enum()] = NewEventPrepaidCategoryDeletedPipeline(query)
+
 	// Fixed Asset
 	p.rules[event_types.EventAssetPurchased.Enum()] = NewEventAssetPurchasedPipeline(query)
 	p.rules[event_types.EventAssetPurchasedWithInstallment.Enum()] = NewEventAssetPurchasedWithInstallmentPipeline(query)
 	p.rules[event_types.EventAssetDepreciated.Enum()] = NewEventAssetDepreciatedPipeline(query)
 	p.rules[event_types.EventAssetDisposed.Enum()] = NewEventAssetDisposedPipeline(query)
+
+	// Fixed Asset Category
+	p.rules[event_types.EventFixedAssetCategoryCreated.Enum()] = NewEventFixedAssetCategoryCreatedPipeline()
+	p.rules[event_types.EventFixedAssetCategoryUpdated.Enum()] = NewEventFixedAssetCategoryUpdatedPipeline(query)
+	p.rules[event_types.EventFixedAssetCategoryDeleted.Enum()] = NewEventFixedAssetCategoryDeletedPipeline(query)
 }
 
 func getSysAccountCode(ctx context.Context, sys query.SysRepo, enum sys_codes.SysAccount) (string, error) {

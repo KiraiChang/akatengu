@@ -19,6 +19,31 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### [DEBUG] 2026-06-02 Category 寫入 API：EventUuid 作為 CategoryUUID 的設計要點
+
+**背景**：FixedAssetCategory / PrepaidCategory 的 HTTP 寫入 API（Create/Update/Delete）實作時，
+發現 projection 使用 `ct.Event.EventUuid`（非 `cmd.AggregateID`）作為 `category_uuid` 存入 DB。
+
+**設計規律（與 Asset/Prepaid 一致）**：
+- **Created 事件**：handler 生成任意 UUID 作為 `AggregateID`（僅用於版本追蹤），
+  projection 以 `ct.Event.EventUuid` 作為實體 UUID 存入 DB。
+- **Updated/Deleted 事件**：client 以 Created 時回傳的 `EventUuid` 作為 `{category_id}` 傳入，
+  handler 用它同時填入 `AggregateID` 和 `payload.CategoryUUID`，版本記錄對此 UUID 獨立計算（從 0 起）。
+
+**測試模式**（見 `internal/services/category_test.go`）：
+```go
+created, _ := svc.Append(ctx, cmd.AppendCmd{AggregateID: "arbitrary-agg-id", ...})
+catUUID := created.EventUuid  // 這才是 DB 裡的 category_uuid
+
+// 後續 Update/Delete 以 EventUuid 作為 AggregateID
+svc.Append(ctx, cmd.AppendCmd{AggregateID: catUUID, ..., Payload: {CategoryUUID: catUUID}})
+```
+
+**一句話總結**：`AggregateID` 管版本、`EventUuid` 管實體身份，兩者在 Created 時不同，
+Updated/Deleted 時應使用 EventUuid 同時作為兩者。
+
+---
+
 ### [DRAFT] 2026-05-29 Event Sourcing UUID 設計要點
 
 **問題根因**：SQLite AUTOINCREMENT 計數器（`sqlite_sequence`）不在 DELETE 後重置，

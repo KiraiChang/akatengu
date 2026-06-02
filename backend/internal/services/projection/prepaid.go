@@ -47,8 +47,8 @@ func (s *PrepaidProjectionService) applyCreated(ctx context.Context, tx event_st
 	prepaidID, err := tx.Projection.PrepaidRepo.InsertPrepaid(ctx, sqlcdb.InsertPrepaidParams{
 		MerchantID:       ct.MerchantID,
 		PrepaidUuid:      ct.Event.EventUuid,
-		AccountID:        p.AccountID,
-		ExpenseAccountID: p.ExpenseAccountID,
+		AccountID:        st.Category.AccountID,
+		ExpenseAccountID: st.Category.ExpenseAccountID,
 		Name:             p.Name,
 		TotalAmount:      p.TotalAmount,
 		Periods:          p.Periods,
@@ -78,8 +78,8 @@ func (s *PrepaidProjectionService) applyCreatedWithInstallment(ctx context.Conte
 	prepaidID, err := tx.Projection.PrepaidRepo.InsertPrepaid(ctx, sqlcdb.InsertPrepaidParams{
 		MerchantID:       ct.MerchantID,
 		PrepaidUuid:      ct.Event.EventUuid,
-		AccountID:        p.AccountID,
-		ExpenseAccountID: p.ExpenseAccountID,
+		AccountID:        st.Category.AccountID,
+		ExpenseAccountID: st.Category.ExpenseAccountID,
 		Name:             p.Name,
 		TotalAmount:      p.TotalAmount,
 		Periods:          p.Periods,

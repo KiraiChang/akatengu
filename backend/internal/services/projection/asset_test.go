@@ -140,6 +140,15 @@ func projInsertOpenPeriod(db *sqlx.DB, ctx context.Context, id int64, start stri
 	Expect(err).NotTo(HaveOccurred(), "projInsertOpenPeriod")
 }
 
+func projInsertFixedAssetCategory(db *sqlx.DB, ctx context.Context) {
+	_, err := db.ExecContext(ctx,
+		`INSERT INTO fixed_asset_categories (category_uuid, merchant_id, name, asset_account_id, accum_depreciation_account_id, depreciation_expense_account_id)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		testProjFACategoryUUID, projTestMID, "辦公設備類別", "1201-04", "1201-99", "5501-03",
+	)
+	Expect(err).NotTo(HaveOccurred(), "projInsertFixedAssetCategory")
+}
+
 // ─────────────────────────────────────────
 // Spec runner
 // ─────────────────────────────────────────
@@ -154,6 +163,7 @@ var _ = Describe("FixedAssetProjectionService — applyPurchased", func() {
 			DeferCleanup(closeDB)
 			ctx := projTestCtx()
 			projInsertOpenPeriod(db, ctx, 1, "2026-05-01")
+			projInsertFixedAssetCategory(db, ctx)
 
 			svc := newProjSvc(db)
 			a := newProjAppender(svc, ctx, "asset-proj-"+s.paymentType)
@@ -188,6 +198,7 @@ var _ = Describe("FixedAssetProjectionService — applyDepreciated", func() {
 			ctx := projTestCtx()
 			projInsertOpenPeriod(db, ctx, 1, "2026-05-01")
 			projInsertOpenPeriod(db, ctx, 2, "2026-06-01")
+			projInsertFixedAssetCategory(db, ctx)
 
 			svc := newProjSvc(db)
 			a := newProjAppender(svc, ctx, "asset-depr-"+s.given)
@@ -234,6 +245,7 @@ var _ = Describe("FixedAssetProjectionService — applyDisposed", func() {
 			DeferCleanup(closeDB)
 			ctx := projTestCtx()
 			projInsertOpenPeriod(db, ctx, 1, "2026-05-01")
+			projInsertFixedAssetCategory(db, ctx)
 
 			svc := newProjSvc(db)
 			a := newProjAppender(svc, ctx, "asset-disp-"+s.given)

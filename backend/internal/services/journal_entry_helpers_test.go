@@ -140,6 +140,30 @@ func insertAnnualPeriodOpen(t tHelper, db *sqlx.DB, id int64, year int) {
 	}
 }
 
+func insertFixedAssetCategory(t tHelper, db *sqlx.DB, uuid, name, assetAcct, accumAcct, deprAcct string) {
+	t.Helper()
+	_, err := db.ExecContext(testCtx(),
+		`INSERT INTO fixed_asset_categories (category_uuid, merchant_id, name, asset_account_id, accum_depreciation_account_id, depreciation_expense_account_id)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		uuid, testMID, name, assetAcct, accumAcct, deprAcct,
+	)
+	if err != nil {
+		t.Fatalf("insertFixedAssetCategory: %v", err)
+	}
+}
+
+func insertPrepaidCategory(t tHelper, db *sqlx.DB, uuid, name, accountID, expenseAccountID string) {
+	t.Helper()
+	_, err := db.ExecContext(testCtx(),
+		`INSERT INTO prepaid_categories (category_uuid, merchant_id, name, account_id, expense_account_id)
+		 VALUES (?, ?, ?, ?, ?)`,
+		uuid, testMID, name, accountID, expenseAccountID,
+	)
+	if err != nil {
+		t.Fatalf("insertPrepaidCategory: %v", err)
+	}
+}
+
 func insertSysAccounts(t tHelper, db *sqlx.DB) {
 	t.Helper()
 	ctx := testCtx()
@@ -240,6 +264,73 @@ func insertIncomeTransaction(t tHelper, db *sqlx.DB, txnID int64, date, creditAc
 	if err != nil {
 		t.Fatalf("insertIncomeTransaction debit entry: %v", err)
 	}
+}
+
+// ─────────────────────────────────────────
+// Category query helpers
+// ─────────────────────────────────────────
+
+type fixedAssetCategoryRow struct {
+	CategoryUUID                 string `db:"category_uuid"`
+	Name                         string `db:"name"`
+	AssetAccountID               string `db:"asset_account_id"`
+	AccumDepreciationAccountID   string `db:"accum_depreciation_account_id"`
+	DepreciationExpenseAccountID string `db:"depreciation_expense_account_id"`
+	IsActive                     bool   `db:"is_active"`
+}
+
+func queryFixedAssetCategory(t tHelper, db *sqlx.DB, uuid string) fixedAssetCategoryRow {
+	t.Helper()
+	var row fixedAssetCategoryRow
+	err := db.GetContext(testCtx(), &row,
+		`SELECT category_uuid, name, asset_account_id, accum_depreciation_account_id, depreciation_expense_account_id, is_active
+		 FROM fixed_asset_categories WHERE category_uuid=? AND merchant_id=?`, uuid, testMID)
+	if err != nil {
+		t.Fatalf("queryFixedAssetCategory(%s): %v", uuid, err)
+	}
+	return row
+}
+
+func queryLastFixedAssetCategoryUUID(t tHelper, db *sqlx.DB) string {
+	t.Helper()
+	var id string
+	err := db.GetContext(testCtx(), &id,
+		`SELECT category_uuid FROM fixed_asset_categories WHERE merchant_id=? ORDER BY id DESC LIMIT 1`, testMID)
+	if err != nil {
+		t.Fatalf("queryLastFixedAssetCategoryUUID: %v", err)
+	}
+	return id
+}
+
+func queryLastPrepaidCategoryUUID(t tHelper, db *sqlx.DB) string {
+	t.Helper()
+	var id string
+	err := db.GetContext(testCtx(), &id,
+		`SELECT category_uuid FROM prepaid_categories WHERE merchant_id=? ORDER BY id DESC LIMIT 1`, testMID)
+	if err != nil {
+		t.Fatalf("queryLastPrepaidCategoryUUID: %v", err)
+	}
+	return id
+}
+
+type prepaidCategoryRow struct {
+	CategoryUUID     string `db:"category_uuid"`
+	Name             string `db:"name"`
+	AccountID        string `db:"account_id"`
+	ExpenseAccountID string `db:"expense_account_id"`
+	IsActive         bool   `db:"is_active"`
+}
+
+func queryPrepaidCategory(t tHelper, db *sqlx.DB, uuid string) prepaidCategoryRow {
+	t.Helper()
+	var row prepaidCategoryRow
+	err := db.GetContext(testCtx(), &row,
+		`SELECT category_uuid, name, account_id, expense_account_id, is_active
+		 FROM prepaid_categories WHERE category_uuid=? AND merchant_id=?`, uuid, testMID)
+	if err != nil {
+		t.Fatalf("queryPrepaidCategory(%s): %v", uuid, err)
+	}
+	return row
 }
 
 // ─────────────────────────────────────────

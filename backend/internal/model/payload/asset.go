@@ -10,34 +10,26 @@ import (
 
 // AssetPurchasedPayload 購入固定資產
 type AssetPurchasedPayload struct {
-	Name                         string                 `json:"name"`
-	AssetAccountID               string                 `json:"asset_account_id"`                // e.g. 1201-03 車輛
-	AccumDepreciationAccountID   string                 `json:"accum_depreciation_account_id"`   // e.g. 1201-99
-	DepreciationExpenseAccountID string                 `json:"depreciation_expense_account_id"` // e.g. 5501-02
-	Cost                         decimal.Decimal        `json:"cost"`
-	ResidualValue                decimal.Decimal        `json:"residual_value"`       // 殘值，預設 0
-	UsefulLifeMonths             int64                  `json:"useful_life_months"`   // 耐用年限（月）
-	PaymentType                  enums.AssetPaymentType `json:"payment_type"`         // CASH | LEASE
-	LedgerUUID                   *string                `json:"ledger_uuid"`          // CASH：付款帳戶 ledger_uuid；LEASE：nil
-	LiabilityAccountID           string                 `json:"liability_account_id"` // LEASE：租賃負債科目（如 2202-01）；CASH：""
-	PurchaseDate                 string                 `json:"purchase_date"`        // YYYY-MM-DD
-	Memo                         string                 `json:"memo,omitempty"`
-	Note                         string                 `json:"note,omitempty"`
+	CategoryUUID     string                 `json:"category_uuid"`        // 固定資產類別 UUID
+	Name             string                 `json:"name"`
+	Cost             decimal.Decimal        `json:"cost"`
+	ResidualValue    decimal.Decimal        `json:"residual_value"`       // 殘值，預設 0
+	UsefulLifeMonths int64                  `json:"useful_life_months"`   // 耐用年限（月）
+	PaymentType      enums.AssetPaymentType `json:"payment_type"`         // CASH | LEASE
+	LedgerUUID       *string                `json:"ledger_uuid"`          // CASH：付款帳戶 ledger_uuid；LEASE：nil
+	LiabilityAccountID string               `json:"liability_account_id"` // LEASE：租賃負債科目（如 2202-01）；CASH：""
+	PurchaseDate     string                 `json:"purchase_date"`        // YYYY-MM-DD
+	Memo             string                 `json:"memo,omitempty"`
+	Note             string                 `json:"note,omitempty"`
 }
 
 func (p AssetPurchasedPayload) Validate() error {
 	var errs []string
+	if p.CategoryUUID == "" {
+		errs = append(errs, "category_uuid is required")
+	}
 	if p.Name == "" {
 		errs = append(errs, "name is required")
-	}
-	if p.AssetAccountID == "" {
-		errs = append(errs, "asset_account_id is required")
-	}
-	if p.AccumDepreciationAccountID == "" {
-		errs = append(errs, "accum_depreciation_account_id is required")
-	}
-	if p.DepreciationExpenseAccountID == "" {
-		errs = append(errs, "depreciation_expense_account_id is required")
 	}
 	if p.Cost.LessThanOrEqual(decimal.Zero) {
 		errs = append(errs, "cost must be greater than zero")
@@ -65,32 +57,24 @@ func (p AssetPurchasedPayload) Validate() error {
 
 // AssetPurchasedWithInstallmentPayload 以信用卡分期購入固定資產
 type AssetPurchasedWithInstallmentPayload struct {
-	Name                         string                         `json:"name"`
-	AssetAccountID               string                         `json:"asset_account_id"`
-	AccumDepreciationAccountID   string                         `json:"accum_depreciation_account_id"`
-	DepreciationExpenseAccountID string                         `json:"depreciation_expense_account_id"`
-	Cost                         decimal.Decimal                `json:"cost"`
-	ResidualValue                decimal.Decimal                `json:"residual_value"`
-	UsefulLifeMonths             int64                          `json:"useful_life_months"`
-	PurchaseDate                 string                         `json:"purchase_date"`
-	Memo                         string                         `json:"memo,omitempty"`
-	Note                         string                         `json:"note,omitempty"`
-	Installment                  InstallmentTermsPayload        `json:"installment"`
+	CategoryUUID     string                  `json:"category_uuid"` // 固定資產類別 UUID
+	Name             string                  `json:"name"`
+	Cost             decimal.Decimal         `json:"cost"`
+	ResidualValue    decimal.Decimal         `json:"residual_value"`
+	UsefulLifeMonths int64                   `json:"useful_life_months"`
+	PurchaseDate     string                  `json:"purchase_date"`
+	Memo             string                  `json:"memo,omitempty"`
+	Note             string                  `json:"note,omitempty"`
+	Installment      InstallmentTermsPayload `json:"installment"`
 }
 
 func (p AssetPurchasedWithInstallmentPayload) Validate() error {
 	var errs []string
+	if p.CategoryUUID == "" {
+		errs = append(errs, "category_uuid is required")
+	}
 	if p.Name == "" {
 		errs = append(errs, "name is required")
-	}
-	if p.AssetAccountID == "" {
-		errs = append(errs, "asset_account_id is required")
-	}
-	if p.AccumDepreciationAccountID == "" {
-		errs = append(errs, "accum_depreciation_account_id is required")
-	}
-	if p.DepreciationExpenseAccountID == "" {
-		errs = append(errs, "depreciation_expense_account_id is required")
 	}
 	if p.Cost.LessThanOrEqual(decimal.Zero) {
 		errs = append(errs, "cost must be greater than zero")
@@ -111,14 +95,15 @@ func (p AssetPurchasedWithInstallmentPayload) Validate() error {
 }
 
 // ToInstallmentPayload 組合完整的 InstallmentCreatedPayload，以資產科目與成本填入 AccountId / Amount。
-func (p AssetPurchasedWithInstallmentPayload) ToInstallmentPayload() InstallmentCreatedPayload {
+// assetAccountID 從類別設定取得，由 Pipeline 傳入。
+func (p AssetPurchasedWithInstallmentPayload) ToInstallmentPayload(assetAccountID string) InstallmentCreatedPayload {
 	return InstallmentCreatedPayload{
 		Amount:           p.Cost,
 		InstallmentCount: p.Installment.InstallmentCount,
 		StartDate:        p.Installment.StartDate,
 		InterestType:     p.Installment.InterestType,
 		AnnualRate:       p.Installment.AnnualRate,
-		AccountId:        p.AssetAccountID,
+		AccountId:        assetAccountID,
 		LedgerUuid:       p.Installment.LedgerUuid,
 		Memo:             p.Installment.Memo,
 		Note:             p.Installment.Note,
@@ -127,14 +112,14 @@ func (p AssetPurchasedWithInstallmentPayload) ToInstallmentPayload() Installment
 
 // BuildAssetPurchasedWithInstallmentTransaction 組合固定資產分期購入的會計分錄。
 // 借方資產科目標記 Investing；信用卡貸方不標記（此時無實際現金流出）。
-func BuildAssetPurchasedWithInstallmentTransaction(p AssetPurchasedWithInstallmentPayload, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
+func BuildAssetPurchasedWithInstallmentTransaction(p AssetPurchasedWithInstallmentPayload, category *projection.FixedAssetCategory, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
 	cfInvesting := enums.CashFlowCategoryInvesting.Enum()
-	ip := p.ToInstallmentPayload()
+	ip := p.ToInstallmentPayload(category.AssetAccountID)
 	var entries []TransactionEntryPayload
 	switch ip.InterestType.Val() {
 	case enums.InterestTypeFree:
 		entries = []TransactionEntryPayload{
-			{AccountId: p.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
 			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.Cost},
 		}
 	case enums.InterestTypeFixedRate:
@@ -143,7 +128,7 @@ func BuildAssetPurchasedWithInstallmentTransaction(p AssetPurchasedWithInstallme
 			interest = interest.Add(pmt.Interest)
 		}
 		entries = []TransactionEntryPayload{
-			{AccountId: p.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
 			{AccountId: sysAccountAssetPrepaidInterest, Debit: interest, Credit: decimal.Zero},
 			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.Cost.Add(interest)},
 		}
@@ -222,19 +207,19 @@ func DepreciationAmount(cost, residualValue decimal.Decimal, usefulLifeMonths, d
 
 // BuildAssetPurchasedTransaction assembles the journal entry payload for EventAssetPurchased.
 // Called by the pipeline factory; the result is stored in AssetPurchasedState.Transaction.
-func BuildAssetPurchasedTransaction(p AssetPurchasedPayload, ledger *projection.LedgerAccount) (TransactionCreatedPayload, error) {
+func BuildAssetPurchasedTransaction(p AssetPurchasedPayload, category *projection.FixedAssetCategory, ledger *projection.LedgerAccount) (TransactionCreatedPayload, error) {
 	cfInvesting := enums.CashFlowCategoryInvesting.Enum()
 	var entries []TransactionEntryPayload
 	switch p.PaymentType.Val() {
 	case enums.AssetPaymentTypeCash:
 		ledgerId := ledger.LedgerId
 		entries = []TransactionEntryPayload{
-			{AccountId: p.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
 			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.Cost},
 		}
 	case enums.AssetPaymentTypeLease:
 		entries = []TransactionEntryPayload{
-			{AccountId: p.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero},
+			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero},
 			{AccountId: p.LiabilityAccountID, Debit: decimal.Zero, Credit: p.Cost},
 		}
 	default:

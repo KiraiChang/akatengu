@@ -21,6 +21,20 @@ var _ *state.AssetPurchasedState
 var _ *state.AssetPurchasedWithInstallmentState
 var _ *state.PrepaidCreatedWithInstallmentState
 
+type stubPrepaidCategoryRepo struct {
+	category    *projection.PrepaidCategory
+	categoryErr error
+}
+
+func (s *stubPrepaidCategoryRepo) GetPrepaidCategoryByUUID(_ context.Context, _ string) (*projection.PrepaidCategory, error) {
+	return s.category, s.categoryErr
+}
+func (s *stubPrepaidCategoryRepo) GetAllPrepaidCategoriesByMerchant(_ context.Context) ([]projection.PrepaidCategory, error) {
+	return nil, nil
+}
+
+var _ query.PrepaidCategoryQueryRepo = (*stubPrepaidCategoryRepo)(nil)
+
 // ─────────────────────────────────────────
 // Stubs
 // ─────────────────────────────────────────
@@ -91,6 +105,20 @@ func (s *stubFixedAssetRepo) GetFixedAssetDepreciationsByAssetID(_ context.Conte
 
 var _ query.FixedAssetQueryRepo = (*stubFixedAssetRepo)(nil)
 
+type stubFixedAssetCategoryRepo struct {
+	category    *projection.FixedAssetCategory
+	categoryErr error
+}
+
+func (s *stubFixedAssetCategoryRepo) GetFixedAssetCategoryByUUID(_ context.Context, _ string) (*projection.FixedAssetCategory, error) {
+	return s.category, s.categoryErr
+}
+func (s *stubFixedAssetCategoryRepo) GetAllFixedAssetCategoriesByMerchant(_ context.Context) ([]projection.FixedAssetCategory, error) {
+	return nil, nil
+}
+
+var _ query.FixedAssetCategoryQueryRepo = (*stubFixedAssetCategoryRepo)(nil)
+
 type stubPeriodRepo struct {
 	period    *projection.PeriodClosing
 	periodErr error
@@ -131,10 +159,21 @@ func newStubQueryRepo(period *stubPeriodRepo, account *stubAccountRepo, fa *stub
 
 func newStubQueryRepoWithSys(period *stubPeriodRepo, account *stubAccountRepo, fa *stubFixedAssetRepo, sys *stubSysRepo) *query.Repo {
 	return &query.Repo{
-		Period:     period,
-		Account:    account,
-		FixedAsset: fa,
-		Sys:        sys,
+		Period:             period,
+		Account:            account,
+		FixedAsset:         fa,
+		Sys:                sys,
+		FixedAssetCategory: &stubFixedAssetCategoryRepo{},
+	}
+}
+
+func newStubQueryRepoWithSysAndCategory(period *stubPeriodRepo, account *stubAccountRepo, fa *stubFixedAssetRepo, sys *stubSysRepo, fac *stubFixedAssetCategoryRepo) *query.Repo {
+	return &query.Repo{
+		Period:             period,
+		Account:            account,
+		FixedAsset:         fa,
+		Sys:                sys,
+		FixedAssetCategory: fac,
 	}
 }
 
@@ -176,7 +215,13 @@ var _ = Describe("EventAssetPurchased Pipeline", func() {
 			accountStub := &stubAccountRepo{ledger: s.ledger, ledgerErr: s.ledgerErr}
 			periodStub := &stubPeriodRepo{period: s.period, periodErr: s.periodErr}
 			faStub := &stubFixedAssetRepo{}
-			q := newStubQueryRepo(periodStub, accountStub, faStub)
+			facStub := &stubFixedAssetCategoryRepo{category: s.category, categoryErr: s.categoryErr}
+			q := &query.Repo{
+				Period:             periodStub,
+				Account:            accountStub,
+				FixedAsset:         faStub,
+				FixedAssetCategory: facStub,
+			}
 
 			pipeline := NewEventAssetPurchasedPipeline(q)
 			result, err := pipeline.Run(testCtx(), appendCmd(s.payload))
@@ -234,8 +279,9 @@ var _ = Describe("EventAssetPurchasedWithInstallment Pipeline", func() {
 			accountStub := &stubAccountRepo{ledger: s.ledger, ledgerErr: s.ledgerErr}
 			periodStub := &stubPeriodRepo{period: s.period, periodErr: s.periodErr}
 			faStub := &stubFixedAssetRepo{}
+			facStub := &stubFixedAssetCategoryRepo{category: s.category, categoryErr: s.categoryErr}
 			sysStub := &stubSysRepo{codes: sysCodesWithPrepaidInterest(s.sysCode)}
-			q := newStubQueryRepoWithSys(periodStub, accountStub, faStub, sysStub)
+			q := newStubQueryRepoWithSysAndCategory(periodStub, accountStub, faStub, sysStub, facStub)
 
 			pipeline := NewEventAssetPurchasedWithInstallmentPipeline(q)
 			result, err := pipeline.Run(testCtx(), appendCmd(s.payload))
@@ -264,8 +310,15 @@ var _ = Describe("EventPrepaidCreatedWithInstallment Pipeline", func() {
 			accountStub := &stubAccountRepo{ledger: s.ledger, ledgerErr: s.ledgerErr}
 			periodStub := &stubPeriodRepo{period: s.period, periodErr: s.periodErr}
 			faStub := &stubFixedAssetRepo{}
+			pacStub := &stubPrepaidCategoryRepo{category: s.category, categoryErr: s.categoryErr}
 			sysStub := &stubSysRepo{codes: sysCodesWithPrepaidInterest(s.sysCode)}
-			q := newStubQueryRepoWithSys(periodStub, accountStub, faStub, sysStub)
+			q := &query.Repo{
+				Period:          periodStub,
+				Account:         accountStub,
+				FixedAsset:      faStub,
+				PrepaidCategory: pacStub,
+				Sys:             sysStub,
+			}
 
 			pipeline := NewEventPrepaidCreatedWithInstallmentPipeline(q)
 			result, err := pipeline.Run(testCtx(), appendCmd(s.payload))

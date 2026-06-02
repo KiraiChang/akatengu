@@ -12,6 +12,8 @@ type TxProjectionRepository struct {
 	InstallmentRepo                  InstallmentRepo
 	PrepaidRepo                      PrepaidRepo
 	FixedAssetRepo                   FixedAssetRepo
+	FixedAssetCategoryRepo           FixedAssetCategoryRepo
+	PrepaidCategoryRepo              PrepaidCategoryRepo
 	ConfigProjectionRepo             ConfigProjectionRepo
 	AccountBalanceSnapshotRepo       AccountBalanceSnapshotRepo
 	LedgerAccountBalanceSnapshotRepo LedgerAccountBalanceSnapshotRepo
@@ -28,6 +30,8 @@ func NewTxProjectionRepository(q *sqlcdb.Queries) *TxProjectionRepository {
 		InstallmentRepo:                  NewInstallment(q),
 		PrepaidRepo:                      NewPrepaidRepo(q),
 		FixedAssetRepo:                   NewFixedAssetRepo(q),
+		FixedAssetCategoryRepo:           NewFixedAssetCategoryRepo(q),
+		PrepaidCategoryRepo:              NewPrepaidCategoryRepo(q),
 		ConfigProjectionRepo:             NewConfigProjectionRepo(q),
 		AccountBalanceSnapshotRepo:       NewAccountBalanceSnapshotRepo(q),
 		LedgerAccountBalanceSnapshotRepo: NewLedgerAccountBalanceSnapshotRepo(q),

@@ -24,4 +24,6 @@ const (
 	ProjectionTypePrepaid                       projectionTypeValue = "PREPAID"
 	ProjectionTypeFixedAsset                    projectionTypeValue = "FIXED_ASSET"
 	ProjectionTypeConfig                        projectionTypeValue = "CONFIG"
+	ProjectionTypeFixedAssetCategory            projectionTypeValue = "FIXED_ASSET_CATEGORY"
+	ProjectionTypePrepaidCategory               projectionTypeValue = "PREPAID_CATEGORY"
 )

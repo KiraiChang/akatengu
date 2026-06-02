@@ -20,19 +20,19 @@ var _ = Describe("EventPrepaidCreated", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
+		insertPrepaidCategory(t, db, "prepaid-cat-1", "保險費", "1104-01", "5201-01")
 		insertPeriodOpen(t, db, 1, "2026-05-01")
 		insertLedger(t, db, 1, "BANK_ACCOUNT", "1101-02")
 
 		svc := newSvc(db)
 		a := newAppender(t, svc, testCtx(), "prepaid-1")
 		a.do(event_types.EventPrepaidCreated.Enum(), payload.PrepaidCreatedPayload{
-			AccountID:        "1104-01",
-			ExpenseAccountID: "5201-01",
-			LedgerUUID:       testLedgerUUID(1),
-			Name:             "人壽保險費 2026",
-			TotalAmount:      dec("12000"),
-			Periods:          12,
-			StartDate:        "2026-05-01",
+			CategoryUUID: "prepaid-cat-1",
+			LedgerUUID:   testLedgerUUID(1),
+			Name:         "人壽保險費 2026",
+			TotalAmount:  dec("12000"),
+			Periods:      12,
+			StartDate:    "2026-05-01",
 		})
 
 		txn := queryLastTxn(t, db)
@@ -55,6 +55,7 @@ var _ = Describe("EventPrepaidAmortized", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
+		insertPrepaidCategory(t, db, "prepaid-cat-1", "保險費", "1104-01", "5201-01")
 		insertPeriodOpen(t, db, 1, "2026-05-01")
 		insertPeriodOpen(t, db, 2, "2026-06-01")
 		insertLedger(t, db, 1, "BANK_ACCOUNT", "1101-02")
@@ -62,13 +63,12 @@ var _ = Describe("EventPrepaidAmortized", func() {
 		svc := newSvc(db)
 		a := newAppender(t, svc, testCtx(), "prepaid-amort-1")
 		a.do(event_types.EventPrepaidCreated.Enum(), payload.PrepaidCreatedPayload{
-			AccountID:        "1104-01",
-			ExpenseAccountID: "5201-01",
-			LedgerUUID:       testLedgerUUID(1),
-			Name:             "人壽保險費 2026",
-			TotalAmount:      dec("12000"),
-			Periods:          12,
-			StartDate:        "2026-05-01",
+			CategoryUUID: "prepaid-cat-1",
+			LedgerUUID:   testLedgerUUID(1),
+			Name:         "人壽保險費 2026",
+			TotalAmount:  dec("12000"),
+			Periods:      12,
+			StartDate:    "2026-05-01",
 		})
 		prepaidUUID := queryLastPrepaidUUID(t, db)
 
@@ -99,6 +99,7 @@ var _ = Describe("EventPrepaidDisposed", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
+		insertPrepaidCategory(t, db, "prepaid-cat-1", "保險費", "1104-01", "5201-01")
 		insertPeriodOpen(t, db, 1, "2026-05-01")
 		insertPeriodOpen(t, db, 2, "2026-06-01")
 		insertLedger(t, db, 1, "BANK_ACCOUNT", "1101-02")
@@ -106,13 +107,12 @@ var _ = Describe("EventPrepaidDisposed", func() {
 		svc := newSvc(db)
 		a := newAppender(t, svc, testCtx(), "prepaid-disp-1")
 		a.do(event_types.EventPrepaidCreated.Enum(), payload.PrepaidCreatedPayload{
-			AccountID:        "1104-01",
-			ExpenseAccountID: "5201-01",
-			LedgerUUID:       testLedgerUUID(1),
-			Name:             "人壽保險費 2026",
-			TotalAmount:      dec("12000"),
-			Periods:          12,
-			StartDate:        "2026-05-01",
+			CategoryUUID: "prepaid-cat-1",
+			LedgerUUID:   testLedgerUUID(1),
+			Name:         "人壽保險費 2026",
+			TotalAmount:  dec("12000"),
+			Periods:      12,
+			StartDate:    "2026-05-01",
 		})
 		prepaidUUID := queryLastPrepaidUUID(t, db)
 
@@ -151,6 +151,7 @@ var _ = Describe("EventAssetPurchased", func() {
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
+			insertFixedAssetCategory(t, db, "asset-cat-1", "辦公設備", "1201-04", "1201-99", "5501-03")
 			insertPeriodOpen(t, db, 1, "2026-05-01")
 			insertLedger(t, db, 1, "BANK_ACCOUNT", "1101-02")
 
@@ -158,16 +159,14 @@ var _ = Describe("EventAssetPurchased", func() {
 			a := newAppender(t, svc, testCtx(), "asset-cash-1")
 			ledgerUUID := testLedgerUUID(1)
 			a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
-				Name:                         "辦公電腦",
-				AssetAccountID:               "1201-04",
-				AccumDepreciationAccountID:   "1201-99",
-				DepreciationExpenseAccountID: "5501-03",
-				Cost:                         dec("100000"),
-				ResidualValue:                dec("0"),
-				UsefulLifeMonths:             60,
-				PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-				LedgerUUID:                   &ledgerUUID,
-				PurchaseDate:                 "2026-05-01",
+				CategoryUUID:     "asset-cat-1",
+				Name:             "辦公電腦",
+				Cost:             dec("100000"),
+				ResidualValue:    dec("0"),
+				UsefulLifeMonths: 60,
+				PaymentType:      enums.AssetPaymentTypeCash.Enum(),
+				LedgerUUID:       &ledgerUUID,
+				PurchaseDate:     "2026-05-01",
 			})
 
 			txn := queryLastTxn(t, db)
@@ -190,21 +189,20 @@ var _ = Describe("EventAssetPurchased", func() {
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
+			insertFixedAssetCategory(t, db, "asset-cat-1", "租賃資產", "1202-01", "1201-99", "5501-03")
 			insertPeriodOpen(t, db, 1, "2026-05-01")
 
 			svc := newSvc(db)
 			a := newAppender(t, svc, testCtx(), "asset-lease-1")
 			a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
-				Name:                         "租賃住宅",
-				AssetAccountID:               "1202-01",
-				AccumDepreciationAccountID:   "1201-99",
-				DepreciationExpenseAccountID: "5501-03",
-				Cost:                         dec("240000"),
-				ResidualValue:                dec("0"),
-				UsefulLifeMonths:             24,
-				PaymentType:                  enums.AssetPaymentTypeLease.Enum(),
-				LiabilityAccountID:           "2202-02",
-				PurchaseDate:                 "2026-05-01",
+				CategoryUUID:       "asset-cat-1",
+				Name:               "租賃住宅",
+				Cost:               dec("240000"),
+				ResidualValue:      dec("0"),
+				UsefulLifeMonths:   24,
+				PaymentType:        enums.AssetPaymentTypeLease.Enum(),
+				LiabilityAccountID: "2202-02",
+				PurchaseDate:       "2026-05-01",
 			})
 
 			txn := queryLastTxn(t, db)
@@ -228,6 +226,7 @@ var _ = Describe("EventAssetDepreciated", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
+		insertFixedAssetCategory(t, db, "asset-cat-1", "辦公設備", "1201-04", "1201-99", "5501-03")
 		insertPeriodOpen(t, db, 1, "2026-05-01")
 		insertPeriodOpen(t, db, 2, "2026-06-01")
 		insertLedger(t, db, 1, "BANK_ACCOUNT", "1101-02")
@@ -236,16 +235,14 @@ var _ = Describe("EventAssetDepreciated", func() {
 		a := newAppender(t, svc, testCtx(), "asset-depr-1")
 		ledgerUUID := testLedgerUUID(1)
 		a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
-			Name:                         "辦公電腦",
-			AssetAccountID:               "1201-04",
-			AccumDepreciationAccountID:   "1201-99",
-			DepreciationExpenseAccountID: "5501-03",
-			Cost:                         dec("120000"),
-			ResidualValue:                dec("0"),
-			UsefulLifeMonths:             60,
-			PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-			LedgerUUID:                   &ledgerUUID,
-			PurchaseDate:                 "2026-05-01",
+			CategoryUUID:     "asset-cat-1",
+			Name:             "辦公電腦",
+			Cost:             dec("120000"),
+			ResidualValue:    dec("0"),
+			UsefulLifeMonths: 60,
+			PaymentType:      enums.AssetPaymentTypeCash.Enum(),
+			LedgerUUID:       &ledgerUUID,
+			PurchaseDate:     "2026-05-01",
 		})
 		assetUUID := queryLastAssetUUID(t, db)
 
@@ -280,21 +277,20 @@ var _ = Describe("EventAssetDisposed", func() {
 			insertPeriodOpen(t, db, 1, "2026-05-01")
 			insertPeriodOpen(t, db, 2, "2026-06-01")
 			insertLedger(t, db, 1, "BANK_ACCOUNT", "1101-02")
+			insertFixedAssetCategory(t, db, "test-fa-cat-gain-1", "辦公電腦類別", "1201-04", "1201-99", "5501-03")
 
 			svc := newSvc(db)
 			a := newAppender(t, svc, testCtx(), "asset-gain-1")
 			ledgerUUID := testLedgerUUID(1)
 			a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
-				Name:                         "辦公電腦",
-				AssetAccountID:               "1201-04",
-				AccumDepreciationAccountID:   "1201-99",
-				DepreciationExpenseAccountID: "5501-03",
-				Cost:                         dec("120000"),
-				ResidualValue:                dec("0"),
-				UsefulLifeMonths:             60,
-				PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-				LedgerUUID:                   &ledgerUUID,
-				PurchaseDate:                 "2026-05-01",
+				CategoryUUID:     "test-fa-cat-gain-1",
+				Name:             "辦公電腦",
+				Cost:             dec("120000"),
+				ResidualValue:    dec("0"),
+				UsefulLifeMonths: 60,
+				PaymentType:      enums.AssetPaymentTypeCash.Enum(),
+				LedgerUUID:       &ledgerUUID,
+				PurchaseDate:     "2026-05-01",
 			})
 			assetUUID := queryLastAssetUUID(t, db)
 
@@ -340,21 +336,20 @@ var _ = Describe("EventAssetDisposed", func() {
 			insertPeriodOpen(t, db, 1, "2026-05-01")
 			insertPeriodOpen(t, db, 2, "2026-06-01")
 			insertLedger(t, db, 1, "BANK_ACCOUNT", "1101-02")
+			insertFixedAssetCategory(t, db, "test-fa-cat-loss-1", "辦公電腦類別", "1201-04", "1201-99", "5501-03")
 
 			svc := newSvc(db)
 			a := newAppender(t, svc, testCtx(), "asset-loss-1")
 			ledgerUUID := testLedgerUUID(1)
 			a.do(event_types.EventAssetPurchased.Enum(), payload.AssetPurchasedPayload{
-				Name:                         "辦公電腦",
-				AssetAccountID:               "1201-04",
-				AccumDepreciationAccountID:   "1201-99",
-				DepreciationExpenseAccountID: "5501-03",
-				Cost:                         dec("120000"),
-				ResidualValue:                dec("0"),
-				UsefulLifeMonths:             60,
-				PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-				LedgerUUID:                   &ledgerUUID,
-				PurchaseDate:                 "2026-05-01",
+				CategoryUUID:     "test-fa-cat-loss-1",
+				Name:             "辦公電腦",
+				Cost:             dec("120000"),
+				ResidualValue:    dec("0"),
+				UsefulLifeMonths: 60,
+				PaymentType:      enums.AssetPaymentTypeCash.Enum(),
+				LedgerUUID:       &ledgerUUID,
+				PurchaseDate:     "2026-05-01",
 			})
 			assetUUID := queryLastAssetUUID(t, db)
 

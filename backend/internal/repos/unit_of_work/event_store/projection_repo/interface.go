@@ -100,3 +100,15 @@ type FixedAssetRepo interface {
 	UpdateFixedAssetDisposed(ctx context.Context, id int64, merchantID int64, disposalDate string, updatedBy *string) error
 	InsertFixedAssetDepreciation(ctx context.Context, p sqlcdb.InsertFixedAssetDepreciationParams) error
 }
+
+type FixedAssetCategoryRepo interface {
+	InsertFixedAssetCategory(ctx context.Context, p sqlcdb.InsertFixedAssetCategoryParams) error
+	UpdateFixedAssetCategory(ctx context.Context, p sqlcdb.UpdateFixedAssetCategoryParams) error
+	SoftDeleteFixedAssetCategory(ctx context.Context, p sqlcdb.SoftDeleteFixedAssetCategoryParams) error
+}
+
+type PrepaidCategoryRepo interface {
+	InsertPrepaidCategory(ctx context.Context, p sqlcdb.InsertPrepaidCategoryParams) error
+	UpdatePrepaidCategory(ctx context.Context, p sqlcdb.UpdatePrepaidCategoryParams) error
+	SoftDeletePrepaidCategory(ctx context.Context, p sqlcdb.SoftDeletePrepaidCategoryParams) error
+}

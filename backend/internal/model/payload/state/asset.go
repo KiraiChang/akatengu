@@ -7,6 +7,7 @@ import (
 
 // AssetPurchasedState 購入固定資產時所需的狀態
 type AssetPurchasedState struct {
+	Category    *projection.FixedAssetCategory    // populated by pipeline; provides account IDs
 	Ledger      *projection.LedgerAccount         // CASH：付款帳戶；LEASE：nil
 	AssetID     int64                             // populated by FixedAssetProjectionService.applyPurchased; used internally by TransactionProjectionService
 	AssetUUID   string                            // populated by FixedAssetProjectionService.applyPurchased; event UUID of the created asset
@@ -17,6 +18,7 @@ func (s AssetPurchasedState) GetTransaction() payload.TransactionCreatedPayload 
 
 // AssetPurchasedWithInstallmentState 以分期購入固定資產時所需的狀態
 type AssetPurchasedWithInstallmentState struct {
+	Category                       *projection.FixedAssetCategory // populated by pipeline; provides account IDs
 	AssetID                        int64
 	AssetUUID                      string
 	Installment                    *projection.Installment

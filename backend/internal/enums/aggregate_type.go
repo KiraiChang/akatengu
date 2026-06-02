@@ -11,8 +11,10 @@ type AggregateType = enumx.Enum[aggregateTypeVal]
 type aggregateTypeVal string
 
 const (
-	AggregateTransaction  aggregateTypeVal = "TRANSACTION"
-	AggregateAccount      aggregateTypeVal = "ACCOUNT"
-	AggregateSysConfig    aggregateTypeVal = "SYS_CONFIG"
-	AggregateAccountConfig aggregateTypeVal = "ACCOUNT_CONFIG"
+	AggregateTransaction        aggregateTypeVal = "TRANSACTION"
+	AggregateAccount            aggregateTypeVal = "ACCOUNT"
+	AggregateSysConfig          aggregateTypeVal = "SYS_CONFIG"
+	AggregateAccountConfig      aggregateTypeVal = "ACCOUNT_CONFIG"
+	AggregateFixedAssetCategory aggregateTypeVal = "FIXED_ASSET_CATEGORY"
+	AggregatePrepaidCategory    aggregateTypeVal = "PREPAID_CATEGORY"
 )

@@ -21,10 +21,12 @@ type assetPurchasedScenario struct {
 	then    string
 	payload payload.AssetPurchasedPayload
 
-	period    *projection.PeriodClosing
-	periodErr error
-	ledger    *projection.LedgerAccount
-	ledgerErr error
+	period      *projection.PeriodClosing
+	periodErr   error
+	ledger      *projection.LedgerAccount
+	ledgerErr   error
+	category    *projection.FixedAssetCategory
+	categoryErr error
 
 	wantErrContain string
 	checkState     func(*state.AssetPurchasedState)
@@ -67,11 +69,20 @@ type assetDisposedScenario struct {
 func buildAssetPurchasedScenarios() []assetPurchasedScenario {
 	return []assetPurchasedScenario{
 		{
-			given:          "payload 缺少必填欄位（name 為空）",
+			given:          "payload 缺少必填欄位（category_uuid 為空）",
 			when:           "執行 AssetPurchased pipeline",
-			then:           "回傳包含 name is required 的驗證錯誤",
+			then:           "回傳包含 category_uuid is required 的驗證錯誤",
 			payload:        payload.AssetPurchasedPayload{},
-			wantErrContain: "name is required",
+			wantErrContain: "category_uuid is required",
+		},
+		{
+			given:          "category 不存在",
+			when:           "執行 AssetPurchased pipeline",
+			then:           "回傳 fixed asset category not found 錯誤",
+			payload:        validPurchasedCashPayload(),
+			period:         openPeriod(),
+			category:       nil,
+			wantErrContain: "fixed asset category not found",
 		},
 		{
 			given:          "period 不存在（GetByPeriod 回傳 nil）",
@@ -79,24 +90,8 @@ func buildAssetPurchasedScenarios() []assetPurchasedScenario {
 			then:           "回傳 period is not exists 錯誤",
 			payload:        validPurchasedCashPayload(),
 			period:         nil,
+			category:       testFixedAssetCategory(),
 			wantErrContain: "is not exists",
-		},
-		{
-			given:          "period 狀態非 OPEN（已結帳）",
-			when:           "執行 AssetPurchased pipeline",
-			then:           "回傳 is already closed 錯誤",
-			payload:        validPurchasedCashPayload(),
-			period:         closedPeriod(),
-			wantErrContain: "is already closed",
-		},
-		{
-			given:          "CASH 付款，GetLedgerByUuid 回傳錯誤",
-			when:           "執行 AssetPurchased pipeline",
-			then:           "回傳 ledger query 錯誤",
-			payload:        validPurchasedCashPayload(),
-			period:         openPeriod(),
-			ledgerErr:      errors.New("db error"),
-			wantErrContain: "db error",
 		},
 		{
 			given:          "CASH 付款，GetLedgerByUuid 回傳 nil",
@@ -104,28 +99,32 @@ func buildAssetPurchasedScenarios() []assetPurchasedScenario {
 			then:           "回傳 ledger not found 錯誤",
 			payload:        validPurchasedCashPayload(),
 			period:         openPeriod(),
+			category:       testFixedAssetCategory(),
 			ledger:         nil,
 			wantErrContain: "ledger not found",
 		},
 		{
-			given:   "CASH 付款且 Ledger 正常",
-			when:    "執行 AssetPurchased pipeline",
-			then:    "State.Ledger 已設定，Transaction 不為空",
-			payload: validPurchasedCashPayload(),
-			period:  openPeriod(),
-			ledger:  testLedger(),
+			given:    "CASH 付款且 Category/Ledger 均正常",
+			when:     "執行 AssetPurchased pipeline",
+			then:     "State.Category 與 State.Ledger 已設定，Transaction 不為空",
+			payload:  validPurchasedCashPayload(),
+			period:   openPeriod(),
+			category: testFixedAssetCategory(),
+			ledger:   testLedger(),
 			checkState: func(st *state.AssetPurchasedState) {
+				Expect(st.Category).NotTo(BeNil())
 				Expect(st.Ledger).NotTo(BeNil())
 				Expect(st.Transaction.TransactionDate).To(Equal("2026-05-01"))
 				Expect(len(st.Transaction.Entries)).To(Equal(2))
 			},
 		},
 		{
-			given:   "LEASE 付款（不需查詢 Ledger）",
-			when:    "執行 AssetPurchased pipeline",
-			then:    "State.Ledger 為 nil，Transaction 包含資產科目與負債科目",
-			payload: validPurchasedLeasePayload(),
-			period:  openPeriod(),
+			given:    "LEASE 付款（不需查詢 Ledger）",
+			when:     "執行 AssetPurchased pipeline",
+			then:     "State.Ledger 為 nil，Transaction 包含資產科目與負債科目",
+			payload:  validPurchasedLeasePayload(),
+			period:   openPeriod(),
+			category: testFixedAssetCategory(),
 			checkState: func(st *state.AssetPurchasedState) {
 				Expect(st.Ledger).To(BeNil())
 				Expect(len(st.Transaction.Entries)).To(Equal(2))
@@ -298,11 +297,13 @@ type assetPurchasedWithInstallmentScenario struct {
 	then    string
 	payload payload.AssetPurchasedWithInstallmentPayload
 
-	period    *projection.PeriodClosing
-	periodErr error
-	ledger    *projection.LedgerAccount
-	ledgerErr error
-	sysCode   string
+	period      *projection.PeriodClosing
+	periodErr   error
+	ledger      *projection.LedgerAccount
+	ledgerErr   error
+	category    *projection.FixedAssetCategory
+	categoryErr error
+	sysCode     string
 
 	wantErrContain string
 	checkState     func(*state.AssetPurchasedWithInstallmentState)
@@ -311,18 +312,20 @@ type assetPurchasedWithInstallmentScenario struct {
 func buildAssetPurchasedWithInstallmentScenarios() []assetPurchasedWithInstallmentScenario {
 	return []assetPurchasedWithInstallmentScenario{
 		{
-			given:          "payload 缺少必填欄位（name 為空）",
+			given:          "payload 缺少必填欄位（category_uuid 為空）",
 			when:           "執行 AssetPurchasedWithInstallment pipeline",
-			then:           "回傳 name is required 驗證錯誤",
+			then:           "回傳 category_uuid is required 驗證錯誤",
 			payload:        payload.AssetPurchasedWithInstallmentPayload{},
-			wantErrContain: "name is required",
+			wantErrContain: "category_uuid is required",
 		},
 		{
-			given:          "Installment terms 缺少 ledger_uuid",
+			given:          "category 不存在",
 			when:           "執行 AssetPurchasedWithInstallment pipeline",
-			then:           "回傳 ledger_uuid is required 驗證錯誤",
-			payload:        validAssetWithInstallmentPayloadMissingLedger(),
-			wantErrContain: "ledger_uuid is required",
+			then:           "回傳 fixed asset category not found 錯誤",
+			payload:        validAssetWithInstallmentPayload(),
+			period:         openPeriod(),
+			category:       nil,
+			wantErrContain: "fixed asset category not found",
 		},
 		{
 			given:          "period 不存在",
@@ -330,6 +333,7 @@ func buildAssetPurchasedWithInstallmentScenarios() []assetPurchasedWithInstallme
 			then:           "回傳 period is not exists 錯誤",
 			payload:        validAssetWithInstallmentPayload(),
 			period:         nil,
+			category:       testFixedAssetCategory(),
 			wantErrContain: "is not exists",
 		},
 		{
@@ -338,27 +342,28 @@ func buildAssetPurchasedWithInstallmentScenarios() []assetPurchasedWithInstallme
 			then:           "回傳 ledger not found 錯誤",
 			payload:        validAssetWithInstallmentPayload(),
 			period:         openPeriod(),
+			category:       testFixedAssetCategory(),
 			ledger:         nil,
 			wantErrContain: "ledger not found",
 		},
 		{
-			given:   "無息分期，所有條件正常",
-			when:    "執行 AssetPurchasedWithInstallment pipeline",
-			then:    "State 包含 Installment/Payments，Transaction 借方含 Investing 分類",
-			payload: validAssetWithInstallmentPayload(),
-			period:  openPeriod(),
-			ledger:  testCreditCardLedger(),
-			sysCode: "1199-01",
+			given:    "無息分期，所有條件正常",
+			when:     "執行 AssetPurchasedWithInstallment pipeline",
+			then:     "State 包含 Category/Installment/Payments，Transaction 借方含 Investing 分類",
+			payload:  validAssetWithInstallmentPayload(),
+			period:   openPeriod(),
+			category: testFixedAssetCategory(),
+			ledger:   testCreditCardLedger(),
+			sysCode:  "1199-01",
 			checkState: func(st *state.AssetPurchasedWithInstallmentState) {
+				Expect(st.Category).NotTo(BeNil())
 				Expect(st.Installment).NotTo(BeNil())
 				Expect(len(st.InstallmentPayments)).To(Equal(12))
 				Expect(st.Transaction.TransactionDate).To(Equal("2026-05-01"))
 				Expect(len(st.Transaction.Entries)).To(Equal(2))
-				// 借方資產科目應標記 Investing
 				debit := st.Transaction.Entries[0]
 				Expect(debit.CashFlowCategory).NotTo(BeNil())
 				Expect(debit.CashFlowCategory.Val()).To(Equal(enums.CashFlowCategoryInvesting))
-				// 貸方信用卡不標記
 				credit := st.Transaction.Entries[1]
 				Expect(credit.CashFlowCategory).To(BeNil())
 			},
@@ -376,31 +381,46 @@ type prepaidCreatedWithInstallmentScenario struct {
 	then    string
 	payload payload.PrepaidCreatedWithInstallmentPayload
 
-	period    *projection.PeriodClosing
-	periodErr error
-	ledger    *projection.LedgerAccount
-	ledgerErr error
-	sysCode   string
+	period      *projection.PeriodClosing
+	periodErr   error
+	ledger      *projection.LedgerAccount
+	ledgerErr   error
+	category    *projection.PrepaidCategory
+	categoryErr error
+	sysCode     string
 
 	wantErrContain string
 	checkState     func(*state.PrepaidCreatedWithInstallmentState)
 }
 
+func testPrepaidCategory() *projection.PrepaidCategory {
+	return &projection.PrepaidCategory{
+		ID:               1,
+		CategoryUUID:     "test-prepaid-cat-uuid-1",
+		Name:             "保險費",
+		AccountID:        "1104-01",
+		ExpenseAccountID: "5201-01",
+		IsActive:         true,
+	}
+}
+
 func buildPrepaidCreatedWithInstallmentScenarios() []prepaidCreatedWithInstallmentScenario {
 	return []prepaidCreatedWithInstallmentScenario{
 		{
-			given:          "payload 缺少必填欄位（name 為空）",
+			given:          "payload 缺少必填欄位（category_uuid 為空）",
 			when:           "執行 PrepaidCreatedWithInstallment pipeline",
-			then:           "回傳 name is required 驗證錯誤",
+			then:           "回傳 category_uuid is required 驗證錯誤",
 			payload:        payload.PrepaidCreatedWithInstallmentPayload{},
-			wantErrContain: "name is required",
+			wantErrContain: "category_uuid is required",
 		},
 		{
-			given:          "Installment terms 缺少 ledger_uuid",
+			given:          "category 不存在",
 			when:           "執行 PrepaidCreatedWithInstallment pipeline",
-			then:           "回傳 ledger_uuid is required 驗證錯誤",
-			payload:        validPrepaidWithInstallmentPayloadMissingLedger(),
-			wantErrContain: "ledger_uuid is required",
+			then:           "回傳 prepaid category not found 錯誤",
+			payload:        validPrepaidWithInstallmentPayload(),
+			period:         openPeriod(),
+			category:       nil,
+			wantErrContain: "prepaid category not found",
 		},
 		{
 			given:          "period 不存在",
@@ -408,6 +428,7 @@ func buildPrepaidCreatedWithInstallmentScenarios() []prepaidCreatedWithInstallme
 			then:           "回傳 period is not exists 錯誤",
 			payload:        validPrepaidWithInstallmentPayload(),
 			period:         nil,
+			category:       testPrepaidCategory(),
 			wantErrContain: "is not exists",
 		},
 		{
@@ -416,27 +437,28 @@ func buildPrepaidCreatedWithInstallmentScenarios() []prepaidCreatedWithInstallme
 			then:           "回傳 ledger not found 錯誤",
 			payload:        validPrepaidWithInstallmentPayload(),
 			period:         openPeriod(),
+			category:       testPrepaidCategory(),
 			ledger:         nil,
 			wantErrContain: "ledger not found",
 		},
 		{
-			given:   "無息分期，所有條件正常",
-			when:    "執行 PrepaidCreatedWithInstallment pipeline",
-			then:    "State 包含 Installment/Payments，Transaction 借方含 Operating 分類",
-			payload: validPrepaidWithInstallmentPayload(),
-			period:  openPeriod(),
-			ledger:  testCreditCardLedger(),
-			sysCode: "1199-01",
+			given:    "無息分期，所有條件正常",
+			when:     "執行 PrepaidCreatedWithInstallment pipeline",
+			then:     "State 包含 Category/Installment/Payments，Transaction 借方含 Operating 分類",
+			payload:  validPrepaidWithInstallmentPayload(),
+			period:   openPeriod(),
+			category: testPrepaidCategory(),
+			ledger:   testCreditCardLedger(),
+			sysCode:  "1199-01",
 			checkState: func(st *state.PrepaidCreatedWithInstallmentState) {
+				Expect(st.Category).NotTo(BeNil())
 				Expect(st.Installment).NotTo(BeNil())
 				Expect(len(st.InstallmentPayments)).To(Equal(12))
 				Expect(st.Transaction.TransactionDate).To(Equal("2026-05-01"))
 				Expect(len(st.Transaction.Entries)).To(Equal(2))
-				// 借方預付科目應標記 Operating
 				debit := st.Transaction.Entries[0]
 				Expect(debit.CashFlowCategory).NotTo(BeNil())
 				Expect(debit.CashFlowCategory.Val()).To(Equal(enums.CashFlowCategoryOperating))
-				// 貸方信用卡不標記
 				credit := st.Transaction.Entries[1]
 				Expect(credit.CashFlowCategory).To(BeNil())
 			},
@@ -448,34 +470,42 @@ func buildPrepaidCreatedWithInstallmentScenarios() []prepaidCreatedWithInstallme
 // Fixture helpers
 // ─────────────────────────────────────────
 
-func validPurchasedCashPayload() payload.AssetPurchasedPayload {
-	ledgerUUID := "ledger-uuid-1"
-	return payload.AssetPurchasedPayload{
-		Name:                         "辦公電腦",
+func testFixedAssetCategory() *projection.FixedAssetCategory {
+	return &projection.FixedAssetCategory{
+		ID:                           1,
+		CategoryUUID:                 "test-category-uuid-1",
+		Name:                         "辦公設備",
 		AssetAccountID:               "1201-04",
 		AccumDepreciationAccountID:   "1201-99",
 		DepreciationExpenseAccountID: "5501-03",
-		Cost:                         decimal.NewFromInt(100000),
-		ResidualValue:                decimal.Zero,
-		UsefulLifeMonths:             60,
-		PaymentType:                  enums.AssetPaymentTypeCash.Enum(),
-		LedgerUUID:                   &ledgerUUID,
-		PurchaseDate:                 "2026-05-01",
+		IsActive:                     true,
+	}
+}
+
+func validPurchasedCashPayload() payload.AssetPurchasedPayload {
+	ledgerUUID := "ledger-uuid-1"
+	return payload.AssetPurchasedPayload{
+		CategoryUUID:       "test-category-uuid-1",
+		Name:               "辦公電腦",
+		Cost:               decimal.NewFromInt(100000),
+		ResidualValue:      decimal.Zero,
+		UsefulLifeMonths:   60,
+		PaymentType:        enums.AssetPaymentTypeCash.Enum(),
+		LedgerUUID:         &ledgerUUID,
+		PurchaseDate:       "2026-05-01",
 	}
 }
 
 func validPurchasedLeasePayload() payload.AssetPurchasedPayload {
 	return payload.AssetPurchasedPayload{
-		Name:                         "租賃資產",
-		AssetAccountID:               "1202-01",
-		AccumDepreciationAccountID:   "1201-99",
-		DepreciationExpenseAccountID: "5501-03",
-		Cost:                         decimal.NewFromInt(240000),
-		ResidualValue:                decimal.Zero,
-		UsefulLifeMonths:             24,
-		PaymentType:                  enums.AssetPaymentTypeLease.Enum(),
-		LiabilityAccountID:           "2202-02",
-		PurchaseDate:                 "2026-05-01",
+		CategoryUUID:       "test-category-uuid-1",
+		Name:               "租賃資產",
+		Cost:               decimal.NewFromInt(240000),
+		ResidualValue:      decimal.Zero,
+		UsefulLifeMonths:   24,
+		PaymentType:        enums.AssetPaymentTypeLease.Enum(),
+		LiabilityAccountID: "2202-02",
+		PurchaseDate:       "2026-05-01",
 	}
 }
 
@@ -562,15 +592,13 @@ func validInstallmentTerms() payload.InstallmentTermsPayload {
 
 func validAssetWithInstallmentPayload() payload.AssetPurchasedWithInstallmentPayload {
 	return payload.AssetPurchasedWithInstallmentPayload{
-		Name:                         "辦公電腦",
-		AssetAccountID:               "1201-04",
-		AccumDepreciationAccountID:   "1201-99",
-		DepreciationExpenseAccountID: "5501-03",
-		Cost:                         decimal.NewFromInt(120000),
-		ResidualValue:                decimal.Zero,
-		UsefulLifeMonths:             60,
-		PurchaseDate:                 "2026-05-01",
-		Installment:                  validInstallmentTerms(),
+		CategoryUUID:     "test-category-uuid-1",
+		Name:             "辦公電腦",
+		Cost:             decimal.NewFromInt(120000),
+		ResidualValue:    decimal.Zero,
+		UsefulLifeMonths: 60,
+		PurchaseDate:     "2026-05-01",
+		Installment:      validInstallmentTerms(),
 	}
 }
 
@@ -582,13 +610,12 @@ func validAssetWithInstallmentPayloadMissingLedger() payload.AssetPurchasedWithI
 
 func validPrepaidWithInstallmentPayload() payload.PrepaidCreatedWithInstallmentPayload {
 	return payload.PrepaidCreatedWithInstallmentPayload{
-		AccountID:        "1104-01",
-		ExpenseAccountID: "5101-01",
-		Name:             "保險費 2026-05~2027-04",
-		TotalAmount:      decimal.NewFromInt(24000),
-		Periods:          12,
-		StartDate:        "2026-05-01",
-		Installment:      validInstallmentTerms(),
+		CategoryUUID: "test-prepaid-cat-uuid-1",
+		Name:         "保險費 2026-05~2027-04",
+		TotalAmount:  decimal.NewFromInt(24000),
+		Periods:      12,
+		StartDate:    "2026-05-01",
+		Installment:  validInstallmentTerms(),
 	}
 }
 

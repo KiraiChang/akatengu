@@ -31,6 +31,18 @@ func (e *eventPrepaidCreatedProjector) Project(ctx context.Context, ct *pipeline
 		return err
 	}
 
+	cat, err := e.query.PrepaidCategory.GetPrepaidCategoryByUUID(ctx, p.CategoryUUID)
+	if err != nil {
+		return err
+	}
+	if cat == nil {
+		return fmt.Errorf("prepaid category not found")
+	}
+	if !cat.IsActive {
+		return fmt.Errorf("prepaid category is inactive")
+	}
+	c.Category = cat
+
 	ledger, err := e.query.Account.GetLedgerByUuid(ctx, p.LedgerUUID)
 	if err != nil {
 		return err
@@ -39,7 +51,7 @@ func (e *eventPrepaidCreatedProjector) Project(ctx context.Context, ct *pipeline
 		return fmt.Errorf("ledger not found")
 	}
 	c.Ledger = ledger
-	c.Transaction = payload.BuildPrepaidCreatedTransaction(p, c.Ledger)
+	c.Transaction = payload.BuildPrepaidCreatedTransaction(p, c.Category, c.Ledger)
 
 	return nil
 }
@@ -153,6 +165,18 @@ func (e *eventPrepaidCreatedWithInstallmentProjector) Project(ctx context.Contex
 		return err
 	}
 
+	cat, err := e.query.PrepaidCategory.GetPrepaidCategoryByUUID(ctx, p.CategoryUUID)
+	if err != nil {
+		return err
+	}
+	if cat == nil {
+		return fmt.Errorf("prepaid category not found")
+	}
+	if !cat.IsActive {
+		return fmt.Errorf("prepaid category is inactive")
+	}
+	c.Category = cat
+
 	ledger, err := e.query.Account.GetLedgerByUuid(ctx, p.Installment.LedgerUuid)
 	if err != nil {
 		return err
@@ -161,7 +185,7 @@ func (e *eventPrepaidCreatedWithInstallmentProjector) Project(ctx context.Contex
 		return fmt.Errorf("ledger not found")
 	}
 
-	ip := p.ToInstallmentPayload()
+	ip := p.ToInstallmentPayload(c.Category.AccountID)
 	inst, err := ip.CreateInstallment()
 	if err != nil {
 		return err
@@ -180,7 +204,7 @@ func (e *eventPrepaidCreatedWithInstallmentProjector) Project(ctx context.Contex
 	}
 	c.SysAccountAssetPrepaidInterest = code
 
-	txn, err := payload.BuildPrepaidCreatedWithInstallmentTransaction(p, ledger, c.SysAccountAssetPrepaidInterest, c.InstallmentPayments)
+	txn, err := payload.BuildPrepaidCreatedWithInstallmentTransaction(p, c.Category, ledger, c.SysAccountAssetPrepaidInterest, c.InstallmentPayments)
 	if err != nil {
 		return err
 	}

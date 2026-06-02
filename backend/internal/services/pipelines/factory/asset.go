@@ -33,6 +33,18 @@ func (e *eventAssetPurchasedProjector) Project(ctx context.Context, ct *pipeline
 		return err
 	}
 
+	cat, err := e.query.FixedAssetCategory.GetFixedAssetCategoryByUUID(ctx, p.CategoryUUID)
+	if err != nil {
+		return err
+	}
+	if cat == nil {
+		return fmt.Errorf("fixed asset category not found")
+	}
+	if !cat.IsActive {
+		return fmt.Errorf("fixed asset category is inactive")
+	}
+	c.Category = cat
+
 	if p.PaymentType == enums.AssetPaymentTypeCash.Enum() {
 		ledger, err := e.query.Account.GetLedgerByUuid(ctx, *p.LedgerUUID)
 		if err != nil {
@@ -44,7 +56,7 @@ func (e *eventAssetPurchasedProjector) Project(ctx context.Context, ct *pipeline
 		c.Ledger = ledger
 	}
 
-	txn, err := payload.BuildAssetPurchasedTransaction(p, c.Ledger)
+	txn, err := payload.BuildAssetPurchasedTransaction(p, c.Category, c.Ledger)
 	if err != nil {
 		return err
 	}
@@ -174,6 +186,18 @@ func (e *eventAssetPurchasedWithInstallmentProjector) Project(ctx context.Contex
 		return err
 	}
 
+	cat, err := e.query.FixedAssetCategory.GetFixedAssetCategoryByUUID(ctx, p.CategoryUUID)
+	if err != nil {
+		return err
+	}
+	if cat == nil {
+		return fmt.Errorf("fixed asset category not found")
+	}
+	if !cat.IsActive {
+		return fmt.Errorf("fixed asset category is inactive")
+	}
+	c.Category = cat
+
 	ledger, err := e.query.Account.GetLedgerByUuid(ctx, p.Installment.LedgerUuid)
 	if err != nil {
 		return err
@@ -182,7 +206,7 @@ func (e *eventAssetPurchasedWithInstallmentProjector) Project(ctx context.Contex
 		return fmt.Errorf("ledger not found")
 	}
 
-	ip := p.ToInstallmentPayload()
+	ip := p.ToInstallmentPayload(c.Category.AssetAccountID)
 	inst, err := ip.CreateInstallment()
 	if err != nil {
 		return err
@@ -201,7 +225,7 @@ func (e *eventAssetPurchasedWithInstallmentProjector) Project(ctx context.Contex
 	}
 	c.SysAccountAssetPrepaidInterest = code
 
-	txn, err := payload.BuildAssetPurchasedWithInstallmentTransaction(p, ledger, c.SysAccountAssetPrepaidInterest, c.InstallmentPayments)
+	txn, err := payload.BuildAssetPurchasedWithInstallmentTransaction(p, c.Category, ledger, c.SysAccountAssetPrepaidInterest, c.InstallmentPayments)
 	if err != nil {
 		return err
 	}

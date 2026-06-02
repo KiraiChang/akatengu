@@ -10,24 +10,20 @@ import (
 
 // PrepaidCreatedPayload 建立預付費用
 type PrepaidCreatedPayload struct {
-	AccountID        string          `json:"account_id"`         // 預付科目，如 1104-01
-	ExpenseAccountID string          `json:"expense_account_id"` // 費用科目，如 5101-01
-	LedgerUUID       string          `json:"ledger_uuid"`        // 付款帳戶
-	Name             string          `json:"name"`               // 描述，如「保險費 2026-05 ～ 2027-04」
-	TotalAmount      decimal.Decimal `json:"total_amount"`       // 預付總金額
-	Periods          int64           `json:"periods"`            // 攤提期數（月）
-	StartDate        string          `json:"start_date"`         // 開始攤提月份 YYYY-MM-DD
-	Memo             string          `json:"memo,omitempty"`
-	Note             string          `json:"note,omitempty"`
+	CategoryUUID string          `json:"category_uuid"` // 預付費用類別 UUID
+	LedgerUUID   string          `json:"ledger_uuid"`   // 付款帳戶
+	Name         string          `json:"name"`          // 描述，如「保險費 2026-05 ～ 2027-04」
+	TotalAmount  decimal.Decimal `json:"total_amount"`  // 預付總金額
+	Periods      int64           `json:"periods"`       // 攤提期數（月）
+	StartDate    string          `json:"start_date"`    // 開始攤提月份 YYYY-MM-DD
+	Memo         string          `json:"memo,omitempty"`
+	Note         string          `json:"note,omitempty"`
 }
 
 func (p PrepaidCreatedPayload) Validate() error {
 	var errs []string
-	if p.AccountID == "" {
-		errs = append(errs, "account_id is required")
-	}
-	if p.ExpenseAccountID == "" {
-		errs = append(errs, "expense_account_id is required")
+	if p.CategoryUUID == "" {
+		errs = append(errs, "category_uuid is required")
 	}
 	if p.LedgerUUID == "" {
 		errs = append(errs, "ledger_uuid is required")
@@ -49,24 +45,20 @@ func (p PrepaidCreatedPayload) Validate() error {
 
 // PrepaidCreatedWithInstallmentPayload 以信用卡分期支付預付費用
 type PrepaidCreatedWithInstallmentPayload struct {
-	AccountID        string                  `json:"account_id"`
-	ExpenseAccountID string                  `json:"expense_account_id"`
-	Name             string                  `json:"name"`
-	TotalAmount      decimal.Decimal         `json:"total_amount"`
-	Periods          int64                   `json:"periods"`
-	StartDate        string                  `json:"start_date"`
-	Memo             string                  `json:"memo,omitempty"`
-	Note             string                  `json:"note,omitempty"`
-	Installment      InstallmentTermsPayload `json:"installment"`
+	CategoryUUID string                  `json:"category_uuid"` // 預付費用類別 UUID
+	Name         string                  `json:"name"`
+	TotalAmount  decimal.Decimal         `json:"total_amount"`
+	Periods      int64                   `json:"periods"`
+	StartDate    string                  `json:"start_date"`
+	Memo         string                  `json:"memo,omitempty"`
+	Note         string                  `json:"note,omitempty"`
+	Installment  InstallmentTermsPayload `json:"installment"`
 }
 
 func (p PrepaidCreatedWithInstallmentPayload) Validate() error {
 	var errs []string
-	if p.AccountID == "" {
-		errs = append(errs, "account_id is required")
-	}
-	if p.ExpenseAccountID == "" {
-		errs = append(errs, "expense_account_id is required")
+	if p.CategoryUUID == "" {
+		errs = append(errs, "category_uuid is required")
 	}
 	if p.Name == "" {
 		errs = append(errs, "name is required")
@@ -87,14 +79,15 @@ func (p PrepaidCreatedWithInstallmentPayload) Validate() error {
 }
 
 // ToInstallmentPayload 組合完整的 InstallmentCreatedPayload，以預付科目與總金額填入 AccountId / Amount。
-func (p PrepaidCreatedWithInstallmentPayload) ToInstallmentPayload() InstallmentCreatedPayload {
+// accountID 從類別設定取得，由 Pipeline 傳入。
+func (p PrepaidCreatedWithInstallmentPayload) ToInstallmentPayload(accountID string) InstallmentCreatedPayload {
 	return InstallmentCreatedPayload{
 		Amount:           p.TotalAmount,
 		InstallmentCount: p.Installment.InstallmentCount,
 		StartDate:        p.Installment.StartDate,
 		InterestType:     p.Installment.InterestType,
 		AnnualRate:       p.Installment.AnnualRate,
-		AccountId:        p.AccountID,
+		AccountId:        accountID,
 		LedgerUuid:       p.Installment.LedgerUuid,
 		Memo:             p.Installment.Memo,
 		Note:             p.Installment.Note,
@@ -103,14 +96,14 @@ func (p PrepaidCreatedWithInstallmentPayload) ToInstallmentPayload() Installment
 
 // BuildPrepaidCreatedWithInstallmentTransaction 組合預付費用分期支付的會計分錄。
 // 借方預付科目標記 Operating；信用卡貸方不標記（此時無實際現金流出）。
-func BuildPrepaidCreatedWithInstallmentTransaction(p PrepaidCreatedWithInstallmentPayload, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
+func BuildPrepaidCreatedWithInstallmentTransaction(p PrepaidCreatedWithInstallmentPayload, category *projection.PrepaidCategory, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
 	cfOperating := enums.CashFlowCategoryOperating.Enum()
-	ip := p.ToInstallmentPayload()
+	ip := p.ToInstallmentPayload(category.AccountID)
 	var entries []TransactionEntryPayload
 	switch ip.InterestType.Val() {
 	case enums.InterestTypeFree:
 		entries = []TransactionEntryPayload{
-			{AccountId: p.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
 			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.TotalAmount},
 		}
 	case enums.InterestTypeFixedRate:
@@ -119,7 +112,7 @@ func BuildPrepaidCreatedWithInstallmentTransaction(p PrepaidCreatedWithInstallme
 			interest = interest.Add(pmt.Interest)
 		}
 		entries = []TransactionEntryPayload{
-			{AccountId: p.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
 			{AccountId: sysAccountAssetPrepaidInterest, Debit: interest, Credit: decimal.Zero},
 			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.TotalAmount.Add(interest)},
 		}
@@ -181,7 +174,7 @@ func AmortizationAmount(total decimal.Decimal, periods int64, amortizedPeriods i
 
 // BuildPrepaidCreatedTransaction assembles the journal entry payload for EventPrepaidCreated.
 // Called by the pipeline factory; the result is stored in PrepaidCreatedState.Transaction.
-func BuildPrepaidCreatedTransaction(p PrepaidCreatedPayload, ledger *projection.LedgerAccount) TransactionCreatedPayload {
+func BuildPrepaidCreatedTransaction(p PrepaidCreatedPayload, category *projection.PrepaidCategory, ledger *projection.LedgerAccount) TransactionCreatedPayload {
 	cfOperating := enums.CashFlowCategoryOperating.Enum()
 	ledgerId := ledger.LedgerId
 	return TransactionCreatedPayload{
@@ -189,7 +182,7 @@ func BuildPrepaidCreatedTransaction(p PrepaidCreatedPayload, ledger *projection.
 		Description:     fmt.Sprintf("預付費用 %s", p.Name),
 		Currency:        "TWD",
 		Entries: []TransactionEntryPayload{
-			{AccountId: p.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
 			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.TotalAmount},
 		},
 	}
