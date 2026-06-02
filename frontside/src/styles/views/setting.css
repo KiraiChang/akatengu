@@ -1,0 +1,31 @@
+/* ── Settings tab navigation ──────────────── */
+
+.settings-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #1e2230;
+  padding: 0 24px;
+  overflow-x: auto;
+}
+
+.settings-tab {
+  padding: 10px 20px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: #5c6278;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.settings-tab:hover {
+  color: #9da3b8;
+}
+
+.settings-tab--active {
+  color: #e8e5dc;
+  border-bottom-color: #6ab88a;
+}
