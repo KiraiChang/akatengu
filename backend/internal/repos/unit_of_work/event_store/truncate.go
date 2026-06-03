@@ -47,6 +47,8 @@ func (r *sqlxTruncateRepository) TruncateProjections(ctx context.Context) error 
 		`DELETE FROM sys_accounts WHERE merchant_id = ?`,
 		`DELETE FROM aggregate_versions WHERE merchant_id = ?`,
 		`DELETE FROM snapshots WHERE merchant_id = ?`,
+		`DELETE FROM fixed_asset_categories WHERE merchant_id = ?`,
+		`DELETE FROM prepaid_categories WHERE merchant_id = ?`,
 	}
 	for _, stmt := range stmts {
 		if _, err := r.tx.ExecContext(ctx, stmt, merchantID); err != nil {
