@@ -608,3 +608,58 @@ CREATE TABLE prepaid_categories (
     updated_at         TEXT    NOT NULL DEFAULT (datetime('now')),
     version            INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE TABLE bank_csv_templates (
+    template_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_uuid      TEXT    NOT NULL UNIQUE,
+    merchant_id        INTEGER NOT NULL,
+    template_name      TEXT    NOT NULL,
+    encoding           TEXT    NOT NULL DEFAULT 'UTF-8',
+    skip_rows          INTEGER NOT NULL DEFAULT 1,
+    date_column        INTEGER NOT NULL,
+    date_format        TEXT    NOT NULL,
+    description_column INTEGER NOT NULL,
+    debit_column       INTEGER,
+    credit_column      INTEGER,
+    amount_column      INTEGER,
+    balance_column     INTEGER,
+    reference_column   INTEGER,
+    is_active          INTEGER NOT NULL DEFAULT 1,
+    note               TEXT,
+    version            INTEGER NOT NULL DEFAULT 0,
+    updated_by         TEXT,
+    updated_at         TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE bank_statement_imports (
+    import_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_uuid    TEXT    NOT NULL UNIQUE,
+    merchant_id    INTEGER NOT NULL,
+    ledger_id      INTEGER NOT NULL REFERENCES ledger_accounts(ledger_id),
+    template_id    INTEGER REFERENCES bank_csv_templates(template_id),
+    statement_date TEXT    NOT NULL,
+    import_source  TEXT    NOT NULL DEFAULT 'CSV',
+    filename       TEXT,
+    status         TEXT    NOT NULL DEFAULT 'PENDING',
+    note           TEXT,
+    version        INTEGER NOT NULL DEFAULT 0,
+    updated_by     TEXT,
+    updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE bank_statement_txns (
+    bank_txn_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    bank_txn_uuid    TEXT    NOT NULL UNIQUE,
+    import_id        INTEGER NOT NULL REFERENCES bank_statement_imports(import_id),
+    merchant_id      INTEGER NOT NULL,
+    txn_date         TEXT    NOT NULL,
+    description      TEXT    NOT NULL,
+    debit            REAL    NOT NULL DEFAULT 0,
+    credit           REAL    NOT NULL DEFAULT 0,
+    balance          REAL,
+    reference_no     TEXT,
+    match_status     TEXT    NOT NULL DEFAULT 'UNMATCHED',
+    matched_entry_id INTEGER REFERENCES journal_entries(entry_id),
+    match_confidence TEXT,
+    created_txn_id   INTEGER REFERENCES transactions(txn_id)
+);

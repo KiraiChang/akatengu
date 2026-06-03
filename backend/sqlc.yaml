@@ -420,3 +420,18 @@ sql:
             go_type:
               import: "github.com/shopspring/decimal"
               type: "Decimal"
+          - column: "bank_statement_txns.debit"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "bank_statement_txns.credit"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "Decimal"
+          - column: "bank_statement_txns.balance"
+            go_type:
+              import: "github.com/shopspring/decimal"
+              type: "NullDecimal"
+          - column: "bank_csv_templates.is_active"
+            go_type:
+              type: "bool"

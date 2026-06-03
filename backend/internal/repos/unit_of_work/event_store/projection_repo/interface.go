@@ -112,3 +112,19 @@ type PrepaidCategoryRepo interface {
 	UpdatePrepaidCategory(ctx context.Context, p sqlcdb.UpdatePrepaidCategoryParams) error
 	SoftDeletePrepaidCategory(ctx context.Context, p sqlcdb.SoftDeletePrepaidCategoryParams) error
 }
+
+type BankCsvTemplateRepo interface {
+	InsertBankCsvTemplate(ctx context.Context, p sqlcdb.InsertBankCsvTemplateParams) error
+	UpdateBankCsvTemplate(ctx context.Context, p sqlcdb.UpdateBankCsvTemplateParams) error
+	DeactivateBankCsvTemplate(ctx context.Context, p sqlcdb.DeactivateBankCsvTemplateParams) error
+}
+
+type BankStatementImportRepo interface {
+	InsertBankStatementImport(ctx context.Context, p sqlcdb.InsertBankStatementImportParams) (int64, error)
+	UpdateBankStatementImportStatus(ctx context.Context, p sqlcdb.UpdateBankStatementImportStatusParams) error
+	InsertBankStatementTxn(ctx context.Context, p sqlcdb.InsertBankStatementTxnParams) error
+	UpdateBankTxnMatch(ctx context.Context, p sqlcdb.UpdateBankTxnMatchParams) error
+	UpdateBankTxnStatus(ctx context.Context, p sqlcdb.UpdateBankTxnStatusParams) error
+	UpdateBankTxnCreatedTxn(ctx context.Context, p sqlcdb.UpdateBankTxnCreatedTxnParams) error
+	ResetNonConfirmedMatches(ctx context.Context, p sqlcdb.ResetNonConfirmedMatchesParams) error
+}

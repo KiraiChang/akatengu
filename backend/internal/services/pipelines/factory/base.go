@@ -101,6 +101,18 @@ func (p *registry) register(query *query.Repo) {
 	p.rules[event_types.EventFixedAssetCategoryCreated.Enum()] = NewEventFixedAssetCategoryCreatedPipeline()
 	p.rules[event_types.EventFixedAssetCategoryUpdated.Enum()] = NewEventFixedAssetCategoryUpdatedPipeline(query)
 	p.rules[event_types.EventFixedAssetCategoryDeleted.Enum()] = NewEventFixedAssetCategoryDeletedPipeline(query)
+
+	// Bank CSV Template
+	p.rules[event_types.EventBankCsvTemplateCreated.Enum()] = NewEventBankCsvTemplateCreatedPipeline()
+	p.rules[event_types.EventBankCsvTemplateUpdated.Enum()] = NewEventBankCsvTemplateUpdatedPipeline(query)
+	p.rules[event_types.EventBankCsvTemplateDeactivated.Enum()] = NewEventBankCsvTemplateDeactivatedPipeline(query)
+
+	// Bank Statement
+	p.rules[event_types.EventBankStatementImported.Enum()] = NewEventBankStatementImportedPipeline(query)
+	p.rules[event_types.EventBankStatementTxnMatched.Enum()] = NewEventBankStatementTxnMatchedPipeline(query)
+	p.rules[event_types.EventBankStatementTxnIgnored.Enum()] = NewEventBankStatementTxnIgnoredPipeline(query)
+	p.rules[event_types.EventBankStatementAdjustmentApproved.Enum()] = NewEventBankStatementAdjustmentApprovedPipeline(query)
+	p.rules[event_types.EventBankStatementCompleted.Enum()] = NewEventBankStatementCompletedPipeline(query)
 }
 
 func getSysAccountCode(ctx context.Context, sys query.SysRepo, enum sys_codes.SysAccount) (string, error) {

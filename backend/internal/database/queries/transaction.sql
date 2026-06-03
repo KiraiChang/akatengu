@@ -5,6 +5,13 @@ SELECT txn_id, txn_uuid, txn_date, description, total_amount, currency,
 FROM transactions
 WHERE txn_id = @txn_id AND merchant_id = @merchant_id;
 
+-- name: GetTransactionByUUID :one
+SELECT txn_id, txn_uuid, txn_date, description, total_amount, currency,
+       status, installment_id, receipt_no, note, version, ref_txn_id,
+       updated_by, updated_at
+FROM transactions
+WHERE txn_uuid = @txn_uuid AND merchant_id = @merchant_id;
+
 -- name: GetTransactionPaged :many
 WITH total AS (SELECT COUNT(*) AS cnt FROM transactions WHERE merchant_id = @merchant_id)
 SELECT t.txn_id, t.txn_uuid, t.txn_date, t.description, t.total_amount, t.currency,

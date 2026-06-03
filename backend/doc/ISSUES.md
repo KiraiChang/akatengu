@@ -419,6 +419,29 @@
 
 ---
 
+### [ISSUE-019] EventStoreService.Append 回傳 *db.EventStore，非 *pipelines.Result
+
+- **狀態**：🟢 Resolved
+- **日期**：2026-06-03
+- **嚴重程度**：Low
+- **位置**：`internal/services/bank_statement_review.go`
+- **描述**：
+  `ApproveTxn` 呼叫 `es.Append(...)` 後，嘗試以 `txnResult.Event.EventUuid` 取得新建交易的 UUID。
+  `pipelines.Result` struct 確實有 `.Event db.EventStore` 欄位，但 `EventStoreService.Append` 的回傳型別為 `*db.EventStore`，
+  非 `*pipelines.Result`，因此 `.Event` 欄位不存在，`go build` 報：
+  ```
+  txnResult.Event undefined (type *db.EventStore has no field or method Event)
+  ```
+- **影響範圍**：
+  `bank_statement_review.go` build 失敗，Phase 5 無法完成。
+- **解決紀錄**：
+  在 `ApproveTxn` 組裝 `AppendCmd` 前，已用 `uuid.NewV7()` 生成 `txnAggID` 作為 `AggregateID`。
+  Transaction projection 將 `aggregate_id` 存為 `txn_uuid`，因此直接以 `txnAggID.String()` 呼叫 `GetByUUID` 即可，
+  不需讀取 `Append` 的回傳值中的 event UUID。
+  修正：`_, err = s.es.Append(...)` + `s.q.Transaction.GetByUUID(ctx, txnAggID.String())`。
+
+---
+
 ### [ISSUE-018] 全量 Replay 後整數 FK 斷裂問題
 
 - **狀態**：🟢 Resolved

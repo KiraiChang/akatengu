@@ -124,6 +124,14 @@
 
 > Nice-to-have，不影響現有功能，有空再做。
 
+**銀行對帳單（Bank Statement Reconciliation）**
+
+- [x] [Feature] CSV 欄位對應範本 CRUD（bank_csv_templates）— 完成日期：2026-06-03
+- [x] [Feature] CSV 匯入與解析（bank_statement_imports / bank_statement_txns）— 完成日期：2026-06-03
+- [x] [Feature] 自動比對（EXACT 精確 / FUZZY 模糊 ±3 天，可重跑）— 完成日期：2026-06-03
+- [x] [Feature] 人工審核（建議分錄預覽、同意建立 transaction.created、忽略）— 完成日期：2026-06-03
+- [ ] [Feature] PDF 匯入 — 目前只支援 CSV；PDF 解析因格式不統一，暫列待辦，待評估第三方解析方案
+
 **會計分錄範本（Transaction Template）**
 
 - [x] [Feature] 設計確認 — 完成日期：2026-05-25（參考金額、LedgerAccount 關聯、分類標籤、模糊搜尋，後端 API）

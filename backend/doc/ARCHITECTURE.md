@@ -39,6 +39,7 @@
 | [ADR-018](#adr-018-event-sourcing-projection-全面加入-uuid-以確保-replay-正確性) | Event Sourcing Projection 全面加入 UUID 以確保 Replay 正確性 | Accepted | 2026-05-29 |
 | [ADR-019](#adr-019-handler--middleware-層採用-ginkgo-v2--gomega-撰寫-bdd-測試) | Handler / Middleware 層採用 Ginkgo v2 + Gomega 撰寫 BDD 測試 | Accepted | 2026-05-29 |
 | [ADR-020](#adr-020-fixedasset--prepaid-嵌入-installment-的事件設計策略) | FixedAsset / Prepaid 嵌入 Installment 的事件設計策略 | Accepted | 2026-06-01 |
+| [ADR-021](#adr-021-銀行對帳單比對狀態不走事件溯源直接透過-uow-更新) | 銀行對帳單比對狀態不走事件溯源，直接透過 UoW 更新 | Accepted | 2026-06-03 |
 
 ---
 
@@ -702,6 +703,34 @@
 - **後果**：
   - 正面：現有 event/payload/pipeline 一律不動（開放封閉原則）；CF 報表 Investing/Operating/Financing 分類與現金購入一致；Replay 冪等（UUID 確定性衍生）。
   - 負面：`InsertFixedAssetParams.PaymentType` 新增 `INSTALLMENT` 常數，若既有報表按 payment_type 分組統計需注意此新值；新事件的 Installment UUID 與主體 UUID 不同，查詢時需透過 `uuidx.NewFromEvent` 反推（無獨立索引）。
+
+---
+
+## ADR-021 銀行對帳單比對狀態不走事件溯源，直接透過 UoW 更新
+
+- **狀態**：Accepted
+- **日期**：2026-06-03
+- **背景**：
+  銀行對帳單功能（bank_statement_imports / bank_statement_txns）需要記錄每筆銀行交易的比對狀態（UNMATCHED / MATCHED / IGNORED / APPROVED）。
+  這些狀態是操作性／衍生狀態，不是業務決策事件：自動比對結果可被重跑覆蓋，忽略可被取消，狀態本身無需完整稽核軌跡。
+
+- **決策**：
+  `bank_statement_txns.match_status` 的更新（AutoMatch、ReMatch、ManualMatch、IgnoreTxn）一律透過 `UnitOfWork.Do` 直接執行 UPDATE，
+  不透過 `EventStoreService.Append`，不建立事件記錄。
+
+  例外：**批准（ApproveTxn）** 會觸發 `transaction.created` 事件（真實帳務），走完整事件溯源鏈路，
+  再以 `UpdateBankTxnCreatedTxn` 回寫 `bank_txns.created_txn_id`，兩個寫入均在各自的 UoW 交易中完成。
+
+  **重跑保護**：`ResetNonConfirmedMatches` 只重置 `match_confidence IN ('EXACT', 'FUZZY')` 的項目，
+  `CONFIRMED` / `MANUAL` 的比對結果（使用者明確確認的）永不被自動重置。
+
+- **替代方案**：
+  - 為比對狀態變更建立 EventType（`bank_statement.txn_matched` 等）：增加 8 個 Pipeline + Projection，但比對狀態的「歷史」沒有商業價值，純粹增加架構複雜度。
+  - 建議分錄快取（預先計算並持久化）：不採用。建議科目在 `GET /review` 時即時計算，反映帳簿最新狀態，不需快取。
+
+- **後果**：
+  - 正面：比對操作實作簡單，無需完整 Pipeline/Projection 鏈路；重跑可以覆蓋自動比對結果而不留事件垃圾。
+  - 負面：比對狀態變更沒有事件軌跡（僅有最終狀態），無法 replay 重建比對歷史。批准後的 `transaction.created` 仍在事件流中，帳務稽核不受影響。
 
 ---
 

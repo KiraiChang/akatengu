@@ -31,6 +31,7 @@ type Entry struct {
 //dbmap:sqlcdb=InsertTransactionParams
 //dbmap:sqlcdb=GetTransactionPagedRow
 //dbmap:sqlcdb=GetTransactionRow
+//dbmap:sqlcdb=GetTransactionByUUIDRow
 type Transaction struct {
 	MerchantID      int64                   `db:"merchant_id" json:"merchant_id"`
 	TransactionId   int64                   `db:"txn_id" json:"txn_id"`

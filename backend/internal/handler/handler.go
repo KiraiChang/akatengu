@@ -51,6 +51,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	template := newTemplateHandler(db, logger)
 	dashboard := newDashboardHandler(db, logger)
 	audit := newAuditHandler(db, eventService, logger)
+	bankStatement := newBankStatementHandler(db, eventService, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -145,6 +146,22 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("GET /audit/snapshot", audit.GetSnapshots)
 	bizApi.HandleFunc("GET /exchange-rate", audit.GetExchangeRates)
 	bizApi.HandleFunc("POST /audit/replay", audit.Replay)
+
+	bizApi.HandleFunc("GET /bank-statement/template", bankStatement.GetTemplates)
+	bizApi.HandleFunc("POST /bank-statement/template", bankStatement.CreateTemplate)
+	bizApi.HandleFunc("PUT /bank-statement/template/{template_id}", bankStatement.UpdateTemplate)
+	bizApi.HandleFunc("DELETE /bank-statement/template/{template_id}", bankStatement.DeactivateTemplate)
+
+	bizApi.HandleFunc("POST /bank-statement/import", bankStatement.ImportCSV)
+	bizApi.HandleFunc("GET /bank-statement/paged", bankStatement.GetImportsPaged)
+	bizApi.HandleFunc("GET /bank-statement/{import_id}/result", bankStatement.GetImportResult)
+	bizApi.HandleFunc("POST /bank-statement/{import_id}/auto-match", bankStatement.AutoMatch)
+	bizApi.HandleFunc("POST /bank-statement/{import_id}/re-match", bankStatement.ReMatch)
+	bizApi.HandleFunc("PUT /bank-statement/{import_id}/txn/{bank_txn_id}/match", bankStatement.ManualMatch)
+	bizApi.HandleFunc("GET /bank-statement/{import_id}/review", bankStatement.GetReview)
+	bizApi.HandleFunc("POST /bank-statement/{import_id}/txn/{bank_txn_id}/approve", bankStatement.ApproveTxn)
+	bizApi.HandleFunc("POST /bank-statement/{import_id}/txn/{bank_txn_id}/ignore", bankStatement.IgnoreTxn)
+	bizApi.HandleFunc("POST /bank-statement/{import_id}/complete", bankStatement.CompleteImport)
 
 	return mux
 }

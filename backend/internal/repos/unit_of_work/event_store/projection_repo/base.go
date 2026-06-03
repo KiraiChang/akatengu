@@ -19,6 +19,8 @@ type TxProjectionRepository struct {
 	LedgerAccountBalanceSnapshotRepo LedgerAccountBalanceSnapshotRepo
 	AccountRunningBalanceRepo        AccountRunningBalanceRepo
 	LedgerRunningBalanceRepo         LedgerRunningBalanceRepo
+	BankCsvTemplateRepo              BankCsvTemplateRepo
+	BankStatementImportRepo          BankStatementImportRepo
 }
 
 func NewTxProjectionRepository(q *sqlcdb.Queries) *TxProjectionRepository {
@@ -37,5 +39,7 @@ func NewTxProjectionRepository(q *sqlcdb.Queries) *TxProjectionRepository {
 		LedgerAccountBalanceSnapshotRepo: NewLedgerAccountBalanceSnapshotRepo(q),
 		AccountRunningBalanceRepo:        NewAccountRunningBalanceRepo(q),
 		LedgerRunningBalanceRepo:         NewLedgerRunningBalanceRepo(q),
+		BankCsvTemplateRepo:              NewBankCsvTemplateRepo(q),
+		BankStatementImportRepo:          NewBankStatementImportRepo(q),
 	}
 }

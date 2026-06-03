@@ -68,5 +68,7 @@ func NewProjection() []Projection {
 		&AccountBalanceRealtimeProjection{},
 		&AccountBalanceSnapshotProjection{},
 		&LedgerAccountBalanceSnapshotProjection{},
+		&BankCsvTemplateProjectionService{},
+		&BankStatementProjectionService{},
 	}
 }

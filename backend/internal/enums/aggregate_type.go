@@ -17,4 +17,6 @@ const (
 	AggregateAccountConfig      aggregateTypeVal = "ACCOUNT_CONFIG"
 	AggregateFixedAssetCategory aggregateTypeVal = "FIXED_ASSET_CATEGORY"
 	AggregatePrepaidCategory    aggregateTypeVal = "PREPAID_CATEGORY"
+	AggregateBankCsvTemplate    aggregateTypeVal = "BANK_CSV_TEMPLATE"
+	AggregateBankStatement      aggregateTypeVal = "BANK_STATEMENT"
 )

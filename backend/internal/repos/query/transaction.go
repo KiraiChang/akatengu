@@ -13,6 +13,7 @@ import (
 
 type TransactionRepo interface {
 	GetByID(ctx context.Context, id int64) (*projection.Transaction, error)
+	GetByUUID(ctx context.Context, txnUUID string) (*projection.Transaction, error)
 	GetTransactionPaged(ctx context.Context, req model.PaginationParams) ([]projection.Transaction, int64, error)
 	GetEntries(ctx context.Context, id int64) ([]projection.Entry, error)
 }
@@ -70,6 +71,24 @@ func newTransactionRepo(q *sqlcdb.Queries) TransactionRepo {
 
 func NewTransactionRepo(db *sqlx.DB) TransactionRepo {
 	return &sqlcdbTransactionRepository{q: sqlcdb.New(db)}
+}
+
+func (r *sqlcdbTransactionRepository) GetByUUID(ctx context.Context, txnUUID string) (*projection.Transaction, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetTransactionByUUID(ctx, sqlcdb.GetTransactionByUUIDParams{
+		TxnUuid:    txnUUID,
+		MerchantID: merchantID,
+	})
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return projection.TransactionPtrFromGetTransactionByUUIDRow(row), nil
 }
 
 func (r *sqlcdbTransactionRepository) GetByID(ctx context.Context, id int64) (*projection.Transaction, error) {

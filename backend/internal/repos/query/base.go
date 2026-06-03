@@ -28,6 +28,8 @@ type Repo struct {
 	AccountAnalysis      AccountAnalysisRepo
 	Dashboard            DashboardRepo
 	Audit                AuditRepo
+	BankCsvTemplate      BankCsvTemplateRepo
+	BankStatementImport  BankStatementImportRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -54,5 +56,7 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		AccountAnalysis: newAccountAnalysisRepo(q),
 		Dashboard:       newDashboardRepo(q, db),
 		Audit:           newAuditRepo(q),
+		BankCsvTemplate:     newBankCsvTemplateRepo(q),
+		BankStatementImport: newBankStatementImportRepo(q),
 	}
 }
