@@ -33,6 +33,7 @@
 
 ### 功能
 
+- [ ] ⬜ [Feature] 商戶管理 — 後端補實作 `PUT/DELETE /api/merchant/{id}`，前端已串接（詳見 backend/CLAUDE.md 待實作 API 節）
 - [ ] ⬜ [Feature] 財務報表匯出 — 各報表頁加入「匯出 CSV / PDF」功能
 - [ ] ⬜ [Feature] 財務報表列印版面 — 加入 `@media print` CSS，隱藏 sidebar/header，讓報表可直接從瀏覽器列印
 - [ ] ⬜ [Feature] AssetTypeConfig 表格欄位優化 — 目前顯示 account_id 字串，可考慮改為顯示科目名稱（accountMap lookup）；但欄位多（7 欄），可能改用 tooltip 或點擊展開的方式顯示

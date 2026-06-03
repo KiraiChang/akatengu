@@ -27,7 +27,7 @@
 
     try {
       await login(username, password)
-      window.location.hash = '#/home'
+      window.location.hash = '#/merchant-select'
     } catch (err) {
       if (err instanceof AuthError) {
         errorMessage = err.detail

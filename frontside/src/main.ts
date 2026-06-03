@@ -16,6 +16,8 @@ import './styles/views/template.css'
 import './styles/views/account-analysis.css'
 import './styles/views/dashboard.css'
 import './styles/views/audit.css'
+import './styles/views/merchant-select.css'
+import './styles/views/merchants.css'
 import './styles/components/modal.css'
 import App from './App.svelte'
 

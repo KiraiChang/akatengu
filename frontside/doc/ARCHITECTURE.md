@@ -31,6 +31,7 @@
 | ADR-009 | Sidebar 可展開選單項以函式泛化展開邏輯 | Accepted | 2026-05-20 |
 | ADR-010 | 帳本建立科目限制透過 `filteredAccounts` prop 傳遞而非在子元件內載入 | Accepted | 2026-05-20 |
 | ADR-011 | 跨頁面科目導航使用 URL hash query param 傳遞預選科目 | Accepted | 2026-05-26 |
+| ADR-012 | 登入後以 pendingToken 暫存 user token，選商戶後換 merchant token | Accepted | 2026-06-03 |
 
 ---
 
@@ -313,6 +314,47 @@
 - **後果**：
   - 正面：URL 可書籤與分享；SPA hash 每次變更產生 history entry，`history.back()` 自然還原前一頁；`navigate.ts` 集中管理，各頁面只需 import 一個函式。
   - 負面：`AccountAnalysis` 的 query param 解析只在初始 mount 的 `$effect` 執行，若使用者在同一頁面多次點不同科目連結（hash 相同路徑但 param 不同），不會觸發重新選取，需要手動切換 AccountSelect（可接受，因這屬於邊緣情境）。
+
+---
+
+## ADR-012 登入後以 pendingToken 暫存 user token，選商戶後換 merchant token
+
+- **狀態**：Accepted
+- **日期**：2026-06-03
+- **背景**：
+  後端採用兩層 token 設計：登入取得的是 **user-scoped token**（可存取 merchant list / select API），
+  呼叫 `POST /api/merchant/select` 後取得的才是 **merchant-scoped token**（可存取所有業務資料）。
+  舊版 `auth.ts` 在 `login()` 內自動取第一個商戶並換 token，跳過了商戶選擇步驟。
+  重構後需要讓使用者自行選擇商戶，因此必須在兩個路由之間安全地傳遞 user token。
+- **決策**：
+  - `authStore` 新增 `pendingToken`（`string | null`），存入 `sessionStorage`（而非 localStorage），
+    使 token 在分頁關閉或重新整理後仍可還原，但不會跨 session 持留。
+  - `login()` 只儲存 `pendingToken`，不再自動呼叫 `list` / `select`。
+  - 登入成功後跳轉 `#/merchant-select`，此頁用 `pendingToken` 呼叫 `list` API，
+    使用者選擇後呼叫 `select` 取得 merchant token，寫入 `authStore.token`（localStorage），
+    同時清除 `pendingToken`，再跳轉 `#/home`。
+  - 路由守衛：
+    - 進入 `#/merchant-select` 時，若 `pendingToken` 不存在 → 跳回 `#/`；若 `token` 已存在 → 跳 `#/home`。
+
+  ```
+  login()
+    → setPendingToken(userToken)  [sessionStorage]
+    → navigate #/merchant-select
+      → list(pendingToken) → filter ACTIVE
+      → user clicks merchant
+        → select(merchantId, pendingToken)
+          → setToken(merchantToken)  [localStorage]
+          → clearPendingToken()
+          → navigate #/home
+  ```
+
+- **替代方案**：
+  - **shared $state store 傳 user token（不存 sessionStorage）**：重新整理後 pendingToken 消失，使用者需重新登入；且若 SPA router 在 onMount 前已 re-render，store 可能尚未初始化。
+  - **將 user token 與 merchant token 都存入 localStorage 各自 key**：user token 若未清除，日後可能被誤用於業務 API，有安全風險；sessionStorage 自然限制其存活範圍。
+  - **在 Login 元件內嵌商戶選擇步驟（step 2 表單）**：不需要獨立路由，但 Login.svelte 會混入商戶選擇狀態與 UI，職責不清；無法透過 URL 直接進入商戶選擇頁（如重新整理後恢復）。
+- **後果**：
+  - 正面：職責分離清晰（Login 負責驗證、MerchantSelect 負責商戶選擇）；sessionStorage 自然限制 pendingToken 生命週期；重新整理停留在 `#/merchant-select` 仍可正常運作。
+  - 負面：`authStore` 同時持有兩種語意的 token，需透過欄位命名（`token` vs `pendingToken`）區分；新增路由守衛需要維護。
 
 ---
 

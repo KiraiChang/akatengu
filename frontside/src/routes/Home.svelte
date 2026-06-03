@@ -28,6 +28,7 @@
   import AccountAnalysis    from '../views/AccountAnalysis.svelte';
   import Audit              from '../views/Audit.svelte';
   import ExchangeRate       from '../views/ExchangeRate.svelte';
+  import Merchants          from '../views/Merchants.svelte';
 
   interface SubMenuItem { label: string; path: string; }
   interface MenuItem    { label: string; path: string; key?: string; children?: SubMenuItem[]; }
@@ -56,6 +57,7 @@
       { label: '範本管理',     path: '/home/settings/template' },
       { label: '稽核查詢',     path: '/home/settings/audit' },
       { label: '匯率管理',     path: '/home/settings/exchange-rate' },
+      { label: '商戶管理',     path: '/home/merchants' },
     ]},
   ];
 
@@ -80,6 +82,7 @@
     '/home/settings/template':        Template,
     '/home/settings/audit':           Audit,
     '/home/settings/exchange-rate':   ExchangeRate,
+    '/home/merchants':                Merchants,
   };
 
   let currentPath     = $state(window.location.hash.replace(/^#/, '') || '/home');
@@ -88,7 +91,7 @@
 
   const parentChildPaths: Record<string, string[]> = {
     reports:      ['/home/reports'],
-    settings:     ['/home/settings', '/home/settings/audit', '/home/settings/exchange-rate'],
+    settings:     ['/home/settings', '/home/settings/audit', '/home/settings/exchange-rate', '/home/merchants'],
     amortization: ['/home/installment', '/home/prepaid', '/home/fixed-asset'],
   };
 

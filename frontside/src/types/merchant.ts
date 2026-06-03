@@ -10,3 +10,9 @@ export interface Merchant {
 export interface SelecedtMerchant {
     merchant_id: number;
 }
+
+export interface UpdateMerchantRequest {
+    name: string;
+    display_name: string;
+    currency: string;
+}
