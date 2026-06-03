@@ -68,6 +68,8 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	api.HandleFunc("POST /merchant/create", merchant.Create)
 	api.HandleFunc("GET /merchant/list", merchant.List)
 	api.HandleFunc("POST /merchant/select", merchant.Select)
+	api.HandleFunc("PUT /merchant/{merchant_id}", merchant.Update)
+	api.HandleFunc("DELETE /merchant/{merchant_id}", merchant.Deactivate)
 
 	// 需要 JWT + 商戶 context 的業務路由
 	bizApi := api.SubGroup("", middleware.MerchantAuth(queryRepo.Merchant))

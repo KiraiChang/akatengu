@@ -31,3 +31,22 @@ func (r *SelectMerchant) Validate() error {
 	}
 	return nil
 }
+
+type UpdateMerchant struct {
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	Currency    string `json:"currency"`
+}
+
+func (r *UpdateMerchant) Validate() error {
+	if r.Name == "" {
+		return errors.New("name is required")
+	}
+	if r.DisplayName == "" {
+		return errors.New("display_name is required")
+	}
+	if r.Currency == "" {
+		return errors.New("currency is required")
+	}
+	return nil
+}

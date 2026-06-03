@@ -13,6 +13,8 @@ type MerchantRepo interface {
 	GetUserMerchants(ctx context.Context, userID int64) ([]db.Merchant, error)
 	GetUserRole(ctx context.Context, userID, merchantID int64) (enums.MerchantRoleType, error)
 	AddUser(ctx context.Context, userID, merchantID int64, role enums.MerchantRoleType) error
+	Update(ctx context.Context, merchantID int64, name, displayName, currency string) error
+	Deactivate(ctx context.Context, merchantID int64) error
 }
 
 type merchantRepo struct {
@@ -64,4 +66,17 @@ func (r *merchantRepo) AddUser(ctx context.Context, userID, merchantID int64, ro
 		MerchantID: merchantID,
 		Role:       role,
 	})
+}
+
+func (r *merchantRepo) Update(ctx context.Context, merchantID int64, name, displayName, currency string) error {
+	return r.q.UpdateMerchant(ctx, sqlcdb.UpdateMerchantParams{
+		MerchantID:  merchantID,
+		Name:        name,
+		DisplayName: displayName,
+		Currency:    currency,
+	})
+}
+
+func (r *merchantRepo) Deactivate(ctx context.Context, merchantID int64) error {
+	return r.q.DeactivateMerchant(ctx, merchantID)
 }

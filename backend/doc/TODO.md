@@ -79,6 +79,12 @@
 
 ### 中優先（P2）
 
+**商戶管理 API（Merchant Management）**
+
+- [x] [Feature] `PUT /api/merchant/{merchant_id}` — 修改商戶 name / display_name / currency（ownership 驗證 via GetUserRole，403 / 422 / 500），完成日期：2026-06-03
+- [x] [Feature] `DELETE /api/merchant/{merchant_id}` — 將商戶 status 設為 INACTIVE（ownership 驗證，403 / 500），完成日期：2026-06-03
+- [x] [Test] merchant handler BDD 測試（10 個場景：update 成功/400×3/422/403/500，deactivate 成功/400/403/500），完成日期：2026-06-03
+
 **儀表板 API（Dashboard）**
 
 - [x] [Feature] `GET /api/dashboard/summary` — 回傳本月收入/支出、淨資產、現金餘額（四個 stat card 數字），完成日期：2026-05-26

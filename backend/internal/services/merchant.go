@@ -12,10 +12,14 @@ import (
 	"fmt"
 )
 
+var ErrMerchantForbidden = errors.New("not a member of this merchant")
+
 type MerchantService interface {
 	Create(ctx context.Context, userID int64, req request.CreateMerchant) (int64, error)
 	Select(ctx context.Context, userID int64, userName string, req request.SelectMerchant) (string, error)
 	ListByUser(ctx context.Context, userID int64) ([]db.Merchant, error)
+	Update(ctx context.Context, userID, merchantID int64, req request.UpdateMerchant) error
+	Deactivate(ctx context.Context, userID, merchantID int64) error
 }
 
 type merchantService struct {
@@ -57,4 +61,22 @@ func (s *merchantService) Select(ctx context.Context, userID int64, userName str
 
 func (s *merchantService) ListByUser(ctx context.Context, userID int64) ([]db.Merchant, error) {
 	return s.merchant.GetUserMerchants(ctx, userID)
+}
+
+func (s *merchantService) Update(ctx context.Context, userID, merchantID int64, req request.UpdateMerchant) error {
+	if _, err := s.merchant.GetUserRole(ctx, userID, merchantID); errors.Is(err, sql.ErrNoRows) {
+		return ErrMerchantForbidden
+	} else if err != nil {
+		return fmt.Errorf("get user role: %w", err)
+	}
+	return s.merchant.Update(ctx, merchantID, req.Name, req.DisplayName, req.Currency)
+}
+
+func (s *merchantService) Deactivate(ctx context.Context, userID, merchantID int64) error {
+	if _, err := s.merchant.GetUserRole(ctx, userID, merchantID); errors.Is(err, sql.ErrNoRows) {
+		return ErrMerchantForbidden
+	} else if err != nil {
+		return fmt.Errorf("get user role: %w", err)
+	}
+	return s.merchant.Deactivate(ctx, merchantID)
 }

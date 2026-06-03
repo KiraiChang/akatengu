@@ -35,6 +35,8 @@ func (s *stubMerchantRepo) GetUserRole(_ context.Context, _, _ int64) (enums.Mer
 func (s *stubMerchantRepo) AddUser(_ context.Context, _, _ int64, _ enums.MerchantRoleType) error {
 	return nil
 }
+func (s *stubMerchantRepo) Update(_ context.Context, _ int64, _, _, _ string) error { return nil }
+func (s *stubMerchantRepo) Deactivate(_ context.Context, _ int64) error              { return nil }
 
 var _ query.MerchantRepo = (*stubMerchantRepo)(nil)
 

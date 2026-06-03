@@ -23,3 +23,13 @@ WHERE um.user_id = ?
 SELECT um.role
 FROM user_merchants um
 WHERE um.user_id = ? AND um.merchant_id = ?;
+
+-- name: UpdateMerchant :exec
+UPDATE merchants
+SET name = ?, display_name = ?, currency = ?
+WHERE merchant_id = ?;
+
+-- name: DeactivateMerchant :exec
+UPDATE merchants
+SET status = 'INACTIVE'
+WHERE merchant_id = ?;

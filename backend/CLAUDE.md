@@ -237,27 +237,6 @@ Pipeline 負責驗證領域規則，確認後事件才落地。每個 EventType 
 
 ---
 
-### 待實作 API（前端已串接，後端尚未完成）
-
-以下 endpoint 由前端商戶管理頁（`#/merchants`）呼叫，需在 `api` middleware group（JWT only，無需商戶 context）中登記：
-
-| Method | Path | Handler | 說明 |
-|--------|------|---------|------|
-| `PUT` | `/api/merchant/{merchant_id}` | `merchant.Update` | 修改商戶 name / display_name / currency |
-| `DELETE` | `/api/merchant/{merchant_id}` | `merchant.Deactivate` | 將商戶 status 設為 INACTIVE |
-
-**Request body（PUT）：**
-```json
-{ "name": "string", "display_name": "string", "currency": "string" }
-```
-
-**注意事項：**
-- 路由應加在 `handler.go` 的 `api` group（與 create / list / select 同層），**不是** `bizApi`
-- Handler 從 JWT claims 取 `UserID`，驗證商戶確實屬於該使用者後再執行修改或停用
-- `merchant_id` 從 URL path 讀取（`r.PathValue("merchant_id")`）
-
----
-
 ### 快取（Cache）
 
 `internal/pkg/cache/` 提供**兩層快取**（本地記憶體 + 可選的分散式快取）。`internal/cache_service/account.go` 封裝帳戶查詢的快取邏輯，供 Pipeline 使用。
