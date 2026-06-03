@@ -85,45 +85,49 @@
   }
 </script>
 
-<div class="merchants-view">
-  <header class="merchants-header">
-    <h1 class="merchants-title">商戶管理</h1>
-  </header>
+<div>
+  <div class="content-header">
+    <h1 class="content-title">商戶管理</h1>
+  </div>
 
   {#if isLoading}
-    <div class="merchants-loading">載入中…</div>
+    <div class="query-loading">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>載入中…</span>
+    </div>
   {:else}
     {#if pageError}
-      <p class="merchants-error" role="alert">{pageError}</p>
+      <p class="query-error" role="alert">{pageError}</p>
     {/if}
 
-    {#if merchants.length === 0}
-      <div class="merchants-empty">尚無商戶資料</div>
-    {:else}
-      <div class="merchants-table-wrap">
-        <table class="merchants-table">
-          <thead>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>顯示名稱</th>
+            <th>識別名稱</th>
+            <th>幣別</th>
+            <th>狀態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#if merchants.length === 0}
             <tr>
-              <th>顯示名稱</th>
-              <th>識別名稱</th>
-              <th>幣別</th>
-              <th>狀態</th>
-              <th>操作</th>
+              <td colspan="5" class="table-empty">尚無商戶資料</td>
             </tr>
-          </thead>
-          <tbody>
+          {:else}
             {#each merchants as merchant (merchant.merchant_id)}
-              <tr class:inactive={merchant.status !== 'ACTIVE'}>
+              <tr class:merchants-row-inactive={merchant.status !== 'ACTIVE'}>
                 <td>{merchant.display_name}</td>
-                <td class="merchants-code">{merchant.name}</td>
-                <td class="merchants-code">{merchant.currency}</td>
+                <td class="mono">{merchant.name}</td>
+                <td class="mono">{merchant.currency}</td>
                 <td>
-                  <span
-                    class="merchants-badge"
-                    class:badge-inactive={merchant.status !== 'ACTIVE'}
-                  >
-                    {merchant.status === 'ACTIVE' ? '啟用' : '停用'}
-                  </span>
+                  {#if merchant.status === 'ACTIVE'}
+                    <span class="badge approved">啟用</span>
+                  {:else}
+                    <span class="badge-plain">停用</span>
+                  {/if}
                 </td>
                 <td class="merchants-actions">
                   <button class="merchants-btn-edit" onclick={() => openEdit(merchant)}>
@@ -139,7 +143,7 @@
                           onclick={handleDeactivate}
                         >{isDeactivating ? '處理中…' : '確認'}</button>
                         <button
-                          class="merchants-btn-secondary"
+                          class="merchants-btn-muted"
                           onclick={() => { confirmId = null; }}
                         >取消</button>
                       </span>
@@ -153,10 +157,10 @@
                 </td>
               </tr>
             {/each}
-          </tbody>
-        </table>
-      </div>
-    {/if}
+          {/if}
+        </tbody>
+      </table>
+    </div>
   {/if}
 </div>
 

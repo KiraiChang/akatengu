@@ -14,7 +14,9 @@ function createAuthStore() {
     },
     clearToken(): void {
       token = null;
+      pendingToken = null;
       localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(PENDING_TOKEN_KEY);
     },
     setPendingToken(newToken: string): void {
       pendingToken = newToken;
