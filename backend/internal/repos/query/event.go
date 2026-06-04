@@ -18,6 +18,7 @@ type EventRepo interface {
 	GetSnapshot(ctx context.Context, aggregateType enums.AggregateType, aggregateID string) (*db.Snapshot, error)
 	GetCheckpoint(ctx context.Context, projectionName string) (int64, error)
 	Replay(ctx context.Context, fromEventID int64, aggregateType *enums.AggregateType) ([]db.EventStore, error)
+	GetAllByMerchant(ctx context.Context) ([]db.EventStore, error) // 匯出用
 }
 
 type sqlcdbEventRepository struct {
@@ -164,6 +165,18 @@ func (r *sqlcdbEventRepository) Replay(ctx context.Context, fromEventID int64, a
 
 	if queryErr != nil {
 		return nil, queryErr
+	}
+	return toDBEvents(rows), nil
+}
+
+func (r *sqlcdbEventRepository) GetAllByMerchant(ctx context.Context) ([]db.EventStore, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.q.GetAllEventsByMerchant(ctx, merchantID)
+	if err != nil {
+		return nil, err
 	}
 	return toDBEvents(rows), nil
 }

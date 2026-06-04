@@ -146,6 +146,8 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("GET /audit/snapshot", audit.GetSnapshots)
 	bizApi.HandleFunc("GET /exchange-rate", audit.GetExchangeRates)
 	bizApi.HandleFunc("POST /audit/replay", audit.Replay)
+	bizApi.HandleFunc("POST /audit/event/export", event.Export)
+	bizApi.HandleFunc("POST /audit/event/import", event.Import)
 
 	bizApi.HandleFunc("GET /bank-statement/template", bankStatement.GetTemplates)
 	bizApi.HandleFunc("POST /bank-statement/template", bankStatement.CreateTemplate)

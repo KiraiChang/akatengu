@@ -1,6 +1,7 @@
 package event_store
 
 import (
+	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/pkg/ctxkey"
 	"context"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 
 type sqlxTruncateRepository struct {
 	tx *sqlx.Tx
+	q  *sqlcdb.Queries
 }
 
 // TruncateProjections 清除當前商戶的 projection 資料，供全量重播前使用。
@@ -81,5 +83,27 @@ func (r *sqlxTruncateRepository) TruncateProjections(ctx context.Context) error 
 	// 重置後 AUTOINCREMENT 計數器歸零會與既有 row ID 衝突。
 	// replay 以事件 payload 中的明確 ID 寫入，不依賴 sequence 從 1 開始。
 
+	return nil
+}
+
+func (r *sqlxTruncateRepository) ClearEventStore(ctx context.Context) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	if err := r.q.DeleteAllEventsByMerchant(ctx, merchantID); err != nil {
+		return fmt.Errorf("clear event store: %w", err)
+	}
+	return nil
+}
+
+func (r *sqlxTruncateRepository) ClearSnapshots(ctx context.Context) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	if err := r.q.DeleteAllSnapshotsByMerchant(ctx, merchantID); err != nil {
+		return fmt.Errorf("clear snapshots: %w", err)
+	}
 	return nil
 }

@@ -3,8 +3,10 @@ package services
 import (
 	"akatengu/internal/enums"
 	"akatengu/internal/model/db"
+	dbprojection "akatengu/internal/model/db/projection"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/pkg/ctxkey"
+	"akatengu/internal/pkg/eventcrypto"
 	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
@@ -18,6 +20,11 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"time"
+)
+
+var (
+	ErrUnsupportedExportVersion = errors.New("unsupported export version")
+	ErrPasswordRequired         = errors.New("password required for encrypted export")
 )
 
 type AggregateState struct {
@@ -250,4 +257,121 @@ func (s *EventStoreService) Replay(ctx context.Context, fromEventID int64, aggre
 	}
 
 	return events, nil
+}
+
+// Export 匯出當前商戶的所有事件。若 password 非空則加密，否則明碼輸出。
+func (s *EventStoreService) Export(ctx context.Context, password string) (*dbprojection.EventExportFile, error) {
+	events, err := s.query.Event.GetAllByMerchant(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get all events: %w", err)
+	}
+
+	records := make([]dbprojection.EventExportRecord, len(events))
+	for i, e := range events {
+		records[i] = dbprojection.EventExportRecord{
+			EventUuid:        e.EventUuid,
+			OccurredAt:       e.OccurredAt,
+			AggregateType:    e.AggregateType,
+			AggregateId:      e.AggregateId,
+			AggregateVersion: e.AggregateVersion,
+			EventType:        e.EventType,
+			Payload:          e.Payload,
+			Metadata:         e.Metadata,
+			UpdatedBy:        e.UpdatedBy,
+		}
+	}
+
+	if password == "" {
+		now := time.Now()
+		return &dbprojection.EventExportFile{
+			Version:    "1",
+			Encrypted:  false,
+			ExportedAt: &now,
+			Events:     records,
+		}, nil
+	}
+
+	payload := dbprojection.EventExportPayload{
+		ExportedAt: time.Now(),
+		Events:     records,
+	}
+	plaintext, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal payload: %w", err)
+	}
+	kdfSalt, cipherNonce, data, err := eventcrypto.Encrypt(plaintext, password)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt: %w", err)
+	}
+	return &dbprojection.EventExportFile{
+		Version:     "1",
+		Encrypted:   true,
+		KdfSalt:     kdfSalt,
+		CipherNonce: cipherNonce,
+		Data:        data,
+	}, nil
+}
+
+// Import 完整取代當前商戶的事件資料並重建所有 projection。
+// 若 file.Encrypted == true 則 password 為必填。
+func (s *EventStoreService) Import(ctx context.Context, file dbprojection.EventExportFile, password string) (int, error) {
+	if file.Version != "1" {
+		return 0, fmt.Errorf("%w: %s", ErrUnsupportedExportVersion, file.Version)
+	}
+
+	var records []dbprojection.EventExportRecord
+	if !file.Encrypted {
+		records = file.Events
+	} else {
+		if password == "" {
+			return 0, ErrPasswordRequired
+		}
+		plaintext, err := eventcrypto.Decrypt(file.KdfSalt, file.CipherNonce, file.Data, password)
+		if err != nil {
+			return 0, err
+		}
+		var payload dbprojection.EventExportPayload
+		if err := json.Unmarshal(plaintext, &payload); err != nil {
+			return 0, fmt.Errorf("unmarshal decrypted payload: %w", err)
+		}
+		records = payload.Events
+	}
+
+	if err := s.uow.Do(ctx, func(tx event_store.EventStoreRepositories) error {
+		if err := tx.Truncate.ClearSnapshots(ctx); err != nil {
+			return err
+		}
+		if err := tx.Truncate.ClearEventStore(ctx); err != nil {
+			return err
+		}
+		for _, rec := range records {
+			var meta *json.RawMessage
+			if len(rec.Metadata) > 0 {
+				m := rec.Metadata
+				meta = &m
+			}
+			if err := tx.Event.InsertWithTimestamp(ctx, event_store.InsertEventImportParams{
+				EventUuid:        rec.EventUuid,
+				AggregateType:    rec.AggregateType,
+				AggregateID:      rec.AggregateId,
+				AggregateVersion: rec.AggregateVersion,
+				EventType:        rec.EventType,
+				OccurredAt:       rec.OccurredAt,
+				Payload:          rec.Payload,
+				Metadata:         meta,
+				UpdatedBy:        rec.UpdatedBy,
+			}); err != nil {
+				return fmt.Errorf("insert event %s: %w", rec.EventUuid, err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return 0, fmt.Errorf("import events: %w", err)
+	}
+
+	if _, err := s.Replay(ctx, 0, nil); err != nil {
+		return 0, fmt.Errorf("replay after import: %w", err)
+	}
+
+	return len(records), nil
 }

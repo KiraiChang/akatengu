@@ -32,7 +32,7 @@ func (u *sqlxUnitOfWork) Do(ctx context.Context, fn func(EventStoreRepositories)
 		Snap:       &sqlcdbTxSnapshotRepository{q: q},
 		Check:      &sqlcdbTxCheckpointRepository{q: q},
 		Projection: projection_repo.NewTxProjectionRepository(q),
-		Truncate:   &sqlxTruncateRepository{tx: tx},
+		Truncate:   &sqlxTruncateRepository{tx: tx, q: q},
 	}
 
 	if err := fn(repos); err != nil {

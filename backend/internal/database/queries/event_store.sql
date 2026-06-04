@@ -113,3 +113,24 @@ INSERT INTO aggregate_versions (aggregate_type, aggregate_id, merchant_id, curre
 VALUES (@aggregate_type, @aggregate_id, @merchant_id, @current_version)
 ON CONFLICT(aggregate_type, aggregate_id, merchant_id) DO UPDATE SET
     current_version = MAX(current_version, excluded.current_version);
+
+-- name: GetAllEventsByMerchant :many
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
+       aggregate_version, event_type, payload, metadata, updated_by
+FROM event_store
+WHERE merchant_id = @merchant_id
+ORDER BY event_id;
+
+-- name: InsertEventImport :exec
+INSERT INTO event_store
+    (merchant_id, aggregate_type, aggregate_id, aggregate_version, event_type,
+     event_uuid, occurred_at, payload, metadata, updated_by)
+VALUES
+    (@merchant_id, @aggregate_type, @aggregate_id, @aggregate_version, @event_type,
+     @event_uuid, @occurred_at, @payload, @metadata, @updated_by);
+
+-- name: DeleteAllEventsByMerchant :exec
+DELETE FROM event_store WHERE merchant_id = @merchant_id;
+
+-- name: DeleteAllSnapshotsByMerchant :exec
+DELETE FROM snapshots WHERE merchant_id = @merchant_id;

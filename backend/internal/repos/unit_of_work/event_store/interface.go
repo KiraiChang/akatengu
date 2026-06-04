@@ -7,6 +7,7 @@ import (
 	"akatengu/internal/repos/unit_of_work/event_store/projection_repo"
 	"context"
 	"encoding/json"
+	"time"
 )
 
 type InsertEventParams struct {
@@ -39,11 +40,27 @@ type EventStoreRepositories struct {
 // TruncateRepository 提供重建 projection 前的清除能力
 type TruncateRepository interface {
 	TruncateProjections(ctx context.Context) error
+	ClearEventStore(ctx context.Context) error   // 匯入前清除所有 events
+	ClearSnapshots(ctx context.Context) error    // 匯入前清除所有 snapshots
+}
+
+// InsertEventImportParams 供匯入用，保留原始 occurred_at（InsertEventParams 使用 DB 預設時間）
+type InsertEventImportParams struct {
+	EventUuid        string
+	AggregateType    enums.AggregateType
+	AggregateID      string
+	AggregateVersion int64
+	EventType        event_types.EventType
+	OccurredAt       time.Time
+	Payload          json.RawMessage
+	Metadata         *json.RawMessage
+	UpdatedBy        *string
 }
 
 // EventRepository 是 transaction 內的操作，不需要傳 tx，由 UnitOfWork 管理
 type EventRepository interface {
 	Insert(ctx context.Context, p InsertEventParams) (int64, error)
+	InsertWithTimestamp(ctx context.Context, p InsertEventImportParams) error // 匯入用
 }
 
 type VersionRepository interface {
