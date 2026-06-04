@@ -5,6 +5,14 @@
   padding: 5px 14px;
 }
 
+/* ── Header action group ───────────────────── */
+
+.audit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* ── Rebuild button ────────────────────────── */
 
 .audit-rebuild-btn {
@@ -26,6 +34,50 @@
 }
 
 .audit-rebuild-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Export / Import buttons ───────────────── */
+
+.audit-export-btn {
+  background: transparent;
+  border: 1px solid rgba(91, 143, 232, 0.4);
+  color: #5b8fe8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 6px 16px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.audit-export-btn:hover:not(:disabled) {
+  background: rgba(91, 143, 232, 0.1);
+  color: #7aaaf0;
+}
+
+.audit-export-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.audit-import-btn {
+  background: transparent;
+  border: 1px solid rgba(192, 150, 80, 0.4);
+  color: #c09650;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 6px 16px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.audit-import-btn:hover:not(:disabled) {
+  background: rgba(192, 150, 80, 0.1);
+  color: #d0aa60;
+}
+
+.audit-import-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Status message ───────────────────────── */
 

@@ -2,6 +2,7 @@
   import {
     getAggregateVersions, getEventStorePaged,
     getCheckpoints, getSnapshots, replayProjection,
+    exportEvents, importEvents,
   } from '../api/audit';
   import type { AggregateVersionAudit, EventStoreAudit, CheckpointAudit, SnapshotAudit } from '../types/audit';
 
@@ -24,6 +25,16 @@
   let isRebuilding    = $state(false);
   let rebuildMsg      = $state('');
   let showConfirm     = $state(false);
+
+  let showExportModal = $state(false);
+  let showImportModal = $state(false);
+  let exportPassword  = $state('');
+  let importPassword  = $state('');
+  let importFile      = $state<File | null>(null);
+  let isExporting     = $state(false);
+  let isImporting     = $state(false);
+  let exportMsg       = $state('');
+  let importMsg       = $state('');
 
   const eventTotalPages = $derived(Math.max(1, Math.ceil(eventTotal / PAGE_SIZE)));
 
@@ -81,19 +92,74 @@
       isRebuilding = false;
     }
   }
+
+  async function doExport(): Promise<void> {
+    isExporting = true;
+    exportMsg   = '';
+    try {
+      await exportEvents(exportPassword || undefined);
+      showExportModal = false;
+      exportPassword  = '';
+      exportMsg = '匯出成功';
+    } catch (err) {
+      exportMsg = err instanceof Error ? err.message : '匯出失敗';
+    } finally {
+      isExporting = false;
+    }
+  }
+
+  async function doImport(): Promise<void> {
+    if (!importFile) return;
+    isImporting = true;
+    importMsg   = '';
+    try {
+      const result = await importEvents(importFile, importPassword || undefined);
+      showImportModal = false;
+      importPassword  = '';
+      importFile      = null;
+      rebuildMsg = `已匯入 ${result.imported} 筆事件`;
+      await Promise.all([
+        getAggregateVersions().then(v => { versions = v; }),
+        getCheckpoints().then(c => { checkpoints = c; }),
+        getSnapshots().then(s => { snapshots = s; }),
+        getEventStorePaged(1, PAGE_SIZE).then(ep => {
+          events = ep.data ?? []; eventTotal = ep.meta.total_count; eventPage = 1;
+        }),
+      ]);
+    } catch (err) {
+      importMsg = err instanceof Error ? err.message : '匯入失敗';
+    } finally {
+      isImporting = false;
+    }
+  }
 </script>
 
 <div class="content-header">
   <h1 class="content-title">稽核查詢</h1>
-  <button
-    class="audit-rebuild-btn"
-    onclick={() => showConfirm = true}
-    disabled={isRebuilding}
-  >{isRebuilding ? '重建中…' : '重建 Projection'}</button>
+  <div class="audit-actions">
+    <button
+      class="audit-export-btn"
+      onclick={() => { showExportModal = true; exportMsg = ''; }}
+      disabled={isExporting}
+    >匯出事件</button>
+    <button
+      class="audit-import-btn"
+      onclick={() => { showImportModal = true; importMsg = ''; }}
+      disabled={isImporting}
+    >匯入事件</button>
+    <button
+      class="audit-rebuild-btn"
+      onclick={() => showConfirm = true}
+      disabled={isRebuilding}
+    >{isRebuilding ? '重建中…' : '重建 Projection'}</button>
+  </div>
 </div>
 
 {#if rebuildMsg}
   <p class:audit-msg--ok={!rebuildMsg.includes('失敗')} class:audit-msg--err={rebuildMsg.includes('失敗')}>{rebuildMsg}</p>
+{/if}
+{#if exportMsg}
+  <p class:audit-msg--ok={!exportMsg.includes('失敗')} class:audit-msg--err={exportMsg.includes('失敗')}>{exportMsg}</p>
 {/if}
 
 {#if error}
@@ -268,6 +334,91 @@
       <div class="modal-footer" style="padding:0;margin-top:8px;">
         <button class="btn-ghost" onclick={() => showConfirm = false}>取消</button>
         <button class="btn-primary" onclick={() => void rebuild()}>確認重建</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- ── 匯出 Modal ─────────────────────────── -->
+{#if showExportModal}
+  <div class="modal-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) { showExportModal = false; exportPassword = ''; } }}>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="export-modal-title">匯出事件資料</h2>
+        <button class="modal-close" onclick={() => { showExportModal = false; exportPassword = ''; }} aria-label="關閉">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:#c0bdb4;line-height:1.7;margin:0 0 12px;">
+          不填密碼則匯出為未加密 JSON；填入密碼後以 AES-256-GCM 加密。
+        </p>
+        <div class="form-group">
+          <label class="form-label" for="export-password">密碼（選填）</label>
+          <input
+            id="export-password"
+            class="form-input"
+            type="password"
+            placeholder="留空則不加密"
+            bind:value={exportPassword}
+            disabled={isExporting}
+          />
+        </div>
+        {#if exportMsg && showExportModal}
+          <p class:audit-msg--err={exportMsg.includes('失敗')} style="margin:8px 0 0;">{exportMsg}</p>
+        {/if}
+      </div>
+      <div class="modal-footer" style="padding:0;margin-top:8px;">
+        <button class="btn-ghost" onclick={() => { showExportModal = false; exportPassword = ''; }} disabled={isExporting}>取消</button>
+        <button class="btn-primary" onclick={() => void doExport()} disabled={isExporting}>
+          {isExporting ? '匯出中…' : '確認匯出'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- ── 匯入 Modal ─────────────────────────── -->
+{#if showImportModal}
+  <div class="modal-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) { showImportModal = false; importPassword = ''; importFile = null; } }}>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="import-modal-title">匯入事件資料</h2>
+        <button class="modal-close" onclick={() => { showImportModal = false; importPassword = ''; importFile = null; }} aria-label="關閉">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:12px;color:#c07070;line-height:1.7;margin:0 0 12px;">
+          此操作將清除所有現有事件與快照，以匯入資料完整替換，無法復原。
+        </p>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label" for="import-file">事件檔案（.json）</label>
+          <input
+            id="import-file"
+            class="form-input"
+            type="file"
+            accept=".json"
+            disabled={isImporting}
+            onchange={(e) => { const t = e.currentTarget as HTMLInputElement; importFile = t.files?.[0] ?? null; }}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="import-password">密碼（加密檔才需填）</label>
+          <input
+            id="import-password"
+            class="form-input"
+            type="password"
+            placeholder="未加密檔案請留空"
+            bind:value={importPassword}
+            disabled={isImporting}
+          />
+        </div>
+        {#if importMsg}
+          <p class:audit-msg--err={importMsg.includes('失敗')} style="margin:8px 0 0;">{importMsg}</p>
+        {/if}
+      </div>
+      <div class="modal-footer" style="padding:0;margin-top:8px;">
+        <button class="btn-ghost" onclick={() => { showImportModal = false; importPassword = ''; importFile = null; }} disabled={isImporting}>取消</button>
+        <button class="btn-primary" onclick={() => void doImport()} disabled={isImporting || !importFile}>
+          {isImporting ? '匯入中…' : '確認匯入'}
+        </button>
       </div>
     </div>
   </div>

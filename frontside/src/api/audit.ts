@@ -51,6 +51,40 @@ export const replayProjection = async (fromEventId = 0, aggregateType?: string):
   return res.json();
 };
 
+export const exportEvents = async (password?: string): Promise<void> => {
+  const res = await apiFetch('/api/audit/event/export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: password || null }),
+  });
+  if (!res.ok) {
+    const p = await res.json();
+    throw new Error(p.detail ?? p.title ?? '匯出事件失敗');
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = /filename=([^\s;]+)/.exec(disposition);
+  const filename = match ? match[1] : 'events.json';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+export const importEvents = async (file: File, password?: string): Promise<{ imported: number }> => {
+  const fd = new FormData();
+  fd.append('file', file);
+  if (password) fd.append('password', password);
+  const res = await apiFetch('/api/audit/event/import', { method: 'POST', body: fd });
+  if (!res.ok) {
+    const p = await res.json();
+    throw new Error(p.detail ?? p.title ?? '匯入事件失敗');
+  }
+  return res.json();
+};
+
 export const getExchangeRates = async (currency?: string): Promise<ExchangeRate[]> => {
   const query = currency ? `?currency=${encodeURIComponent(currency)}` : '';
   const res = await apiFetch(`/api/exchange-rate${query}`);
