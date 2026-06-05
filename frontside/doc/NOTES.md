@@ -3,6 +3,55 @@
 臨時想法、Debug 筆記、Prompt 設計、架構草稿等非正式內容。不需完整，能讓未來的自己看懂即可。
 正式化後的架構決策請移至 `ARCHITECTURE.md`，已解決的問題請移至 `ISSUES.md`。
 
+## 銀行對帳單 Phase 3 — 技術筆記
+
+### AccountSelect 與 label 的 a11y
+`AccountSelect` 元件內部管理自己的 input，無法用 `<label for="...">` 關聯外部標籤。
+正確做法：改用 `<div class="form-label">` 維持樣式，避免 `a11y_label_has_associated_control` 警告。
+
+### completeImport 同時需要 importId（路徑）與 importUuid（body）
+後端路由 `POST /bank-statement/{import_id}/complete` 使用整數 ID 作路徑，
+但 body 需要 `import_uuid`（UUID 字串）作為 event sourcing 的 aggregate ID。
+前端函式簽章：`completeImport(importId: number, importUuid: string, expectedVersion: number)`。
+
+### ReviewItem.match_status 大小寫不一致
+後端 Go 服務回傳的 `match_status` 在不同情境下可能為大寫（`UNMATCHED`、`APPROVED`）或小寫，
+UI 需同時處理兩種形式。目前做法：MATCH_LABELS 同時定義大小寫 key，CSS class 統一用 `.toLowerCase()` 轉換。
+
+---
+
+## 銀行對帳單 Phase 2 — 技術筆記
+
+### Svelte 5 props 型別寫法
+`$props()` 不接受泛型參數，正確寫法為型別標註在解構上：
+```typescript
+interface Props { params: Record<string, string>; }
+const { params }: Props = $props();
+```
+不要寫 `$props<Props>()`（會產生 `Expected 0 type arguments` 錯誤）。
+
+### svelte-spa-router 動態路由 params
+路由定義 `'/home/bank-statement/:import_id/result': BankStatementResult`，
+元件透過 `params` prop 收到 `{ import_id: "123" }`（字串）。
+因為 svelte-spa-router 可能重用元件並更新 params，須用 `$derived` 讓 importId 保持同步：
+```typescript
+const importId = $derived(parseInt(params.import_id, 10));
+```
+
+### FormData 上傳 CSV
+`importCSV` 使用 `FormData` 作為 body，不得手動設 `Content-Type`，
+瀏覽器會自動附加正確的 `multipart/form-data; boundary=...` 標頭。
+
+---
+
+## 銀行對帳單 Phase 1 — 技術筆記
+
+### DELETE 帶 body
+`DELETE /api/bank-statement/template/{id}` 需在 body 帶 `expected_version`（event sourcing 樂觀鎖）。這是非標準 REST 用法，在 `apiFetch` 呼叫時需帶 `headers: { 'Content-Type': 'application/json' }` 與 `body: JSON.stringify(...)` 才能正確送出。
+
+### 表單 number 欄位儲存策略
+CSV 欄位索引（skip_rows、date_column 等）在表單中一律儲存為 `string`，以空字串代表「未設定 / null」。送出前統一透過 `parseOptInt(s)` 轉換。原因：Svelte 5 的 `bind:value` 在 `<input type="number">` 上會強制轉為 `number`，而可選欄位需要區分「0」與「未填」，用 string 可避免型別衝突。
+
 ---
 
 ## 分類

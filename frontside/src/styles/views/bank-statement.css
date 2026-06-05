@@ -1,0 +1,139 @@
+.bs-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  background: rgba(80, 160, 120, 0.12);
+  color: #4a9070;
+}
+
+.bs-status-badge--inactive {
+  background: rgba(160, 100, 80, 0.10);
+  color: #9a6050;
+}
+
+.bs-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 24px;
+  margin-bottom: 16px;
+}
+
+.bs-section-hint {
+  font-size: 11px;
+  color: #7a8096;
+  margin: 0 0 8px;
+  letter-spacing: 0.02em;
+}
+
+.bs-field-hint {
+  font-size: 10px;
+  color: #9a9db0;
+  font-weight: normal;
+}
+
+@media (max-width: 768px) {
+  .bs-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Import list ─────────────────────── */
+
+.bs-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.bs-filter-select {
+  width: 220px;
+}
+
+.bs-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bs-import-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  background: rgba(120, 120, 180, 0.12);
+  color: #6060a0;
+}
+
+.bs-import-status--completed {
+  background: rgba(80, 160, 120, 0.12);
+  color: #4a9070;
+}
+
+.bs-import-status--reviewing {
+  background: rgba(180, 140, 60, 0.12);
+  color: #a07030;
+}
+
+/* ── Import result ───────────────────── */
+
+.bs-import-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  font-size: 12px;
+  color: #3d4258;
+}
+
+.bs-meta-label {
+  font-size: 11px;
+  color: #7a8096;
+  margin-right: 6px;
+  letter-spacing: 0.04em;
+}
+
+.bs-action-msg {
+  font-size: 12px;
+  color: #4a9070;
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  background: rgba(80, 160, 120, 0.08);
+  border-radius: 4px;
+}
+
+.bs-match-status {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  background: rgba(160, 100, 80, 0.10);
+  color: #9a6050;
+}
+
+.bs-match-status--matched {
+  background: rgba(80, 120, 200, 0.10);
+  color: #4060a0;
+}
+
+.bs-match-status--approved {
+  background: rgba(80, 160, 120, 0.12);
+  color: #4a9070;
+}
+
+.bs-match-status--ignored {
+  background: rgba(150, 150, 150, 0.12);
+  color: #808080;
+}
+
+.bs-manual-match-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}

@@ -28,7 +28,11 @@
   import AccountAnalysis    from '../views/AccountAnalysis.svelte';
   import Audit              from '../views/Audit.svelte';
   import ExchangeRate       from '../views/ExchangeRate.svelte';
-  import Merchants          from '../views/Merchants.svelte';
+  import Merchants             from '../views/Merchants.svelte';
+  import BankStatementTemplate from '../views/BankStatementTemplate.svelte';
+  import BankStatement         from '../views/BankStatement.svelte';
+  import BankStatementResult   from '../views/BankStatementResult.svelte';
+  import BankStatementReview   from '../views/BankStatementReview.svelte';
 
   interface SubMenuItem { label: string; path: string; }
   interface MenuItem    { label: string; path: string; key?: string; children?: SubMenuItem[]; }
@@ -47,6 +51,10 @@
     ]},
     { label: '科目分析', path: '/home/account-analysis' },
     { label: '投資管理', path: '/home/investment' },
+    { label: '銀行對帳', path: '/home/bank-statement', key: 'bank-statement', children: [
+      { label: '匯入清單',    path: '/home/bank-statement' },
+      { label: 'CSV 範本管理', path: '/home/bank-statement/template' },
+    ]},
     { label: '分期管理', path: '/home/installment', key: 'amortization', children: [
       { label: '分期付款', path: '/home/installment' },
       { label: '預付費用', path: '/home/prepaid' },
@@ -74,7 +82,11 @@
     '/home/reports/cash-flow':        CashFlowStatement,
     '/home/reports/equity-statement': EquityStatement,
     '/home/account-analysis':         AccountAnalysis,
-    '/home/investment':               Investment,
+    '/home/investment':                Investment,
+    '/home/bank-statement':                    BankStatement,
+    '/home/bank-statement/:import_id/result':  BankStatementResult,
+    '/home/bank-statement/:import_id/review':  BankStatementReview,
+    '/home/bank-statement/template':           BankStatementTemplate,
     '/home/installment':              Installment,
     '/home/prepaid':                  Prepaid,
     '/home/fixed-asset':              FixedAsset,
@@ -90,9 +102,10 @@
   let expandedParents = $state(new Set<string>());
 
   const parentChildPaths: Record<string, string[]> = {
-    reports:      ['/home/reports'],
-    settings:     ['/home/settings', '/home/settings/audit', '/home/settings/exchange-rate', '/home/merchants'],
-    amortization: ['/home/installment', '/home/prepaid', '/home/fixed-asset'],
+    reports:          ['/home/reports'],
+    'bank-statement': ['/home/bank-statement'],
+    settings:         ['/home/settings', '/home/settings/audit', '/home/settings/exchange-rate', '/home/merchants'],
+    amortization:     ['/home/installment', '/home/prepaid', '/home/fixed-asset'],
   };
 
   function isExpanded(key: string): boolean {
@@ -167,7 +180,7 @@
     <nav class="app-sidebar" class:sidebar-open={sidebarOpen} aria-label="主選單">
       <ul class="sidebar-nav">
         {#each menuItems as item, i}
-          {#if i === 8}
+          {#if i === 9}
             <hr class="sidebar-sep" />
           {/if}
           <li>

@@ -203,3 +203,19 @@
 #### 元件層疊與定位
 <!-- z-index、overflow、position 相關問題 -->
 <!-- 格式：問題描述 → 根本原因 → 修正方式 → 預防檢查點 -->
+
+---
+
+## 進行中工作
+
+### 銀行對帳單 UI（分三 Phase）
+
+詳細計畫見 [`doc/STEP.md`](doc/STEP.md)。
+
+| Phase | 內容 | 狀態 |
+|---|---|---|
+| Phase 1 | CSV 範本管理（型別、API、BankStatementTemplate.svelte、路由） | 已完成 |
+| Phase 2 | 對帳單匯入清單 + 上傳 CSV + 交易明細 + 比對操作 | 已完成 |
+| Phase 3 | 審查頁（核准 / 忽略）+ 完成匯入 | 已完成 |
+
+> 每次開始新 Phase 前先確認 `doc/STEP.md`，實作完成後將狀態更新為「已完成」。
