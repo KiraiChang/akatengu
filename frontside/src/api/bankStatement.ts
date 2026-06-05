@@ -80,6 +80,17 @@ export const importCSV = async (formData: FormData): Promise<void> => {
   }
 };
 
+export const importExcel = async (formData: FormData): Promise<void> => {
+  const response = await apiFetch('/api/bank-statement/import/excel', {
+    method: 'POST',
+    body:   formData,
+  });
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '上傳失敗');
+  }
+};
+
 export const getImportResult = async (importId: number): Promise<ImportResultResponse> => {
   const response = await apiFetch(`/api/bank-statement/${importId}/result`);
   if (!response.ok) {

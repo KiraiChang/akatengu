@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getImportsPaged, importCSV, getTemplates } from '../api/bankStatement';
+  import { getImportsPaged, importCSV, importExcel, getTemplates } from '../api/bankStatement';
   import { getLedgerAccountAll } from '../api/ledger';
   import type { BankStatementImport, BankCsvTemplate } from '../types/bankStatement';
   import type { LedgerAccount } from '../types/ledger';
@@ -16,14 +16,16 @@
   let ledgers   = $state<LedgerAccount[]>([]);
   let templates = $state<BankCsvTemplate[]>([]);
 
-  let showUpload  = $state(false);
-  let fLedgerId   = $state('');
-  let fDate       = $state('');
-  let fTemplateId = $state('');
-  let fFile       = $state<File | null>(null);
-  let fNote       = $state('');
-  let isUploading = $state(false);
-  let uploadError = $state('');
+  let showUpload   = $state(false);
+  let fUploadType  = $state<'csv' | 'xlsx'>('csv');
+  let fLedgerId    = $state('');
+  let fDate        = $state('');
+  let fTemplateId  = $state('');
+  let fFile        = $state<File | null>(null);
+  let fNote        = $state('');
+  let fPassword    = $state('');
+  let isUploading  = $state(false);
+  let uploadError  = $state('');
 
   $effect(() => { void init(); });
 
@@ -47,12 +49,13 @@
     }
   }
 
-  function openUpload(): void {
-    fLedgerId = ''; fDate = ''; fTemplateId = ''; fFile = null; fNote = '';
+  function openUpload(type: 'csv' | 'xlsx'): void {
+    fUploadType = type;
+    fLedgerId = ''; fDate = ''; fTemplateId = ''; fFile = null; fNote = ''; fPassword = '';
     uploadError = ''; showUpload = true;
   }
 
-  function closeUpload(): void { showUpload = false; }
+  function closeUpload(): void { showUpload = false; fPassword = ''; }
 
   function handleFileChange(e: Event): void {
     fFile = (e.target as HTMLInputElement).files?.[0] ?? null;
@@ -60,7 +63,7 @@
 
   async function handleUpload(e: Event): Promise<void> {
     e.preventDefault();
-    if (!fFile) { uploadError = '請選擇 CSV 檔案'; return; }
+    if (!fFile) { uploadError = `請選擇${fUploadType === 'xlsx' ? 'Excel' : 'CSV'}檔案`; return; }
     isUploading = true; uploadError = '';
     try {
       const fd = new FormData();
@@ -69,7 +72,12 @@
       fd.append('template_id',    fTemplateId);
       fd.append('file',           fFile);
       if (fNote.trim()) fd.append('note', fNote.trim());
-      await importCSV(fd);
+      if (fUploadType === 'xlsx') {
+        if (fPassword.trim()) fd.append('password', fPassword.trim());
+        await importExcel(fd);
+      } else {
+        await importCSV(fd);
+      }
       closeUpload();
       await load();
     } catch (e) {
@@ -95,7 +103,10 @@
 
 <div class="content-header">
   <h1 class="content-title">對帳單匯入</h1>
-  <button class="btn-primary" onclick={openUpload}>＋ 上傳對帳單</button>
+  <div style="display:flex;gap:8px">
+    <button class="btn-ghost" onclick={() => openUpload('csv')}>＋ 上傳 CSV</button>
+    <button class="btn-primary" onclick={() => openUpload('xlsx')}>＋ 上傳 Excel</button>
+  </div>
 </div>
 
 {#if error}
@@ -186,7 +197,7 @@
   <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bs-upload-title">
     <div class="modal-panel">
       <header class="modal-header">
-        <h2 class="modal-title" id="bs-upload-title">上傳對帳單</h2>
+        <h2 class="modal-title" id="bs-upload-title">{fUploadType === 'xlsx' ? '上傳 Excel 對帳單' : '上傳 CSV 對帳單'}</h2>
         <button class="modal-close" onclick={closeUpload} aria-label="關閉">×</button>
       </header>
 
@@ -211,7 +222,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="bs-up-tmpl">CSV 範本 *</label>
+          <label class="form-label" for="bs-up-tmpl">欄位範本 *</label>
           <select id="bs-up-tmpl" class="form-input" bind:value={fTemplateId} required>
             <option value="">請選擇…</option>
             {#each activeTemplates as t (t.template_id)}
@@ -221,16 +232,23 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="bs-up-file">CSV 檔案 *</label>
+          <label class="form-label" for="bs-up-file">{fUploadType === 'xlsx' ? 'Excel 檔案' : 'CSV 檔案'} *</label>
           <input
             id="bs-up-file"
             class="form-input"
             type="file"
-            accept=".csv"
+            accept={fUploadType === 'xlsx' ? '.xlsx,.xls' : '.csv'}
             onchange={handleFileChange}
             required
           />
         </div>
+
+        {#if fUploadType === 'xlsx'}
+          <div class="form-group">
+            <label class="form-label" for="bs-up-pw">Excel 密碼（選填）</label>
+            <input id="bs-up-pw" class="form-input" type="password" placeholder="加密檔案才需填入" bind:value={fPassword} />
+          </div>
+        {/if}
 
         <div class="form-group">
           <label class="form-label" for="bs-up-note">備註</label>
