@@ -8,6 +8,7 @@ import (
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/pkg/csvparser"
+	"akatengu/internal/pkg/xlsxparser"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services"
@@ -329,6 +330,141 @@ func (h *bankStatementHandler) ImportCSV(w http.ResponseWriter, r *http.Request)
 		LedgerID:      ledgerID,
 		TemplateID:    templateID,
 		StatementDate: statementDate,
+		ImportSource:  "CSV",
+		Filename:      &filename,
+		Note:          note,
+		Transactions:  txnItems,
+	}
+	if err := p.Validate(); err != nil {
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+
+	importUUID, err := uuid.NewV7()
+	if err != nil {
+		h.l.Error(method+" generate uuid fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
+		return
+	}
+
+	b, err := json.Marshal(p)
+	if err != nil {
+		h.l.Error(method+" marshal fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
+		return
+	}
+
+	result, err := h.es.Append(ctx, cmd.AppendCmd{
+		AggregateType:   enums.AggregateBankStatement.Enum(),
+		AggregateID:     importUUID.String(),
+		ExpectedVersion: 0,
+		EventType:       event_types.EventBankStatementImported.Enum(),
+		Payload:         b,
+	})
+	if err != nil {
+		h.l.Error(method+" fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+	response.OK(w, result)
+}
+
+func (h *bankStatementHandler) ImportExcel(w http.ResponseWriter, r *http.Request) {
+	method := "import bank statement excel"
+	ctx := r.Context()
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "failed to parse multipart form")
+		return
+	}
+
+	ledgerID, err := strconv.ParseInt(r.FormValue("ledger_id"), 10, 64)
+	if err != nil || ledgerID == 0 {
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "ledger_id is required")
+		return
+	}
+	statementDate := r.FormValue("statement_date")
+	if statementDate == "" {
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "statement_date is required")
+		return
+	}
+
+	var templateID *int64
+	if raw := r.FormValue("template_id"); raw != "" {
+		v, err := strconv.ParseInt(raw, 10, 64)
+		if err == nil && v > 0 {
+			templateID = &v
+		}
+	}
+	if templateID == nil {
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "template_id is required")
+		return
+	}
+
+	var note *string
+	if n := r.FormValue("note"); n != "" {
+		note = &n
+	}
+
+	password := r.FormValue("password")
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "file is required")
+		return
+	}
+	defer file.Close()
+
+	filename := header.Filename
+
+	csvTmpl, err := h.tmplSvc.GetTemplateByID(ctx, *templateID)
+	if err != nil {
+		h.l.Error(method+" load template fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+	if csvTmpl == nil {
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "template not found")
+		return
+	}
+
+	parserTmpl := buildParserTemplate(csvTmpl)
+
+	rows, err := xlsxparser.Parse(file, parserTmpl, password)
+	if err != nil {
+		h.l.Error(method+" parse excel fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", fmt.Sprintf("excel parse error: %s", err.Error()))
+		return
+	}
+	if len(rows) == 0 {
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", "no transactions found in Excel file")
+		return
+	}
+
+	txnItems := make([]payload.BankStatementTxnItem, 0, len(rows))
+	for _, row := range rows {
+		txnUUID, err := uuid.NewV7()
+		if err != nil {
+			h.l.Error(method+" generate uuid fail", zap.Error(err))
+			response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
+			return
+		}
+		txnItems = append(txnItems, payload.BankStatementTxnItem{
+			BankTxnUUID: txnUUID.String(),
+			TxnDate:     row.TxnDate,
+			Description: row.Description,
+			Debit:       row.Debit,
+			Credit:      row.Credit,
+			Balance:     row.Balance,
+			ReferenceNo: row.ReferenceNo,
+		})
+	}
+
+	p := payload.BankStatementImportedPayload{
+		LedgerID:      ledgerID,
+		TemplateID:    templateID,
+		StatementDate: statementDate,
+		ImportSource:  "XLSX",
 		Filename:      &filename,
 		Note:          note,
 		Transactions:  txnItems,

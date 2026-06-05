@@ -99,6 +99,7 @@ type BankStatementImportedPayload struct {
 	LedgerID      int64                  `json:"ledger_id"`
 	TemplateID    *int64                 `json:"template_id"`
 	StatementDate string                 `json:"statement_date"`
+	ImportSource  string                 `json:"import_source"`
 	Filename      *string                `json:"filename"`
 	Note          *string                `json:"note"`
 	Transactions  []BankStatementTxnItem `json:"transactions"`

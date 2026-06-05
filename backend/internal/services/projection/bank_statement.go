@@ -134,13 +134,17 @@ func (s *BankStatementProjectionService) applyImported(ctx context.Context, tx e
 		return err
 	}
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
+	importSource := p.ImportSource
+	if importSource == "" {
+		importSource = "CSV"
+	}
 	importID, err := tx.Projection.BankStatementImportRepo.InsertBankStatementImport(ctx, sqlcdb.InsertBankStatementImportParams{
 		ImportUuid:    ct.Event.EventUuid,
 		MerchantID:    ct.MerchantID,
 		LedgerID:      p.LedgerID,
 		TemplateID:    p.TemplateID,
 		StatementDate: p.StatementDate,
-		ImportSource:  "CSV",
+		ImportSource:  importSource,
 		Filename:      p.Filename,
 		Note:          p.Note,
 		UpdatedBy:     updatedBy,

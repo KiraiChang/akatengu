@@ -155,6 +155,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("DELETE /bank-statement/template/{template_id}", bankStatement.DeactivateTemplate)
 
 	bizApi.HandleFunc("POST /bank-statement/import", bankStatement.ImportCSV)
+	bizApi.HandleFunc("POST /bank-statement/import/excel", bankStatement.ImportExcel)
 	bizApi.HandleFunc("GET /bank-statement/paged", bankStatement.GetImportsPaged)
 	bizApi.HandleFunc("GET /bank-statement/{import_id}/result", bankStatement.GetImportResult)
 	bizApi.HandleFunc("POST /bank-statement/{import_id}/auto-match", bankStatement.AutoMatch)
