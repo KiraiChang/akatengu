@@ -7,6 +7,7 @@ import (
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/pkg/pdfparser"
+	"akatengu/internal/pkg/pdfparserfactory"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/services"
 	"encoding/json"
@@ -262,7 +263,7 @@ func (h *bankPdfTemplateHandler) ImportPDF(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
-	parser, err := pdfparser.New(tmpl.BankType)
+	parser, err := pdfparserfactory.New(tmpl.BankType)
 	if err != nil {
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", fmt.Sprintf("unsupported bank type: %s", tmpl.BankType))
 		return

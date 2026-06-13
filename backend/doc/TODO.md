@@ -131,8 +131,9 @@
 - [x] [Feature] 自動比對（EXACT 精確 / FUZZY 模糊 ±3 天，可重跑）— 完成日期：2026-06-03
 - [x] [Feature] 人工審核（建議分錄預覽、同意建立 transaction.created、忽略）— 完成日期：2026-06-03
 - [x] [Feature] PDF 匯入框架 — bank_pdf_templates CRUD、pdfparser interface/factory、ImportPDF handler、多帳本多 ledger UUID 支援，完成日期：2026-06-13
-- [ ] [Feature] 具體銀行 PDF 解析實作 — pdfparser/factory.go 目前只有空白 switch，待使用者提供真實 PDF 後，在 `internal/pkg/pdfparser/{bank_name}/parser.go` 實作對應的 BankPDFParser，並在 factory 中登記銀行類型
-- [ ] [Feature] BankType enum 擴充 — 目前只有 TBD，待確認支援的銀行後，在 `internal/enums/bank_type.go` 新增常數並執行 go generate
+- [x] [Feature] 永豐銀行 PDF 解析實作 — `internal/pkg/pdfparser/sinopac/parser.go`，以 pdftotext -layout 萃取文字、欄位 rune 邊界法解析多帳戶對帳單，完成日期：2026-06-13
+- [ ] [Feature] 其他銀行 PDF 解析 — 新銀行在 `internal/pkg/pdfparser/{bank}/parser.go` 實作並在 `internal/pkg/pdfparserfactory/factory.go` 中登記
+- [x] [Feature] BankType enum 新增 SINOPAC — 完成日期：2026-06-13
 
 **會計分錄範本（Transaction Template）**
 

@@ -9,6 +9,6 @@ type BankType = enumx.Enum[bankTypeVal]
 type bankTypeVal string
 
 const (
-	// 等 PDF 確認後填入實際銀行名稱，目前以 TBD 佔位
-	BankTypeTBD bankTypeVal = "TBD"
+	BankTypeTBD     bankTypeVal = "TBD"
+	BankTypeSinoPac bankTypeVal = "SINOPAC"
 )
