@@ -55,6 +55,10 @@ UPDATE bank_csv_templates SET
     updated_at = datetime('now')
 WHERE template_uuid = @template_uuid AND merchant_id = @merchant_id;
 
+-- name: GetBankCsvTemplateIDByUUID :one
+SELECT template_id FROM bank_csv_templates
+WHERE template_uuid = @template_uuid AND merchant_id = @merchant_id;
+
 -- ============================================================
 -- bank_statement_imports
 -- ============================================================
@@ -81,10 +85,12 @@ WHERE merchant_id = @merchant_id
 
 -- name: InsertBankStatementImport :one
 INSERT INTO bank_statement_imports (
-    import_uuid, merchant_id, ledger_id, template_id,
+    import_uuid, merchant_id, ledger_id, template_id, template_uuid,
+    pdf_template_id, pdf_template_uuid, bank_type,
     statement_date, import_source, filename, note, updated_by
 ) VALUES (
-    @import_uuid, @merchant_id, @ledger_id, @template_id,
+    @import_uuid, @merchant_id, @ledger_id, @template_id, @template_uuid,
+    @pdf_template_id, @pdf_template_uuid, @bank_type,
     @statement_date, @import_source, @filename, @note, @updated_by
 ) RETURNING *;
 
@@ -103,10 +109,10 @@ WHERE import_id = @import_id AND merchant_id = @merchant_id;
 -- name: InsertBankStatementTxn :one
 INSERT INTO bank_statement_txns (
     bank_txn_uuid, import_id, merchant_id, txn_date,
-    description, debit, credit, balance, reference_no
+    description, debit, credit, balance, reference_no, ledger_uuid, ledger_id
 ) VALUES (
     @bank_txn_uuid, @import_id, @merchant_id, @txn_date,
-    @description, @debit, @credit, @balance, @reference_no
+    @description, @debit, @credit, @balance, @reference_no, @ledger_uuid, @ledger_id
 ) RETURNING *;
 
 -- name: GetBankStatementTxnsByImport :many
@@ -169,6 +175,42 @@ SELECT COUNT(*) FROM bank_statement_txns
 WHERE import_id = @import_id
   AND merchant_id = @merchant_id
   AND match_status = @match_status;
+
+-- ============================================================
+-- bank_statement_import_ledgers
+-- ============================================================
+
+-- name: InsertBankStatementImportLedger :exec
+INSERT INTO bank_statement_import_ledgers (
+    import_ledger_uuid, import_id, ledger_uuid, ledger_id, account_type
+) VALUES (
+    @import_ledger_uuid, @import_id, @ledger_uuid, @ledger_id, @account_type
+);
+
+-- name: GetBankStatementImportLedgers :many
+SELECT * FROM bank_statement_import_ledgers
+WHERE import_id = @import_id
+ORDER BY import_ledger_id ASC;
+
+-- ============================================================
+-- bank_csv_template_ledgers
+-- ============================================================
+
+-- name: InsertBankCsvTemplateLedger :exec
+INSERT INTO bank_csv_template_ledgers (
+    tpl_ledger_uuid, template_id, ledger_uuid, ledger_id, account_type, sort_order
+) VALUES (
+    @tpl_ledger_uuid, @template_id, @ledger_uuid, @ledger_id, @account_type, @sort_order
+);
+
+-- name: GetBankCsvTemplateLedgers :many
+SELECT * FROM bank_csv_template_ledgers
+WHERE template_id = @template_id
+ORDER BY sort_order ASC, tpl_ledger_id ASC;
+
+-- name: DeleteBankCsvTemplateLedgers :exec
+DELETE FROM bank_csv_template_ledgers
+WHERE template_id = @template_id;
 
 -- ============================================================
 -- journal_entries for matching

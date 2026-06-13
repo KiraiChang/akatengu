@@ -52,6 +52,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	dashboard := newDashboardHandler(db, logger)
 	audit := newAuditHandler(db, eventService, logger)
 	bankStatement := newBankStatementHandler(db, eventService, logger)
+	bankPdfTemplate := newBankPdfTemplateHandler(db, eventService, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -154,8 +155,14 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	bizApi.HandleFunc("PUT /bank-statement/template/{template_id}", bankStatement.UpdateTemplate)
 	bizApi.HandleFunc("DELETE /bank-statement/template/{template_id}", bankStatement.DeactivateTemplate)
 
+	bizApi.HandleFunc("GET /bank-pdf-template", bankPdfTemplate.GetTemplates)
+	bizApi.HandleFunc("POST /bank-pdf-template", bankPdfTemplate.CreateTemplate)
+	bizApi.HandleFunc("PUT /bank-pdf-template/{template_uuid}", bankPdfTemplate.UpdateTemplate)
+	bizApi.HandleFunc("DELETE /bank-pdf-template/{template_uuid}", bankPdfTemplate.DeactivateTemplate)
+
 	bizApi.HandleFunc("POST /bank-statement/import", bankStatement.ImportCSV)
 	bizApi.HandleFunc("POST /bank-statement/import/excel", bankStatement.ImportExcel)
+	bizApi.HandleFunc("POST /bank-statement/import/pdf", bankPdfTemplate.ImportPDF)
 	bizApi.HandleFunc("GET /bank-statement/paged", bankStatement.GetImportsPaged)
 	bizApi.HandleFunc("GET /bank-statement/{import_id}/result", bankStatement.GetImportResult)
 	bizApi.HandleFunc("POST /bank-statement/{import_id}/auto-match", bankStatement.AutoMatch)

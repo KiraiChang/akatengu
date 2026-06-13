@@ -19,4 +19,5 @@ const (
 	AggregatePrepaidCategory    aggregateTypeVal = "PREPAID_CATEGORY"
 	AggregateBankCsvTemplate    aggregateTypeVal = "BANK_CSV_TEMPLATE"
 	AggregateBankStatement      aggregateTypeVal = "BANK_STATEMENT"
+	AggregateBankPdfTemplate    aggregateTypeVal = "BANK_PDF_TEMPLATE"
 )

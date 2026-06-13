@@ -16,6 +16,7 @@ type BankCsvTemplateRepo interface {
 	GetBankCsvTemplates(ctx context.Context) ([]projection.BankCsvTemplate, error)
 	GetBankCsvTemplateByID(ctx context.Context, id int64) (*projection.BankCsvTemplate, error)
 	GetBankCsvTemplateByUUID(ctx context.Context, uuid string) (*projection.BankCsvTemplate, error)
+	GetBankCsvTemplateLedgers(ctx context.Context, templateID int64) ([]projection.BankCsvTemplateLedger, error)
 }
 
 type sqlcdbBankCsvTemplateRepo struct {
@@ -76,6 +77,18 @@ func (r *sqlcdbBankCsvTemplateRepo) GetBankCsvTemplateByUUID(ctx context.Context
 		return nil, err
 	}
 	return projection.BankCsvTemplatePtrFromBankCsvTemplate(row), nil
+}
+
+func (r *sqlcdbBankCsvTemplateRepo) GetBankCsvTemplateLedgers(ctx context.Context, templateID int64) ([]projection.BankCsvTemplateLedger, error) {
+	rows, err := r.q.GetBankCsvTemplateLedgers(ctx, templateID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]projection.BankCsvTemplateLedger, len(rows))
+	for i, row := range rows {
+		result[i] = projection.BankCsvTemplateLedgerFromBankCsvTemplateLedger(row)
+	}
+	return result, nil
 }
 
 // ─────────────────────────────────────────

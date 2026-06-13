@@ -26,6 +26,21 @@ func (r *sqlcdbBankCsvTemplateRepo) DeactivateBankCsvTemplate(ctx context.Contex
 	return r.q.DeactivateBankCsvTemplate(ctx, p)
 }
 
+func (r *sqlcdbBankCsvTemplateRepo) InsertBankCsvTemplateLedger(ctx context.Context, p sqlcdb.InsertBankCsvTemplateLedgerParams) error {
+	return r.q.InsertBankCsvTemplateLedger(ctx, p)
+}
+
+func (r *sqlcdbBankCsvTemplateRepo) DeleteBankCsvTemplateLedgers(ctx context.Context, templateID int64) error {
+	return r.q.DeleteBankCsvTemplateLedgers(ctx, templateID)
+}
+
+func (r *sqlcdbBankCsvTemplateRepo) GetIDByUUID(ctx context.Context, uuid string, merchantID int64) (int64, error) {
+	return r.q.GetBankCsvTemplateIDByUUID(ctx, sqlcdb.GetBankCsvTemplateIDByUUIDParams{
+		TemplateUuid: uuid,
+		MerchantID:   merchantID,
+	})
+}
+
 // ─────────────────────────────────────────────────────────
 
 type sqlcdbBankStatementImportRepo struct {
@@ -67,4 +82,8 @@ func (r *sqlcdbBankStatementImportRepo) UpdateBankTxnCreatedTxn(ctx context.Cont
 
 func (r *sqlcdbBankStatementImportRepo) ResetNonConfirmedMatches(ctx context.Context, p sqlcdb.ResetNonConfirmedMatchesParams) error {
 	return r.q.ResetNonConfirmedMatches(ctx, p)
+}
+
+func (r *sqlcdbBankStatementImportRepo) InsertBankStatementImportLedger(ctx context.Context, p sqlcdb.InsertBankStatementImportLedgerParams) error {
+	return r.q.InsertBankStatementImportLedger(ctx, p)
 }

@@ -631,20 +631,65 @@ CREATE TABLE bank_csv_templates (
     updated_at         TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE bank_statement_imports (
-    import_id      INTEGER PRIMARY KEY AUTOINCREMENT,
-    import_uuid    TEXT    NOT NULL UNIQUE,
+CREATE TABLE bank_csv_template_ledgers (
+    tpl_ledger_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    tpl_ledger_uuid  TEXT    NOT NULL UNIQUE,
+    template_id      INTEGER NOT NULL REFERENCES bank_csv_templates(template_id),
+    ledger_uuid      TEXT    NOT NULL,
+    ledger_id        INTEGER REFERENCES ledger_accounts(ledger_id),
+    account_type     TEXT    NOT NULL,
+    sort_order       INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE bank_pdf_templates (
+    template_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    template_uuid  TEXT    NOT NULL UNIQUE,
     merchant_id    INTEGER NOT NULL,
-    ledger_id      INTEGER NOT NULL REFERENCES ledger_accounts(ledger_id),
-    template_id    INTEGER REFERENCES bank_csv_templates(template_id),
-    statement_date TEXT    NOT NULL,
-    import_source  TEXT    NOT NULL DEFAULT 'CSV',
-    filename       TEXT,
-    status         TEXT    NOT NULL DEFAULT 'PENDING',
-    note           TEXT,
+    template_name  TEXT    NOT NULL,
+    bank_type      TEXT    NOT NULL,
+    is_active      INTEGER NOT NULL DEFAULT 1,
     version        INTEGER NOT NULL DEFAULT 0,
     updated_by     TEXT,
     updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE bank_pdf_template_ledgers (
+    tpl_ledger_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    tpl_ledger_uuid  TEXT    NOT NULL UNIQUE,
+    template_id      INTEGER NOT NULL REFERENCES bank_pdf_templates(template_id),
+    ledger_uuid      TEXT    NOT NULL,
+    ledger_id        INTEGER REFERENCES ledger_accounts(ledger_id),
+    account_type     TEXT    NOT NULL,
+    sort_order       INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE bank_statement_imports (
+    import_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_uuid       TEXT    NOT NULL UNIQUE,
+    merchant_id       INTEGER NOT NULL,
+    ledger_id         INTEGER NOT NULL REFERENCES ledger_accounts(ledger_id),
+    template_id       INTEGER REFERENCES bank_csv_templates(template_id),
+    template_uuid     TEXT,
+    pdf_template_id   INTEGER REFERENCES bank_pdf_templates(template_id),
+    pdf_template_uuid TEXT,
+    bank_type         TEXT,
+    statement_date    TEXT    NOT NULL,
+    import_source     TEXT    NOT NULL DEFAULT 'CSV',
+    filename          TEXT,
+    status            TEXT    NOT NULL DEFAULT 'PENDING',
+    note              TEXT,
+    version           INTEGER NOT NULL DEFAULT 0,
+    updated_by        TEXT,
+    updated_at        TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE bank_statement_import_ledgers (
+    import_ledger_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    import_ledger_uuid  TEXT    NOT NULL UNIQUE,
+    import_id           INTEGER NOT NULL REFERENCES bank_statement_imports(import_id),
+    ledger_uuid         TEXT    NOT NULL,
+    ledger_id           INTEGER REFERENCES ledger_accounts(ledger_id),
+    account_type        TEXT    NOT NULL
 );
 
 CREATE TABLE bank_statement_txns (
@@ -661,5 +706,7 @@ CREATE TABLE bank_statement_txns (
     match_status     TEXT    NOT NULL DEFAULT 'UNMATCHED',
     matched_entry_id INTEGER REFERENCES journal_entries(entry_id),
     match_confidence TEXT,
-    created_txn_id   INTEGER REFERENCES transactions(txn_id)
+    created_txn_id   INTEGER REFERENCES transactions(txn_id),
+    ledger_uuid      TEXT,
+    ledger_id        INTEGER REFERENCES ledger_accounts(ledger_id)
 );

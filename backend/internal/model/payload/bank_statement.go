@@ -7,18 +7,19 @@ import "github.com/shopspring/decimal"
 // ─────────────────────────────────────────
 
 type BankCsvTemplateCreatedPayload struct {
-	TemplateName      string  `json:"template_name"`
-	Encoding          string  `json:"encoding"`
-	SkipRows          int64   `json:"skip_rows"`
-	DateColumn        int64   `json:"date_column"`
-	DateFormat        string  `json:"date_format"`
-	DescriptionColumn int64   `json:"description_column"`
-	DebitColumn       *int64  `json:"debit_column"`
-	CreditColumn      *int64  `json:"credit_column"`
-	AmountColumn      *int64  `json:"amount_column"`
-	BalanceColumn     *int64  `json:"balance_column"`
-	ReferenceColumn   *int64  `json:"reference_column"`
-	Note              *string `json:"note"`
+	TemplateName      string               `json:"template_name"`
+	Encoding          string               `json:"encoding"`
+	SkipRows          int64                `json:"skip_rows"`
+	DateColumn        int64                `json:"date_column"`
+	DateFormat        string               `json:"date_format"`
+	DescriptionColumn int64                `json:"description_column"`
+	DebitColumn       *int64               `json:"debit_column"`
+	CreditColumn      *int64               `json:"credit_column"`
+	AmountColumn      *int64               `json:"amount_column"`
+	BalanceColumn     *int64               `json:"balance_column"`
+	ReferenceColumn   *int64               `json:"reference_column"`
+	Note              *string              `json:"note"`
+	Ledgers           []TemplateLedgerItem `json:"ledgers"`
 }
 
 func (p BankCsvTemplateCreatedPayload) Validate() error {
@@ -36,19 +37,20 @@ func (p BankCsvTemplateCreatedPayload) Validate() error {
 }
 
 type BankCsvTemplateUpdatedPayload struct {
-	TemplateUUID      string  `json:"template_uuid"`
-	TemplateName      string  `json:"template_name"`
-	Encoding          string  `json:"encoding"`
-	SkipRows          int64   `json:"skip_rows"`
-	DateColumn        int64   `json:"date_column"`
-	DateFormat        string  `json:"date_format"`
-	DescriptionColumn int64   `json:"description_column"`
-	DebitColumn       *int64  `json:"debit_column"`
-	CreditColumn      *int64  `json:"credit_column"`
-	AmountColumn      *int64  `json:"amount_column"`
-	BalanceColumn     *int64  `json:"balance_column"`
-	ReferenceColumn   *int64  `json:"reference_column"`
-	Note              *string `json:"note"`
+	TemplateUUID      string               `json:"template_uuid"`
+	TemplateName      string               `json:"template_name"`
+	Encoding          string               `json:"encoding"`
+	SkipRows          int64                `json:"skip_rows"`
+	DateColumn        int64                `json:"date_column"`
+	DateFormat        string               `json:"date_format"`
+	DescriptionColumn int64                `json:"description_column"`
+	DebitColumn       *int64               `json:"debit_column"`
+	CreditColumn      *int64               `json:"credit_column"`
+	AmountColumn      *int64               `json:"amount_column"`
+	BalanceColumn     *int64               `json:"balance_column"`
+	ReferenceColumn   *int64               `json:"reference_column"`
+	Note              *string              `json:"note"`
+	Ledgers           []TemplateLedgerItem `json:"ledgers"`
 }
 
 func (p BankCsvTemplateUpdatedPayload) Validate() error {
@@ -84,25 +86,37 @@ func (p BankCsvTemplateDeactivatedPayload) Validate() error {
 // BankStatement payloads
 // ─────────────────────────────────────────
 
+// ImportLedgerItem is a ledger entry in BankStatementImportedPayload.
+type ImportLedgerItem struct {
+	ImportLedgerUUID string `json:"import_ledger_uuid"`
+	LedgerUUID       string `json:"ledger_uuid"`
+	AccountType      string `json:"account_type"`
+}
+
 // BankStatementTxnItem is a single bank transaction row from the CSV.
 type BankStatementTxnItem struct {
-	BankTxnUUID string          `json:"bank_txn_uuid"`
-	TxnDate     string          `json:"txn_date"`
-	Description string          `json:"description"`
-	Debit       decimal.Decimal `json:"debit"`
-	Credit      decimal.Decimal `json:"credit"`
+	BankTxnUUID string           `json:"bank_txn_uuid"`
+	TxnDate     string           `json:"txn_date"`
+	Description string           `json:"description"`
+	Debit       decimal.Decimal  `json:"debit"`
+	Credit      decimal.Decimal  `json:"credit"`
 	Balance     *decimal.Decimal `json:"balance"`
-	ReferenceNo *string         `json:"reference_no"`
+	ReferenceNo *string          `json:"reference_no"`
+	LedgerUUID  *string          `json:"ledger_uuid"`
 }
 
 type BankStatementImportedPayload struct {
-	LedgerID      int64                  `json:"ledger_id"`
-	TemplateID    *int64                 `json:"template_id"`
-	StatementDate string                 `json:"statement_date"`
-	ImportSource  string                 `json:"import_source"`
-	Filename      *string                `json:"filename"`
-	Note          *string                `json:"note"`
-	Transactions  []BankStatementTxnItem `json:"transactions"`
+	LedgerID       int64                  `json:"ledger_id"`
+	TemplateUUID   *string                `json:"template_uuid"`
+	TemplateID     *int64                 `json:"template_id"`
+	PdfTemplateUUID *string               `json:"pdf_template_uuid"`
+	BankType       *string                `json:"bank_type"`
+	StatementDate  string                 `json:"statement_date"`
+	ImportSource   string                 `json:"import_source"`
+	Filename       *string                `json:"filename"`
+	Note           *string                `json:"note"`
+	Ledgers        []ImportLedgerItem     `json:"ledgers"`
+	Transactions   []BankStatementTxnItem `json:"transactions"`
 }
 
 func (p BankStatementImportedPayload) Validate() error {

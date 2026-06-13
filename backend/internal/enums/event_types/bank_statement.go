@@ -6,6 +6,11 @@ const (
 	EventBankCsvTemplateUpdated     eventTypeVal = "bank_csv_template.updated"
 	EventBankCsvTemplateDeactivated eventTypeVal = "bank_csv_template.deactivated"
 
+	// bank_pdf_template
+	EventBankPdfTemplateCreated     eventTypeVal = "bank_pdf_template.created"
+	EventBankPdfTemplateUpdated     eventTypeVal = "bank_pdf_template.updated"
+	EventBankPdfTemplateDeactivated eventTypeVal = "bank_pdf_template.deactivated"
+
 	// bank_statement
 	EventBankStatementImported           eventTypeVal = "bank_statement.imported"
 	EventBankStatementTxnMatched         eventTypeVal = "bank_statement.txn_matched"

@@ -435,3 +435,6 @@ sql:
           - column: "bank_csv_templates.is_active"
             go_type:
               type: "bool"
+          - column: "bank_pdf_templates.is_active"
+            go_type:
+              type: "bool"

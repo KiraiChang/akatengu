@@ -10,6 +10,84 @@ import (
 )
 
 // ─────────────────────────────────────────
+// EventBankPdfTemplateCreated
+// ─────────────────────────────────────────
+
+type eventBankPdfTemplateCreatedProjector struct{}
+
+func (e *eventBankPdfTemplateCreatedProjector) Project(_ context.Context, ct *pipelines.Context[pipelines.NoState, payload.BankPdfTemplateCreatedPayload]) error {
+	return ct.Payload.Validate()
+}
+
+func NewEventBankPdfTemplateCreatedPipeline() *pipelines.TypedPipeline[pipelines.NoState, payload.BankPdfTemplateCreatedPayload] {
+	return pipelines.NewType[pipelines.NoState, payload.BankPdfTemplateCreatedPayload](&eventBankPdfTemplateCreatedProjector{}, func() *pipelines.NoState {
+		return &pipelines.NoState{}
+	})
+}
+
+// ─────────────────────────────────────────
+// EventBankPdfTemplateUpdated
+// ─────────────────────────────────────────
+
+type eventBankPdfTemplateUpdatedProjector struct {
+	query *query.Repo
+}
+
+func (e *eventBankPdfTemplateUpdatedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.BankPdfTemplateUpdatedPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+	tmpl, err := e.query.BankPdfTemplate.GetBankPdfTemplateByUUID(ctx, ct.Payload.TemplateUUID)
+	if err != nil {
+		return fmt.Errorf("get bank pdf template: %w", err)
+	}
+	if tmpl == nil {
+		return fmt.Errorf("bank pdf template not found")
+	}
+	if !tmpl.IsActive {
+		return fmt.Errorf("bank pdf template is inactive")
+	}
+	return nil
+}
+
+func NewEventBankPdfTemplateUpdatedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.BankPdfTemplateUpdatedPayload] {
+	return pipelines.NewType[pipelines.NoState, payload.BankPdfTemplateUpdatedPayload](&eventBankPdfTemplateUpdatedProjector{query}, func() *pipelines.NoState {
+		return &pipelines.NoState{}
+	})
+}
+
+// ─────────────────────────────────────────
+// EventBankPdfTemplateDeactivated
+// ─────────────────────────────────────────
+
+type eventBankPdfTemplateDeactivatedProjector struct {
+	query *query.Repo
+}
+
+func (e *eventBankPdfTemplateDeactivatedProjector) Project(ctx context.Context, ct *pipelines.Context[pipelines.NoState, payload.BankPdfTemplateDeactivatedPayload]) error {
+	if err := ct.Payload.Validate(); err != nil {
+		return err
+	}
+	tmpl, err := e.query.BankPdfTemplate.GetBankPdfTemplateByUUID(ctx, ct.Payload.TemplateUUID)
+	if err != nil {
+		return fmt.Errorf("get bank pdf template: %w", err)
+	}
+	if tmpl == nil {
+		return fmt.Errorf("bank pdf template not found")
+	}
+	if !tmpl.IsActive {
+		return fmt.Errorf("bank pdf template is already inactive")
+	}
+	return nil
+}
+
+func NewEventBankPdfTemplateDeactivatedPipeline(query *query.Repo) *pipelines.TypedPipeline[pipelines.NoState, payload.BankPdfTemplateDeactivatedPayload] {
+	return pipelines.NewType[pipelines.NoState, payload.BankPdfTemplateDeactivatedPayload](&eventBankPdfTemplateDeactivatedProjector{query}, func() *pipelines.NoState {
+		return &pipelines.NoState{}
+	})
+}
+
+// ─────────────────────────────────────────
 // EventBankCsvTemplateCreated
 // ─────────────────────────────────────────
 

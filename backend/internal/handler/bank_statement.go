@@ -305,6 +305,28 @@ func (h *bankStatementHandler) ImportCSV(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Load template ledgers for multi-ledger support
+	templateLedgers, err := h.tmplSvc.GetTemplateLedgers(ctx, *templateID)
+	if err != nil {
+		h.l.Error(method+" load template ledgers fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+	importLedgers := make([]payload.ImportLedgerItem, 0, len(templateLedgers))
+	for _, tl := range templateLedgers {
+		ilUUID, err := uuid.NewV7()
+		if err != nil {
+			h.l.Error(method+" generate uuid fail", zap.Error(err))
+			response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
+			return
+		}
+		importLedgers = append(importLedgers, payload.ImportLedgerItem{
+			ImportLedgerUUID: ilUUID.String(),
+			LedgerUUID:       tl.LedgerUUID,
+			AccountType:      tl.AccountType,
+		})
+	}
+
 	// Convert rows to payload items
 	txnItems := make([]payload.BankStatementTxnItem, 0, len(rows))
 	for _, row := range rows {
@@ -326,13 +348,16 @@ func (h *bankStatementHandler) ImportCSV(w http.ResponseWriter, r *http.Request)
 		txnItems = append(txnItems, item)
 	}
 
+	templateUUID := csvTmpl.TemplateUUID
 	p := payload.BankStatementImportedPayload{
 		LedgerID:      ledgerID,
+		TemplateUUID:  &templateUUID,
 		TemplateID:    templateID,
 		StatementDate: statementDate,
 		ImportSource:  "CSV",
 		Filename:      &filename,
 		Note:          note,
+		Ledgers:       importLedgers,
 		Transactions:  txnItems,
 	}
 	if err := p.Validate(); err != nil {
@@ -441,6 +466,27 @@ func (h *bankStatementHandler) ImportExcel(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	excelTemplateLedgers, err := h.tmplSvc.GetTemplateLedgers(ctx, *templateID)
+	if err != nil {
+		h.l.Error(method+" load template ledgers fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+	excelImportLedgers := make([]payload.ImportLedgerItem, 0, len(excelTemplateLedgers))
+	for _, tl := range excelTemplateLedgers {
+		ilUUID, err := uuid.NewV7()
+		if err != nil {
+			h.l.Error(method+" generate uuid fail", zap.Error(err))
+			response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
+			return
+		}
+		excelImportLedgers = append(excelImportLedgers, payload.ImportLedgerItem{
+			ImportLedgerUUID: ilUUID.String(),
+			LedgerUUID:       tl.LedgerUUID,
+			AccountType:      tl.AccountType,
+		})
+	}
+
 	txnItems := make([]payload.BankStatementTxnItem, 0, len(rows))
 	for _, row := range rows {
 		txnUUID, err := uuid.NewV7()
@@ -460,13 +506,16 @@ func (h *bankStatementHandler) ImportExcel(w http.ResponseWriter, r *http.Reques
 		})
 	}
 
+	excelTemplateUUID := csvTmpl.TemplateUUID
 	p := payload.BankStatementImportedPayload{
 		LedgerID:      ledgerID,
+		TemplateUUID:  &excelTemplateUUID,
 		TemplateID:    templateID,
 		StatementDate: statementDate,
 		ImportSource:  "XLSX",
 		Filename:      &filename,
 		Note:          note,
+		Ledgers:       excelImportLedgers,
 		Transactions:  txnItems,
 	}
 	if err := p.Validate(); err != nil {

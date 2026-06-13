@@ -107,6 +107,11 @@ func (p *registry) register(query *query.Repo) {
 	p.rules[event_types.EventBankCsvTemplateUpdated.Enum()] = NewEventBankCsvTemplateUpdatedPipeline(query)
 	p.rules[event_types.EventBankCsvTemplateDeactivated.Enum()] = NewEventBankCsvTemplateDeactivatedPipeline(query)
 
+	// Bank PDF Template
+	p.rules[event_types.EventBankPdfTemplateCreated.Enum()] = NewEventBankPdfTemplateCreatedPipeline()
+	p.rules[event_types.EventBankPdfTemplateUpdated.Enum()] = NewEventBankPdfTemplateUpdatedPipeline(query)
+	p.rules[event_types.EventBankPdfTemplateDeactivated.Enum()] = NewEventBankPdfTemplateDeactivatedPipeline(query)
+
 	// Bank Statement
 	p.rules[event_types.EventBankStatementImported.Enum()] = NewEventBankStatementImportedPipeline(query)
 	p.rules[event_types.EventBankStatementTxnMatched.Enum()] = NewEventBankStatementTxnMatchedPipeline(query)

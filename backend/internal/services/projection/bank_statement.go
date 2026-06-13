@@ -45,7 +45,7 @@ func (s *BankCsvTemplateProjectionService) applyCreated(ctx context.Context, tx 
 	if encoding == "" {
 		encoding = "UTF-8"
 	}
-	return tx.Projection.BankCsvTemplateRepo.InsertBankCsvTemplate(ctx, sqlcdb.InsertBankCsvTemplateParams{
+	if err := tx.Projection.BankCsvTemplateRepo.InsertBankCsvTemplate(ctx, sqlcdb.InsertBankCsvTemplateParams{
 		TemplateUuid:      ct.Event.EventUuid,
 		MerchantID:        ct.MerchantID,
 		TemplateName:      p.TemplateName,
@@ -61,7 +61,28 @@ func (s *BankCsvTemplateProjectionService) applyCreated(ctx context.Context, tx 
 		ReferenceColumn:   p.ReferenceColumn,
 		Note:              p.Note,
 		UpdatedBy:         updatedBy,
-	})
+	}); err != nil {
+		return err
+	}
+	if len(p.Ledgers) > 0 {
+		templateID, err := tx.Projection.BankCsvTemplateRepo.GetIDByUUID(ctx, ct.Event.EventUuid, ct.MerchantID)
+		if err != nil {
+			return fmt.Errorf("get bank csv template id: %w", err)
+		}
+		for _, l := range p.Ledgers {
+			if err := tx.Projection.BankCsvTemplateRepo.InsertBankCsvTemplateLedger(ctx, sqlcdb.InsertBankCsvTemplateLedgerParams{
+				TplLedgerUuid: l.TplLedgerUUID,
+				TemplateID:    templateID,
+				LedgerUuid:    l.LedgerUUID,
+				LedgerID:      nil,
+				AccountType:   l.AccountType,
+				SortOrder:     int64(l.SortOrder),
+			}); err != nil {
+				return fmt.Errorf("insert bank csv template ledger %s: %w", l.TplLedgerUUID, err)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *BankCsvTemplateProjectionService) applyUpdated(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
@@ -70,7 +91,7 @@ func (s *BankCsvTemplateProjectionService) applyUpdated(ctx context.Context, tx 
 		return err
 	}
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	return tx.Projection.BankCsvTemplateRepo.UpdateBankCsvTemplate(ctx, sqlcdb.UpdateBankCsvTemplateParams{
+	if err := tx.Projection.BankCsvTemplateRepo.UpdateBankCsvTemplate(ctx, sqlcdb.UpdateBankCsvTemplateParams{
 		TemplateName:      p.TemplateName,
 		Encoding:          p.Encoding,
 		SkipRows:          p.SkipRows,
@@ -86,7 +107,29 @@ func (s *BankCsvTemplateProjectionService) applyUpdated(ctx context.Context, tx 
 		UpdatedBy:         updatedBy,
 		TemplateUuid:      p.TemplateUUID,
 		MerchantID:        ct.MerchantID,
-	})
+	}); err != nil {
+		return err
+	}
+	templateID, err := tx.Projection.BankCsvTemplateRepo.GetIDByUUID(ctx, p.TemplateUUID, ct.MerchantID)
+	if err != nil {
+		return fmt.Errorf("get bank csv template id: %w", err)
+	}
+	if err := tx.Projection.BankCsvTemplateRepo.DeleteBankCsvTemplateLedgers(ctx, templateID); err != nil {
+		return fmt.Errorf("delete bank csv template ledgers: %w", err)
+	}
+	for _, l := range p.Ledgers {
+		if err := tx.Projection.BankCsvTemplateRepo.InsertBankCsvTemplateLedger(ctx, sqlcdb.InsertBankCsvTemplateLedgerParams{
+			TplLedgerUuid: l.TplLedgerUUID,
+			TemplateID:    templateID,
+			LedgerUuid:    l.LedgerUUID,
+			LedgerID:      nil,
+			AccountType:   l.AccountType,
+			SortOrder:     int64(l.SortOrder),
+		}); err != nil {
+			return fmt.Errorf("insert bank csv template ledger %s: %w", l.TplLedgerUUID, err)
+		}
+	}
+	return nil
 }
 
 func (s *BankCsvTemplateProjectionService) applyDeactivated(ctx context.Context, tx event_store.EventStoreRepositories, ct *pipelines.Result) error {
@@ -139,18 +182,34 @@ func (s *BankStatementProjectionService) applyImported(ctx context.Context, tx e
 		importSource = "CSV"
 	}
 	importID, err := tx.Projection.BankStatementImportRepo.InsertBankStatementImport(ctx, sqlcdb.InsertBankStatementImportParams{
-		ImportUuid:    ct.Event.EventUuid,
-		MerchantID:    ct.MerchantID,
-		LedgerID:      p.LedgerID,
-		TemplateID:    p.TemplateID,
-		StatementDate: p.StatementDate,
-		ImportSource:  importSource,
-		Filename:      p.Filename,
-		Note:          p.Note,
-		UpdatedBy:     updatedBy,
+		ImportUuid:      ct.Event.EventUuid,
+		MerchantID:      ct.MerchantID,
+		LedgerID:        p.LedgerID,
+		TemplateID:      p.TemplateID,
+		TemplateUuid:    p.TemplateUUID,
+		PdfTemplateID:   nil,
+		PdfTemplateUuid: p.PdfTemplateUUID,
+		BankType:        p.BankType,
+		StatementDate:   p.StatementDate,
+		ImportSource:    importSource,
+		Filename:        p.Filename,
+		Note:            p.Note,
+		UpdatedBy:       updatedBy,
 	})
 	if err != nil {
 		return fmt.Errorf("insert bank statement import: %w", err)
+	}
+
+	for _, l := range p.Ledgers {
+		if err := tx.Projection.BankStatementImportRepo.InsertBankStatementImportLedger(ctx, sqlcdb.InsertBankStatementImportLedgerParams{
+			ImportLedgerUuid: l.ImportLedgerUUID,
+			ImportID:         importID,
+			LedgerUuid:       l.LedgerUUID,
+			LedgerID:         nil,
+			AccountType:      l.AccountType,
+		}); err != nil {
+			return fmt.Errorf("insert bank statement import ledger %s: %w", l.ImportLedgerUUID, err)
+		}
 	}
 
 	for _, txn := range p.Transactions {
@@ -168,6 +227,8 @@ func (s *BankStatementProjectionService) applyImported(ctx context.Context, tx e
 			Credit:      txn.Credit,
 			Balance:     bal,
 			ReferenceNo: txn.ReferenceNo,
+			LedgerUuid:  txn.LedgerUUID,
+			LedgerID:    nil,
 		}); err != nil {
 			return fmt.Errorf("insert bank statement txn %s: %w", txn.BankTxnUUID, err)
 		}

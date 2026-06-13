@@ -117,6 +117,18 @@ type BankCsvTemplateRepo interface {
 	InsertBankCsvTemplate(ctx context.Context, p sqlcdb.InsertBankCsvTemplateParams) error
 	UpdateBankCsvTemplate(ctx context.Context, p sqlcdb.UpdateBankCsvTemplateParams) error
 	DeactivateBankCsvTemplate(ctx context.Context, p sqlcdb.DeactivateBankCsvTemplateParams) error
+	InsertBankCsvTemplateLedger(ctx context.Context, p sqlcdb.InsertBankCsvTemplateLedgerParams) error
+	DeleteBankCsvTemplateLedgers(ctx context.Context, templateID int64) error
+	GetIDByUUID(ctx context.Context, uuid string, merchantID int64) (int64, error)
+}
+
+type BankPdfTemplateRepo interface {
+	InsertBankPdfTemplate(ctx context.Context, p sqlcdb.InsertBankPdfTemplateParams) (int64, error)
+	UpdateBankPdfTemplate(ctx context.Context, p sqlcdb.UpdateBankPdfTemplateParams) error
+	DeactivateBankPdfTemplate(ctx context.Context, p sqlcdb.DeactivateBankPdfTemplateParams) error
+	InsertBankPdfTemplateLedger(ctx context.Context, p sqlcdb.InsertBankPdfTemplateLedgerParams) error
+	DeleteBankPdfTemplateLedgers(ctx context.Context, templateID int64) error
+	GetIDByUUID(ctx context.Context, uuid string, merchantID int64) (int64, error)
 }
 
 type BankStatementImportRepo interface {
@@ -127,4 +139,5 @@ type BankStatementImportRepo interface {
 	UpdateBankTxnStatus(ctx context.Context, p sqlcdb.UpdateBankTxnStatusParams) error
 	UpdateBankTxnCreatedTxn(ctx context.Context, p sqlcdb.UpdateBankTxnCreatedTxnParams) error
 	ResetNonConfirmedMatches(ctx context.Context, p sqlcdb.ResetNonConfirmedMatchesParams) error
+	InsertBankStatementImportLedger(ctx context.Context, p sqlcdb.InsertBankStatementImportLedgerParams) error
 }

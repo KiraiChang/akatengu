@@ -9,6 +9,7 @@ import (
 type BankStatementTemplateService interface {
 	GetAllTemplates(ctx context.Context) ([]projection.BankCsvTemplate, error)
 	GetTemplateByID(ctx context.Context, id int64) (*projection.BankCsvTemplate, error)
+	GetTemplateLedgers(ctx context.Context, templateID int64) ([]projection.BankCsvTemplateLedger, error)
 }
 
 func NewBankStatementTemplateService(repo query.BankCsvTemplateRepo) BankStatementTemplateService {
@@ -25,4 +26,8 @@ func (s *bankStatementTemplateService) GetAllTemplates(ctx context.Context) ([]p
 
 func (s *bankStatementTemplateService) GetTemplateByID(ctx context.Context, id int64) (*projection.BankCsvTemplate, error) {
 	return s.r.GetBankCsvTemplateByID(ctx, id)
+}
+
+func (s *bankStatementTemplateService) GetTemplateLedgers(ctx context.Context, templateID int64) ([]projection.BankCsvTemplateLedger, error) {
+	return s.r.GetBankCsvTemplateLedgers(ctx, templateID)
 }
