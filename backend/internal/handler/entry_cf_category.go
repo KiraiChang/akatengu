@@ -16,19 +16,19 @@ import (
 )
 
 type entryCFCategoryHandler struct {
-	repo query.EntryCFCategoryRepo
-	txnQ query.TransactionRepo
-	es   *services.EventStoreService
-	l    *zap.Logger
+	service services.EntryCFCategoryService
+	txnQ    query.TransactionRepo
+	es      *services.EventStoreService
+	l       *zap.Logger
 }
 
 func newEntryCFCategoryHandler(db *sqlx.DB, es *services.EventStoreService, l *zap.Logger) *entryCFCategoryHandler {
 	qr := query.NewQueryRepository(db)
 	return &entryCFCategoryHandler{
-		repo: qr.EntryCFCategory,
-		txnQ: qr.Transaction,
-		es:   es,
-		l:    l,
+		service: services.NewEntryCFCategoryService(db),
+		txnQ:    qr.Transaction,
+		es:      es,
+		l:       l,
 	}
 }
 
@@ -39,7 +39,7 @@ func (h *entryCFCategoryHandler) GetCFReview(w http.ResponseWriter, r *http.Requ
 	dateFrom := r.URL.Query().Get("date_from")
 	dateTo := r.URL.Query().Get("date_to")
 
-	rows, err := h.repo.ListTransactionCFReview(ctx, dateFrom, dateTo)
+	rows, err := h.service.ListTransactionCFReview(ctx, dateFrom, dateTo)
 	if err != nil {
 		h.l.Error(method+" fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
@@ -54,7 +54,7 @@ func (h *entryCFCategoryHandler) UpdateCFCategory(w http.ResponseWriter, r *http
 	txnUUID := r.PathValue("txn_uuid")
 
 	var req struct {
-		ExpectedVersion int64                          `json:"expected_version"`
+		ExpectedVersion int64                            `json:"expected_version"`
 		Entries         []payload.TransactionCFEntryItem `json:"entries"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
