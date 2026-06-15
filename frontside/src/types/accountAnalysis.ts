@@ -15,16 +15,15 @@ export interface AccountChildrenBalanceResult {
 }
 
 export interface AccountJournalEntryRow {
-  entry_id:           number;
-  txn_id:             number;
-  account_id:         string;
-  ledger_id:          number | null;
-  debit:              string;
-  credit:             string;
-  note:               string | null;
-  cash_flow_category: string | null;
-  txn_date:           string;
-  description:        string;
+  entry_id:   number;
+  txn_id:     number;
+  account_id: string;
+  ledger_id:  number | null;
+  debit:      string;
+  credit:     string;
+  note:       string | null;
+  txn_date:   string;
+  description: string;
 }
 
 export interface AccountMonthlyBalance {

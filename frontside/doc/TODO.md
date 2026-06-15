@@ -53,8 +53,6 @@
 
 ### UI
 
-- [ ] 🟢 [Feature] Modal 寬度在小螢幕確認 — `JournalEntry.svelte` 新增分錄 Modal 改為 6 欄後，尚未在 375px / 768px 確認排版；檢查現金流量下拉選單是否正常顯示、分錄列是否有水平溢出
-
 ### 文件
 
 - [ ] ⬜ [Docs] 後端 API 文件 — 整理現有 API 端點、請求/回應格式，供前後端對齊使用
@@ -81,3 +79,5 @@
 - [x] [Feature] 儀表板串接真實資料 — 4 張 stat card + 近期傳票 + 帳戶餘額列表 + 月度損益趨勢（含內嵌長條圖）— 完成日期：2026-05-26
 - [x] [Feature] 稽核查詢（Audit）頁面 — 4 tab（彙總版本、事件紀錄分頁、Checkpoint、快照）+ 重建 Projection 按鈕 — 完成日期：2026-05-26
 - [x] [Feature] 匯率管理（ExchangeRate）頁面 — 列表含幣別篩選 + 手動輸入（透過 EventRateUpdated 事件）— 完成日期：2026-05-26
+- [x] [Refactor] 移除傳票管理 / 範本管理的 CF 分類欄位 — 後端 `journal_entries.cash_flow_category` 欄位已 DROP，前端同步移除 FormLine / EditLine 的 `cash_flow_category` 欄位、UI select 元件及相關型別 — 完成日期：2026-06-15
+- [x] [Feature] CF 分類審視頁面（CFCategoryReview）— 路由 `/home/reports/cf-category`，串接 `GET /api/cf-categories` 與 `PUT /api/txn/{uuid}/cf-category`，支援日期篩選、「僅顯示未確認」切換、每筆交易分錄 CF 分類修改與儲存 — 完成日期：2026-06-15

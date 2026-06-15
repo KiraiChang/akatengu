@@ -19,6 +19,7 @@ import './styles/views/audit.css'
 import './styles/views/merchant-select.css'
 import './styles/views/merchants.css'
 import './styles/views/bank-statement.css'
+import './styles/views/cf-category.css'
 import './styles/components/modal.css'
 import App from './App.svelte'
 

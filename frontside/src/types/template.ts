@@ -1,5 +1,3 @@
-import type { CashFlowCategory } from './account';
-
 export interface TransactionTemplate {
   id:          number;
   merchant_id: number;
@@ -12,16 +10,15 @@ export interface TransactionTemplate {
 }
 
 export interface TransactionTemplateEntry {
-  id:                 number;
-  merchant_id:        number;
-  template_id:        number;
-  sort_order:         number;
-  account_id:         string;
-  ledger_id:          number | null;
-  debit:              string;
-  credit:             string;
-  note:               string | null;
-  cash_flow_category: CashFlowCategory | null;
+  id:          number;
+  merchant_id: number;
+  template_id: number;
+  sort_order:  number;
+  account_id:  string;
+  ledger_id:   number | null;
+  debit:       string;
+  credit:      string;
+  note:        string | null;
 }
 
 export interface TransactionTemplateDetail extends TransactionTemplate {
@@ -29,13 +26,12 @@ export interface TransactionTemplateDetail extends TransactionTemplate {
 }
 
 export interface SaveTemplateEntryRequest {
-  sort_order:         number;
-  account_id:         string;
-  ledger_id:          number | null;
-  debit:              number;
-  credit:             number;
-  note:               string | null;
-  cash_flow_category: CashFlowCategory | null;
+  sort_order: number;
+  account_id: string;
+  ledger_id:  number | null;
+  debit:      number;
+  credit:     number;
+  note:       string | null;
 }
 
 export interface SaveTemplateRequest {

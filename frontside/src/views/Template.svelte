@@ -4,26 +4,24 @@
   import { getLedgerAccountAll } from '../api/ledger';
   import AccountSelect from '../components/AccountSelect.svelte';
   import LedgerSelect from '../components/LedgerSelect.svelte';
-  import { CASH_FLOW_CATEGORIES, CASH_FLOW_CATEGORY_LABELS } from '../types/account';
-  import type { Account, CashFlowCategory } from '../types/account';
+  import type { Account } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
   import type { TransactionTemplate } from '../types/template';
 
   type StringEditLineField = 'account_id' | 'ledger_id' | 'debit' | 'credit';
 
   interface EditLine {
-    id:                 number;
-    account_id:         string;
-    ledger_id:          string;
-    debit:              string;
-    credit:             string;
-    cash_flow_category: CashFlowCategory | null;
+    id:         number;
+    account_id: string;
+    ledger_id:  string;
+    debit:      string;
+    credit:     string;
   }
 
   let lineSeq = 1;
 
   function emptyLine(): EditLine {
-    return { id: lineSeq++, account_id: '', ledger_id: '', debit: '', credit: '', cash_flow_category: null };
+    return { id: lineSeq++, account_id: '', ledger_id: '', debit: '', credit: '' };
   }
 
   let templates = $state<TransactionTemplate[]>([]);
@@ -88,12 +86,11 @@
       const detail = await getTemplate(tpl.id);
       editLines = detail.entries.length > 0
         ? detail.entries.map(e => ({
-            id:                 lineSeq++,
-            account_id:         e.account_id,
-            ledger_id:          e.ledger_id ? String(e.ledger_id) : '',
-            debit:              parseFloat(e.debit)  > 0 ? e.debit  : '',
-            credit:             parseFloat(e.credit) > 0 ? e.credit : '',
-            cash_flow_category: e.cash_flow_category ?? null,
+            id:         lineSeq++,
+            account_id: e.account_id,
+            ledger_id:  e.ledger_id ? String(e.ledger_id) : '',
+            debit:      parseFloat(e.debit)  > 0 ? e.debit  : '',
+            credit:     parseFloat(e.credit) > 0 ? e.credit : '',
           }))
         : [emptyLine(), emptyLine()];
     } catch {
@@ -119,21 +116,14 @@
     editLines = editLines.map(l => l.id === id ? { ...l, [field]: value } : l);
   }
 
-  function updateLineCashFlow(id: number, value: CashFlowCategory | null): void {
-    editLines = editLines.map(l => l.id === id ? { ...l, cash_flow_category: value } : l);
-  }
-
   function selectLedger(lineId: number, ledgerIdStr: string): void {
     const ledger = activeLedgers.find(l => String(l.ledger_id) === ledgerIdStr);
-    const newAccountId = ledgerIdStr === '' ? '' : (ledger?.account_id ?? '');
-    const acct = newAccountId ? (allAccounts.find(a => a.account_id === newAccountId) ?? null) : null;
     editLines = editLines.map(l =>
       l.id === lineId
         ? {
             ...l,
-            ledger_id:          ledgerIdStr,
-            account_id:         ledgerIdStr === '' ? '' : (ledger?.account_id ?? l.account_id),
-            cash_flow_category: acct?.cash_flow_category ?? null,
+            ledger_id:  ledgerIdStr,
+            account_id: ledgerIdStr === '' ? '' : (ledger?.account_id ?? l.account_id),
           }
         : l,
     );
@@ -151,13 +141,12 @@
         description: editDesc.trim() || null,
         tag:         editTag.trim()  || null,
         entries: validLines.map((l, i) => ({
-          sort_order:         i + 1,
-          account_id:         l.account_id,
-          ledger_id:          l.ledger_id ? parseInt(l.ledger_id, 10) : null,
-          debit:              parseFloat(l.debit)  || 0,
-          credit:             parseFloat(l.credit) || 0,
-          note:               null,
-          cash_flow_category: l.cash_flow_category ?? null,
+          sort_order: i + 1,
+          account_id: l.account_id,
+          ledger_id:  l.ledger_id ? parseInt(l.ledger_id, 10) : null,
+          debit:      parseFloat(l.debit)  || 0,
+          credit:     parseFloat(l.credit) || 0,
+          note:       null,
         })),
       });
       closeEditModal();
@@ -300,17 +289,16 @@
           <div style="padding:24px;text-align:center;font-size:12px;color:#3d4258;">載入分錄中…</div>
         {:else}
           <div class="je-lines">
-            <div class="je-lines-header je-lines-header--6col">
+            <div class="je-lines-header je-lines-header--5col">
               <span>金融帳戶</span>
               <span>會計科目 *</span>
-              <span>現金流量</span>
               <span class="num">借方金額</span>
               <span class="num">貸方金額</span>
               <span></span>
             </div>
 
             {#each editLines as line (line.id)}
-              <div class="je-line je-line--6col">
+              <div class="je-line je-line--5col">
                 <div class="je-line-cell">
                   <LedgerSelect
                     ledgers={activeLedgers}
@@ -323,27 +311,8 @@
                     accounts={activeAccounts}
                     value={line.account_id}
                     placeholder="選擇科目…"
-                    onselect={(id) => {
-                      updateLine(line.id, 'account_id', id);
-                      const acct = activeAccounts.find(a => a.account_id === id) ?? null;
-                      updateLineCashFlow(line.id, acct?.cash_flow_category ?? null);
-                    }}
+                    onselect={(id) => updateLine(line.id, 'account_id', id)}
                   />
-                </div>
-                <div class="je-line-cell">
-                  <select
-                    class="je-cf-select"
-                    value={line.cash_flow_category ?? ''}
-                    onchange={(e) => {
-                      const v = (e.target as HTMLSelectElement).value;
-                      updateLineCashFlow(line.id, v ? v as CashFlowCategory : null);
-                    }}
-                  >
-                    <option value="">—</option>
-                    {#each CASH_FLOW_CATEGORIES as c}
-                      <option value={c}>{CASH_FLOW_CATEGORY_LABELS[c]}</option>
-                    {/each}
-                  </select>
                 </div>
                 <div class="je-line-cell">
                   <input

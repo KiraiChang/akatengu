@@ -7,8 +7,7 @@
   import AccountSelect from '../components/AccountSelect.svelte';
   import LedgerSelect from '../components/LedgerSelect.svelte';
   import type { Transaction, Entry } from '../types/transaction';
-  import { CASH_FLOW_CATEGORIES, CASH_FLOW_CATEGORY_LABELS } from '../types/account';
-  import type { Account, CashFlowCategory } from '../types/account';
+  import type { Account } from '../types/account';
   import type { LedgerAccount } from '../types/ledger';
   import type { TransactionTemplate } from '../types/template';
 
@@ -46,12 +45,11 @@
   type StringFormLineField = 'account_id' | 'ledger_id' | 'debit' | 'credit';
 
   interface FormLine {
-    id:                 number;
-    account_id:         string;
-    ledger_id:          string;
-    debit:              string;
-    credit:             string;
-    cash_flow_category: CashFlowCategory | null;
+    id:         number;
+    account_id: string;
+    ledger_id:  string;
+    debit:      string;
+    credit:     string;
   }
 
   let formDate        = $state(today());
@@ -112,7 +110,7 @@
   }
 
   function emptyLine(): FormLine {
-    return { id: lineSeq++, account_id: '', ledger_id: '', debit: '', credit: '', cash_flow_category: null };
+    return { id: lineSeq++, account_id: '', ledger_id: '', debit: '', credit: '' };
   }
 
   function addLine(): void {
@@ -128,21 +126,14 @@
     formLines = formLines.map(l => l.id === id ? { ...l, [field]: value } : l);
   }
 
-  function updateLineCashFlow(id: number, value: CashFlowCategory | null): void {
-    formLines = formLines.map(l => l.id === id ? { ...l, cash_flow_category: value } : l);
-  }
-
   function selectLedger(lineId: number, ledgerIdStr: string): void {
     const ledger = activeLedgers.find(l => String(l.ledger_id) === ledgerIdStr);
-    const newAccountId = ledgerIdStr === '' ? '' : (ledger?.account_id ?? '');
-    const acct = newAccountId ? (allAccounts.find(a => a.account_id === newAccountId) ?? null) : null;
     formLines = formLines.map(l =>
       l.id === lineId
         ? {
             ...l,
-            ledger_id:          ledgerIdStr,
-            account_id:         ledgerIdStr === '' ? '' : (ledger?.account_id ?? l.account_id),
-            cash_flow_category: acct?.cash_flow_category ?? null,
+            ledger_id:  ledgerIdStr,
+            account_id: ledgerIdStr === '' ? '' : (ledger?.account_id ?? l.account_id),
           }
         : l,
     );
@@ -165,12 +156,11 @@
       formLines = detail.entries.length === 0
         ? [emptyLine(), emptyLine()]
         : detail.entries.map(e => ({
-            id:                 lineSeq++,
-            account_id:         e.account_id,
-            ledger_id:          e.ledger_id ? String(e.ledger_id) : '',
-            debit:              parseFloat(e.debit)  > 0 ? e.debit  : '',
-            credit:             parseFloat(e.credit) > 0 ? e.credit : '',
-            cash_flow_category: e.cash_flow_category ?? null,
+            id:         lineSeq++,
+            account_id: e.account_id,
+            ledger_id:  e.ledger_id ? String(e.ledger_id) : '',
+            debit:      parseFloat(e.debit)  > 0 ? e.debit  : '',
+            credit:     parseFloat(e.credit) > 0 ? e.credit : '',
           }));
     } catch { /* leave unchanged */ } finally { tplApplying = false; }
   }
@@ -203,13 +193,12 @@
         description: saveTplDesc.trim() || null,
         tag:         saveTplTag.trim()  || null,
         entries: entries.map((entry, i) => ({
-          sort_order:         i + 1,
-          account_id:         entry.account_id,
-          ledger_id:          entry.ledger_id ?? null,
-          debit:              parseFloat(entry.debit)  || 0,
-          credit:             parseFloat(entry.credit) || 0,
-          note:               entry.note               || null,
-          cash_flow_category: entry.cash_flow_category ?? null,
+          sort_order: i + 1,
+          account_id: entry.account_id,
+          ledger_id:  entry.ledger_id ?? null,
+          debit:      parseFloat(entry.debit)  || 0,
+          credit:     parseFloat(entry.credit) || 0,
+          note:       entry.note               || null,
         })),
       });
       saveTplDone = true;
@@ -262,11 +251,10 @@
         note:             formNote.trim() || null,
         ref_txn_id:       null,
         entries: validLines.map(l => ({
-          account_id:         l.account_id,
-          ledger_id:          l.ledger_id ? parseInt(l.ledger_id, 10) : null,
-          debit:              parseFloat(l.debit)  || 0,
-          credit:             parseFloat(l.credit) || 0,
-          cash_flow_category: l.cash_flow_category,
+          account_id: l.account_id,
+          ledger_id:  l.ledger_id ? parseInt(l.ledger_id, 10) : null,
+          debit:      parseFloat(l.debit)  || 0,
+          credit:     parseFloat(l.credit) || 0,
         })),
       });
       closeModal();
@@ -356,7 +344,6 @@
                   <div class="entry-header">
                     <span>會計科目</span>
                     <span>帳戶</span>
-                    <span>現金流量</span>
                     <span class="num">借方</span>
                     <span class="num">貸方</span>
                     <span class="entry-cell--note">備註</span>
@@ -386,7 +373,6 @@
                           —
                         {/if}
                       </span>
-                      <span class="entry-cell">{entry.cash_flow_category ? CASH_FLOW_CATEGORY_LABELS[entry.cash_flow_category] : '—'}</span>
                       <span class="entry-cell num">{parseFloat(entry.debit) > 0 ? fmtAmount(entry.debit) : ''}</span>
                       <span class="entry-cell num">{parseFloat(entry.credit) > 0 ? fmtAmount(entry.credit) : ''}</span>
                       <span class="entry-cell entry-note entry-cell--note">{entry.note ?? ''}</span>
@@ -564,17 +550,16 @@
         </div>
 
         <div class="je-lines">
-          <div class="je-lines-header je-lines-header--6col">
+          <div class="je-lines-header je-lines-header--5col">
             <span>金融帳戶</span>
             <span>會計科目 *</span>
-            <span>現金流量</span>
             <span class="num">借方金額</span>
             <span class="num">貸方金額</span>
             <span></span>
           </div>
 
           {#each formLines as line (line.id)}
-            <div class="je-line je-line--6col">
+            <div class="je-line je-line--5col">
               <div class="je-line-cell">
                 <LedgerSelect
                   ledgers={activeLedgers}
@@ -587,27 +572,8 @@
                   accounts={activeAccounts}
                   value={line.account_id}
                   placeholder="選擇科目…"
-                  onselect={(id) => {
-                    updateLine(line.id, 'account_id', id);
-                    const acct = activeAccounts.find(a => a.account_id === id) ?? null;
-                    updateLineCashFlow(line.id, acct?.cash_flow_category ?? null);
-                  }}
+                  onselect={(id) => updateLine(line.id, 'account_id', id)}
                 />
-              </div>
-              <div class="je-line-cell">
-                <select
-                  class="je-cf-select"
-                  value={line.cash_flow_category ?? ''}
-                  onchange={(e) => {
-                    const v = (e.target as HTMLSelectElement).value;
-                    updateLineCashFlow(line.id, v ? v as CashFlowCategory : null);
-                  }}
-                >
-                  <option value="">—</option>
-                  {#each CASH_FLOW_CATEGORIES as c}
-                    <option value={c}>{CASH_FLOW_CATEGORY_LABELS[c]}</option>
-                  {/each}
-                </select>
               </div>
               <div class="je-line-cell">
                 <input

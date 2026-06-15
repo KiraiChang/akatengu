@@ -1,5 +1,3 @@
-import type { CashFlowCategory } from './account';
-
 export type TransactionStatus = 'ACTIVE' | 'CORRECTED' | 'VOIDED' | 'VOID_REF';
 
 export interface Transaction {
@@ -19,24 +17,22 @@ export interface Transaction {
 }
 
 export interface Entry {
-  entry_id:           number;
-  txn_id:             number;
-  ledger_id:          number | null;
-  account_id:         string;
-  debit:              string;
-  credit:             string;
-  note:               string | null;
-  cash_flow_category: CashFlowCategory | null;
-  updated_by:         string | null;
-  updated_at:         string | null;
+  entry_id:   number;
+  txn_id:     number;
+  ledger_id:  number | null;
+  account_id: string;
+  debit:      string;
+  credit:     string;
+  note:       string | null;
+  updated_by: string | null;
+  updated_at: string | null;
 }
 
 export interface TransactionEntryPayload {
-  account_id:         string;
-  ledger_id:          number | null;
-  debit:              number;
-  credit:             number;
-  cash_flow_category: CashFlowCategory | null;
+  account_id: string;
+  ledger_id:  number | null;
+  debit:      number;
+  credit:     number;
 }
 
 export interface TransactionCreatedPayload {

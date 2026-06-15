@@ -1,0 +1,236 @@
+/* ── Filter bar ──────────────────────────── */
+
+.cfc-filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.cfc-filter-bar .form-group {
+  margin: 0;
+}
+
+.cfc-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #7a8096;
+  cursor: pointer;
+  user-select: none;
+  padding-bottom: 8px;
+}
+
+.cfc-toggle-label input[type="checkbox"] {
+  accent-color: #c44040;
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Transaction group ───────────────────── */
+
+.cfc-txn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cfc-txn-group {
+  border: 1px solid #1e2230;
+  border-left: 3px solid #2a2d40;
+}
+
+.cfc-txn-group--dirty {
+  border-left-color: #c49040;
+}
+
+.cfc-txn-header {
+  display: grid;
+  grid-template-columns: 110px 1fr 140px 80px;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid #1a1c28;
+  padding: 0 16px;
+  align-items: center;
+}
+
+.cfc-txn-header span {
+  padding: 10px 0;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #c0bdb4;
+}
+
+.cfc-txn-header span.cfc-txn-desc {
+  color: #dedad3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.cfc-txn-header span.num { text-align: right; }
+
+.cfc-txn-currency {
+  font-size: 10px;
+  color: #5c6278;
+  letter-spacing: 0.06em;
+}
+
+/* ── Entry table inside group ────────────── */
+
+.cfc-entry-header {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.8fr) 90px 90px minmax(140px, 1fr) 80px;
+  gap: 0;
+  padding: 4px 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.cfc-entry-header span {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3d4258;
+  padding: 4px 0;
+}
+
+.cfc-entry-header span.num { text-align: right; }
+
+.cfc-entry-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.8fr) 90px 90px minmax(140px, 1fr) 80px;
+  gap: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.015);
+  align-items: center;
+}
+
+.cfc-entry-row:last-child { border-bottom: none; }
+
+.cfc-entry-row--cash {
+  opacity: 0.45;
+}
+
+.cfc-entry-cell {
+  padding: 7px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #7a8096;
+}
+
+.cfc-entry-cell.num {
+  text-align: right;
+  color: #c0bdb4;
+}
+
+/* ── CF category badge ───────────────────── */
+
+.cfc-cf-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 2px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  font-family: inherit;
+}
+
+.cfc-cf-badge--operating {
+  background: rgba(60, 100, 200, 0.12);
+  color: #6080c0;
+}
+
+.cfc-cf-badge--investing {
+  background: rgba(80, 160, 120, 0.12);
+  color: #50a078;
+}
+
+.cfc-cf-badge--financing {
+  background: rgba(180, 120, 60, 0.12);
+  color: #b07040;
+}
+
+.cfc-cf-badge--cash {
+  background: rgba(100, 100, 120, 0.1);
+  color: #5c6278;
+}
+
+.cfc-cf-badge--null {
+  background: rgba(192, 64, 64, 0.1);
+  color: #c06060;
+  border: 1px dashed rgba(192, 64, 64, 0.3);
+}
+
+/* ── CF category select ──────────────────── */
+
+.cfc-cf-select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #252836;
+  padding: 4px 0;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #c0bdb4;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.cfc-cf-select:focus {
+  border-bottom-color: #c44040;
+}
+
+.cfc-cf-select.cfc-dirty {
+  border-bottom-color: #c49040;
+}
+
+.cfc-cf-select option {
+  background: #0d0f18;
+  color: #c0bdb4;
+}
+
+/* ── Confirmed badge ─────────────────────── */
+
+.cfc-confirmed {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: rgba(80, 160, 120, 0.1);
+  color: #4a9070;
+}
+
+.cfc-unconfirmed {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: rgba(120, 100, 60, 0.1);
+  color: #806040;
+}
+
+/* ── Save row ────────────────────────────── */
+
+.cfc-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 8px 16px;
+  border-top: 1px solid #1a1c28;
+  background: rgba(255,255,255,0.01);
+}
+
+.cfc-save-error {
+  font-size: 11px;
+  color: #c07070;
+  letter-spacing: 0.04em;
+  margin-right: auto;
+}

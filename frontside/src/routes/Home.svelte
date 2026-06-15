@@ -34,6 +34,7 @@
   import BankStatement         from '../views/BankStatement.svelte';
   import BankStatementResult   from '../views/BankStatementResult.svelte';
   import BankStatementReview   from '../views/BankStatementReview.svelte';
+  import CFCategoryReview      from '../views/CFCategoryReview.svelte';
 
   interface SubMenuItem { label: string; path: string; }
   interface MenuItem    { label: string; path: string; key?: string; children?: SubMenuItem[]; }
@@ -49,6 +50,7 @@
       { label: '損益表',     path: '/home/reports/income-statement' },
       { label: '現金流量表', path: '/home/reports/cash-flow' },
       { label: '權益變動表', path: '/home/reports/equity-statement' },
+      { label: 'CF 分類審視', path: '/home/reports/cf-category' },
     ]},
     { label: '科目分析', path: '/home/account-analysis' },
     { label: '投資管理', path: '/home/investment' },
@@ -83,6 +85,7 @@
     '/home/reports/income-statement': IncomeStatement,
     '/home/reports/cash-flow':        CashFlowStatement,
     '/home/reports/equity-statement': EquityStatement,
+    '/home/reports/cf-category':      CFCategoryReview,
     '/home/account-analysis':         AccountAnalysis,
     '/home/investment':                Investment,
     '/home/bank-statement':                    BankStatement,
