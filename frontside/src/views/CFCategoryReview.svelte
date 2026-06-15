@@ -1,6 +1,8 @@
 <script lang="ts">
   import { getCFReview, updateCFCategory } from '../api/cfCategory';
+  import { getAccountAll } from '../api/account';
   import { CASH_FLOW_CATEGORY_LABELS } from '../types/account';
+  import type { Account } from '../types/account';
   import type { CFReviewRow, CFReviewTxn, CFActivityCategory } from '../types/cfCategory';
 
   const CF_ACTIVITY_OPTIONS: { value: CFActivityCategory; label: string }[] = [
@@ -12,6 +14,7 @@
   const today = new Date().toISOString().slice(0, 10);
   const monthStart = `${today.slice(0, 7)}-01`;
 
+  let allAccounts         = $state<Account[]>([]);
   let rows                = $state<CFReviewRow[]>([]);
   let isLoading           = $state(false);
   let error               = $state('');
@@ -37,6 +40,7 @@
   }
 
   $effect(() => { void load(); });
+  $effect(() => { void getAccountAll().then(a => { allAccounts = a; }).catch(() => {}); });
 
   const grouped = $derived((): CFReviewTxn[] => {
     const map = new Map<string, CFReviewTxn>();
@@ -185,8 +189,9 @@
 
           {#each txn.entries as entry (entry.entry_uuid)}
             {@const isCash = entry.cf_category === 'CASH'}
+            {@const account = allAccounts.find(a => a.account_id === entry.account_id) ?? null}
             <div class="cfc-entry-row {isCash ? 'cfc-entry-row--cash' : ''}">
-              <span class="cfc-entry-cell">{entry.account_id}</span>
+              <span class="cfc-entry-cell">{account?.name ?? entry.account_id}</span>
               <span class="cfc-entry-cell num">{fmtAmount(entry.debit)}</span>
               <span class="cfc-entry-cell num">{fmtAmount(entry.credit)}</span>
               <span class="cfc-entry-cell">
