@@ -7,6 +7,10 @@ import type {
   ImportResultResponse,
   ReviewItem,
   ApproveRequest,
+  BankPdfTemplate,
+  BankPdfTemplateLedgerResponse,
+  CreateBankPdfTemplateRequest,
+  UpdateBankPdfTemplateRequest,
 } from '../types/bankStatement';
 
 export const getTemplates = async (): Promise<BankCsvTemplate[]> => {
@@ -180,5 +184,80 @@ export const completeImport = async (
   if (!response.ok) {
     const problem = await response.json();
     throw new Error(problem.detail ?? problem.title ?? '完成匯入失敗');
+  }
+};
+
+// ── PDF Template ─────────────────────────
+
+export const getPdfTemplateLedgers = async (
+  templateUuid: string,
+): Promise<BankPdfTemplateLedgerResponse[]> => {
+  const response = await apiFetch(`/api/bank-pdf-template/${templateUuid}/ledgers`);
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '載入範本帳本失敗');
+  }
+  return response.json();
+};
+
+export const getPdfTemplates = async (): Promise<BankPdfTemplate[]> => {
+  const response = await apiFetch('/api/bank-pdf-template');
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '載入 PDF 範本列表失敗');
+  }
+  return response.json();
+};
+
+export const createPdfTemplate = async (req: CreateBankPdfTemplateRequest): Promise<void> => {
+  const response = await apiFetch('/api/bank-pdf-template', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(req),
+  });
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '建立 PDF 範本失敗');
+  }
+};
+
+export const updatePdfTemplate = async (
+  templateUuid: string,
+  req: UpdateBankPdfTemplateRequest,
+): Promise<void> => {
+  const response = await apiFetch(`/api/bank-pdf-template/${templateUuid}`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(req),
+  });
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '更新 PDF 範本失敗');
+  }
+};
+
+export const deactivatePdfTemplate = async (
+  templateUuid: string,
+  expectedVersion: number,
+): Promise<void> => {
+  const response = await apiFetch(`/api/bank-pdf-template/${templateUuid}`, {
+    method:  'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ expected_version: expectedVersion }),
+  });
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '停用 PDF 範本失敗');
+  }
+};
+
+export const importPDF = async (formData: FormData): Promise<void> => {
+  const response = await apiFetch('/api/bank-statement/import/pdf', {
+    method: 'POST',
+    body:   formData,
+  });
+  if (!response.ok) {
+    const problem = await response.json();
+    throw new Error(problem.detail ?? problem.title ?? '上傳 PDF 失敗');
   }
 };

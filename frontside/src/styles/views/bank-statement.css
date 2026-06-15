@@ -137,3 +137,25 @@
   gap: 4px;
   flex-wrap: wrap;
 }
+
+/* ── PDF Template ledger table ───────── */
+
+.bs-ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+
+.bs-ledger-table th,
+.bs-ledger-table td {
+  padding: 4px 6px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.bs-ledger-table th {
+  text-align: left;
+  color: #7a8096;
+  font-weight: normal;
+  letter-spacing: 0.04em;
+}

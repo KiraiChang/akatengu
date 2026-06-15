@@ -111,3 +111,44 @@ export interface ApproveRequest {
   description:        string;
   note:               string | null;
 }
+
+// ── PDF Template ─────────────────────────
+
+export interface BankPdfTemplateLedgerItem {
+  tpl_ledger_uuid?: string;
+  ledger_uuid:      string;
+  account_type:     string;
+  sort_order:       number;
+}
+
+export interface BankPdfTemplateLedgerResponse {
+  tpl_ledger_id:   number;
+  tpl_ledger_uuid: string;
+  template_id:     number;
+  ledger_uuid:     string;
+  ledger_id:       number | null;
+  account_type:    string;
+  sort_order:      number;
+}
+
+export interface BankPdfTemplate {
+  template_id:   number;
+  template_uuid: string;
+  merchant_id:   number;
+  template_name: string;
+  bank_type:     string;
+  is_active:     boolean;
+  version:       number;
+  updated_by:    string | null;
+  updated_at:    string;
+}
+
+export interface CreateBankPdfTemplateRequest {
+  template_name: string;
+  bank_type:     string;
+  ledgers:       BankPdfTemplateLedgerItem[];
+}
+
+export interface UpdateBankPdfTemplateRequest extends CreateBankPdfTemplateRequest {
+  expected_version: number;
+}

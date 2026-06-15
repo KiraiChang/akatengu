@@ -37,6 +37,31 @@ func (h *bankPdfTemplateHandler) GetTemplates(w http.ResponseWriter, r *http.Req
 	response.OK(w, result)
 }
 
+func (h *bankPdfTemplateHandler) GetTemplateLedgers(w http.ResponseWriter, r *http.Request) {
+	method := "get bank pdf template ledgers"
+	ctx := r.Context()
+	templateUUID := r.PathValue("template_uuid")
+
+	tpl, err := h.svc.GetTemplateByUUID(ctx, templateUUID)
+	if err != nil {
+		h.l.Error(method+" fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+	if tpl == nil {
+		response.WriteError(w, r, http.StatusNotFound, "Not Found", "template not found")
+		return
+	}
+
+	ledgers, err := h.svc.GetTemplateLedgers(ctx, tpl.TemplateID)
+	if err != nil {
+		h.l.Error(method+" fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+	response.OK(w, ledgers)
+}
+
 func (h *bankPdfTemplateHandler) CreateTemplate(w http.ResponseWriter, r *http.Request) {
 	method := "create bank pdf template"
 	ctx := r.Context()

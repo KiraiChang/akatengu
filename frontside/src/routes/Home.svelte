@@ -30,6 +30,7 @@
   import ExchangeRate       from '../views/ExchangeRate.svelte';
   import Merchants             from '../views/Merchants.svelte';
   import BankStatementTemplate from '../views/BankStatementTemplate.svelte';
+  import BankPdfTemplate       from '../views/BankPdfTemplate.svelte';
   import BankStatement         from '../views/BankStatement.svelte';
   import BankStatementResult   from '../views/BankStatementResult.svelte';
   import BankStatementReview   from '../views/BankStatementReview.svelte';
@@ -52,8 +53,9 @@
     { label: '科目分析', path: '/home/account-analysis' },
     { label: '投資管理', path: '/home/investment' },
     { label: '銀行對帳', path: '/home/bank-statement', key: 'bank-statement', children: [
-      { label: '匯入清單',    path: '/home/bank-statement' },
+      { label: '匯入清單',     path: '/home/bank-statement' },
       { label: 'CSV 範本管理', path: '/home/bank-statement/template' },
+      { label: 'PDF 範本管理', path: '/home/bank-statement/pdf-template' },
     ]},
     { label: '分期管理', path: '/home/installment', key: 'amortization', children: [
       { label: '分期付款', path: '/home/installment' },
@@ -87,6 +89,7 @@
     '/home/bank-statement/:import_id/result':  BankStatementResult,
     '/home/bank-statement/:import_id/review':  BankStatementReview,
     '/home/bank-statement/template':           BankStatementTemplate,
+    '/home/bank-statement/pdf-template':       BankPdfTemplate,
     '/home/installment':              Installment,
     '/home/prepaid':                  Prepaid,
     '/home/fixed-asset':              FixedAsset,

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { getImportsPaged, importCSV, importExcel, getTemplates } from '../api/bankStatement';
+  import { getImportsPaged, importCSV, importExcel, importPDF, getTemplates, getPdfTemplates } from '../api/bankStatement';
   import { getLedgerAccountAll } from '../api/ledger';
-  import type { BankStatementImport, BankCsvTemplate } from '../types/bankStatement';
+  import type { BankStatementImport, BankCsvTemplate, BankPdfTemplate } from '../types/bankStatement';
   import type { LedgerAccount } from '../types/ledger';
 
   let imports    = $state<BankStatementImport[]>([]);
@@ -13,8 +13,9 @@
 
   let filterLedgerId = $state('0');
 
-  let ledgers   = $state<LedgerAccount[]>([]);
-  let templates = $state<BankCsvTemplate[]>([]);
+  let ledgers      = $state<LedgerAccount[]>([]);
+  let templates    = $state<BankCsvTemplate[]>([]);
+  let pdfTemplates = $state<BankPdfTemplate[]>([]);
 
   let showUpload   = $state(false);
   let fUploadType  = $state<'csv' | 'xlsx'>('csv');
@@ -27,11 +28,23 @@
   let isUploading  = $state(false);
   let uploadError  = $state('');
 
+  let showPdfUpload    = $state(false);
+  let fPdfLedgerId     = $state('');
+  let fPdfDate         = $state('');
+  let fPdfTemplateUuid = $state('');
+  let fPdfFile         = $state<File | null>(null);
+  let fPdfNote         = $state('');
+  let fPdfPassword     = $state('');
+  let isPdfUploading   = $state(false);
+  let pdfUploadError   = $state('');
+
   $effect(() => { void init(); });
 
   async function init(): Promise<void> {
     try {
-      [ledgers, templates] = await Promise.all([getLedgerAccountAll(), getTemplates()]);
+      [ledgers, templates, pdfTemplates] = await Promise.all([
+        getLedgerAccountAll(), getTemplates(), getPdfTemplates(),
+      ]);
     } catch { /* non-fatal, lists stay empty */ }
     await load();
   }
@@ -56,6 +69,39 @@
   }
 
   function closeUpload(): void { showUpload = false; fPassword = ''; }
+
+  function openPdfUpload(): void {
+    fPdfLedgerId = ''; fPdfDate = ''; fPdfTemplateUuid = ''; fPdfFile = null;
+    fPdfNote = ''; fPdfPassword = ''; pdfUploadError = ''; showPdfUpload = true;
+  }
+
+  function closePdfUpload(): void { showPdfUpload = false; fPdfPassword = ''; }
+
+  function handlePdfFileChange(e: Event): void {
+    fPdfFile = (e.target as HTMLInputElement).files?.[0] ?? null;
+  }
+
+  async function handlePdfUpload(e: Event): Promise<void> {
+    e.preventDefault();
+    if (!fPdfFile) { pdfUploadError = '請選擇 PDF 檔案'; return; }
+    isPdfUploading = true; pdfUploadError = '';
+    try {
+      const fd = new FormData();
+      fd.append('ledger_id',      fPdfLedgerId);
+      fd.append('statement_date', fPdfDate);
+      fd.append('template_uuid',  fPdfTemplateUuid);
+      fd.append('file',           fPdfFile);
+      if (fPdfNote.trim())     fd.append('note',     fPdfNote.trim());
+      if (fPdfPassword.trim()) fd.append('password', fPdfPassword.trim());
+      await importPDF(fd);
+      closePdfUpload();
+      await load();
+    } catch (e) {
+      pdfUploadError = e instanceof Error ? e.message : '上傳失敗';
+    } finally {
+      isPdfUploading = false;
+    }
+  }
 
   function handleFileChange(e: Event): void {
     fFile = (e.target as HTMLInputElement).files?.[0] ?? null;
@@ -91,8 +137,9 @@
     window.location.hash = `#/home/bank-statement/${imp.import_id}/result`;
   }
 
-  const activeLedgers   = $derived(ledgers.filter(l => l.is_active));
-  const activeTemplates = $derived(templates.filter(t => t.is_active));
+  const activeLedgers      = $derived(ledgers.filter(l => l.is_active));
+  const activeTemplates    = $derived(templates.filter(t => t.is_active));
+  const activePdfTemplates = $derived(pdfTemplates.filter(t => t.is_active));
   const totalPages      = $derived(Math.ceil(total / pageSize));
 
   function fmtLedger(ledgerId: number): string {
@@ -105,7 +152,8 @@
   <h1 class="content-title">對帳單匯入</h1>
   <div style="display:flex;gap:8px">
     <button class="btn-ghost" onclick={() => openUpload('csv')}>＋ 上傳 CSV</button>
-    <button class="btn-primary" onclick={() => openUpload('xlsx')}>＋ 上傳 Excel</button>
+    <button class="btn-ghost" onclick={() => openUpload('xlsx')}>＋ 上傳 Excel</button>
+    <button class="btn-primary" onclick={openPdfUpload}>＋ 上傳 PDF</button>
   </div>
 </div>
 
@@ -192,6 +240,77 @@
     </div>
   {/if}
 </section>
+
+{#if showPdfUpload}
+  <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bs-pdf-upload-title">
+    <div class="modal-panel">
+      <header class="modal-header">
+        <h2 class="modal-title" id="bs-pdf-upload-title">上傳 PDF 對帳單</h2>
+        <button class="modal-close" onclick={closePdfUpload} aria-label="關閉">×</button>
+      </header>
+
+      <form class="modal-body" onsubmit={handlePdfUpload}>
+        {#if pdfUploadError}
+          <p class="query-error" style="margin-bottom:16px;" role="alert">{pdfUploadError}</p>
+        {/if}
+
+        <div class="form-group">
+          <label class="form-label" for="bspdf-up-ledger">帳戶 *</label>
+          <select id="bspdf-up-ledger" class="form-input" bind:value={fPdfLedgerId} required>
+            <option value="">請選擇…</option>
+            {#each activeLedgers as l (l.ledger_id)}
+              <option value={String(l.ledger_id)}>{l.institution} {l.name}</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bspdf-up-date">對帳日期 *</label>
+          <input id="bspdf-up-date" class="form-input" type="date" bind:value={fPdfDate} required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bspdf-up-tmpl">PDF 範本 *</label>
+          <select id="bspdf-up-tmpl" class="form-input" bind:value={fPdfTemplateUuid} required>
+            <option value="">請選擇…</option>
+            {#each activePdfTemplates as t (t.template_uuid)}
+              <option value={t.template_uuid}>{t.template_name}（{t.bank_type}）</option>
+            {/each}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bspdf-up-file">PDF 檔案 *</label>
+          <input
+            id="bspdf-up-file"
+            class="form-input"
+            type="file"
+            accept=".pdf"
+            onchange={handlePdfFileChange}
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bspdf-up-pw">PDF 密碼（選填）</label>
+          <input id="bspdf-up-pw" class="form-input" type="password" placeholder="加密檔案才需填入" bind:value={fPdfPassword} />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bspdf-up-note">備註</label>
+          <input id="bspdf-up-note" class="form-input" type="text" placeholder="選填" bind:value={fPdfNote} />
+        </div>
+
+        <div class="je-actions">
+          <button type="button" class="btn-ghost" onclick={closePdfUpload} disabled={isPdfUploading}>取消</button>
+          <button type="submit" class="btn-primary" disabled={isPdfUploading}>
+            {isPdfUploading ? '上傳中…' : '上傳'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
 
 {#if showUpload}
   <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bs-upload-title">

@@ -134,6 +134,7 @@
 - [x] [Feature] 永豐銀行 PDF 解析實作 — `internal/pkg/pdfparser/sinopac/parser.go`，以 pdftotext -layout 萃取文字、欄位 rune 邊界法解析多帳戶對帳單，完成日期：2026-06-13
 - [ ] [Feature] 其他銀行 PDF 解析 — 新銀行在 `internal/pkg/pdfparser/{bank}/parser.go` 實作並在 `internal/pkg/pdfparserfactory/factory.go` 中登記
 - [x] [Feature] BankType enum 新增 SINOPAC — 完成日期：2026-06-13
+- [x] [Feature] `GET /api/bank-pdf-template/{uuid}/ledgers` — 回傳指定 PDF 範本的帳本對應清單（`bank_pdf_template_ledgers`），供前端編輯 Modal 預填現有 ledger 資料，完成日期：2026-06-15
 
 **會計分錄範本（Transaction Template）**
 

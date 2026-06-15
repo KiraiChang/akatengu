@@ -157,6 +157,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 
 	bizApi.HandleFunc("GET /bank-pdf-template", bankPdfTemplate.GetTemplates)
 	bizApi.HandleFunc("POST /bank-pdf-template", bankPdfTemplate.CreateTemplate)
+	bizApi.HandleFunc("GET /bank-pdf-template/{template_uuid}/ledgers", bankPdfTemplate.GetTemplateLedgers)
 	bizApi.HandleFunc("PUT /bank-pdf-template/{template_uuid}", bankPdfTemplate.UpdateTemplate)
 	bizApi.HandleFunc("DELETE /bank-pdf-template/{template_uuid}", bankPdfTemplate.DeactivateTemplate)
 
