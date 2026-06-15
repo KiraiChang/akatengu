@@ -128,7 +128,6 @@
   let showDisposeModal  = $state(false);
   let isDisposing       = $state(false);
   let disposeError      = $state('');
-  let disposeAssetId    = $state(0);
   let disposeAssetUUID  = $state('');
   let disposeForm       = $state<DisposeForm>(emptyDisposeForm());
 
@@ -306,7 +305,6 @@
   async function openDisposeModal(asset: FixedAsset, e: MouseEvent): Promise<void> {
     e.stopPropagation();
     await Promise.all([ensureAccounts(), ensureLedgers()]);
-    disposeAssetId   = asset.id;
     disposeAssetUUID = asset.asset_uuid;
     disposeForm      = emptyDisposeForm();
     disposeError     = '';

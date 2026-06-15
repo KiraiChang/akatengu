@@ -116,7 +116,6 @@
   let showDisposeModal  = $state(false);
   let isDisposing       = $state(false);
   let disposeError      = $state('');
-  let disposePrepaidId  = $state(0);
   let disposePrepaidUUID = $state('');
   let disposeDate       = $state('');
   let disposeMemo       = $state('');
@@ -285,7 +284,6 @@
 
   function openDisposeModal(pp: Prepaid, e: MouseEvent): void {
     e.stopPropagation();
-    disposePrepaidId   = pp.id;
     disposePrepaidUUID = pp.prepaid_uuid;
     disposeDate        = '';
     disposeMemo        = '';
