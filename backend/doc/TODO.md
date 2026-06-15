@@ -109,7 +109,8 @@
 
 **現金流量表（Cash Flow Statement）**
 
-- [ ] [Feature] 系統自動分錄補上 `cash_flow_category` — 年度結帳（Period Annual Close / Reopen）結帳分錄為科目間內部軋轉，應保持 `cash_flow_category = NULL`（投資買賣、分期付款已於 2026-05-22 完成）
+- [x] [Refactor] 現金流量分類抽離為獨立 `entry_cf_categories` Projection，移除 `journal_entries.cash_flow_category` 欄位 — 完成日期：2026-06-15，關聯：ADR-022
+- [ ] [Feature] CF 分類審視 UI — `GET /cf-categories`（未分類清單）與 `PUT /txn/{uuid}/cf-category`（使用者手動覆蓋）API 已建立（Phase 5），前端審視流程尚未實作
 
 **直接法現金流量表（Direct Method）**
 

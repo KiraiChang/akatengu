@@ -34,12 +34,14 @@
 | [ADR-012](#adr-012-投資-pipeline-cashflowcategory-分錄標記策略) | 投資 Pipeline CashFlowCategory 分錄標記策略 | Accepted | 2026-05-22 |
 | [ADR-013](#adr-013-直接法現金流量表固定利率分期還款已知限制) | 直接法現金流量表：固定利率分期還款已知限制 | Accepted | 2026-05-22 |
 | [ADR-014](#adr-014-所有會計帳務異動必須透過事件溯源寫入查詢透過-queryrepo) | 所有會計帳務異動必須透過事件溯源寫入，查詢透過 query.Repo | Accepted | 2026-05-22 |
+| [ADR-015](#adr-015-預付費用與固定資產的現金流量分類設計) | 預付費用與固定資產的現金流量分類設計 | Superseded by ADR-022 | 2026-05-22 |
 | [ADR-016](#adr-016-分頁-api-實作規範) | 分頁 API 實作規範 | Accepted | 2026-05-25 |
 | [ADR-017](#adr-017-分錄組裝移至-pipeline-factory) | 分錄組裝移至 Pipeline Factory | Accepted | 2026-05-27 |
 | [ADR-018](#adr-018-event-sourcing-projection-全面加入-uuid-以確保-replay-正確性) | Event Sourcing Projection 全面加入 UUID 以確保 Replay 正確性 | Accepted | 2026-05-29 |
 | [ADR-019](#adr-019-handler--middleware-層採用-ginkgo-v2--gomega-撰寫-bdd-測試) | Handler / Middleware 層採用 Ginkgo v2 + Gomega 撰寫 BDD 測試 | Accepted | 2026-05-29 |
 | [ADR-020](#adr-020-fixedasset--prepaid-嵌入-installment-的事件設計策略) | FixedAsset / Prepaid 嵌入 Installment 的事件設計策略 | Accepted | 2026-06-01 |
 | [ADR-021](#adr-021-銀行對帳單比對狀態不走事件溯源直接透過-uow-更新) | 銀行對帳單比對狀態不走事件溯源，直接透過 UoW 更新 | Accepted | 2026-06-03 |
+| [ADR-022](#adr-022-cashflowcategoryprojection-科目層級推導-cf-分類與事件感知覆蓋邏輯) | CashFlowCategoryProjection：科目層級推導 CF 分類與事件感知覆蓋邏輯 | Accepted | 2026-06-15 |
 
 ---
 
@@ -480,7 +482,7 @@
 
 ## ADR-015 預付費用與固定資產的現金流量分類設計
 
-- **狀態**：Accepted
+- **狀態**：Superseded by ADR-022
 - **日期**：2026-05-22
 - **背景**：
   預付費用攤提與固定資產折舊均為非現金認列，若分錄不帶 `cash_flow_category` 標籤，間接法 CF 報表的 OperatingTotal 會因 NI 下降而出現負數，但實際並無現金流出。資產處分的利得/損失若留在 NI，會使 OperatingTotal 包含投資活動金額，破壞分類一致性。
@@ -731,6 +733,51 @@
 - **後果**：
   - 正面：比對操作實作簡單，無需完整 Pipeline/Projection 鏈路；重跑可以覆蓋自動比對結果而不留事件垃圾。
   - 負面：比對狀態變更沒有事件軌跡（僅有最終狀態），無法 replay 重建比對歷史。批准後的 `transaction.created` 仍在事件流中，帳務稽核不受影響。
+
+---
+
+## ADR-022 CashFlowCategoryProjection：科目層級推導 CF 分類與事件感知覆蓋邏輯
+
+- **狀態**：Accepted
+- **日期**：2026-06-15
+- **背景**：
+  Phase 7 移除了 `journal_entries.cash_flow_category` 欄位，以及 payload builders 中所有 per-entry CF 標記。
+  CF 分類改為完全由 `CashFlowCategoryProjection.applyTxnEntries` 負責，以帳戶（`accounts.cash_flow_category`）
+  作為推導來源。
+
+  然而，純粹以科目層級推導會造成兩類語義錯誤：
+
+  1. **非現金事件被錯誤分類**：`EventInstallmentCreated`（資產 vs 負債承諾）與 `EventAssetPurchased` LEASE
+     （使用權資產 vs 租賃負債）不涉及實際現金流，但相關科目帶有 INVESTING/FINANCING 分類，會被錯誤
+     寫入 `entry_cf_categories`，導致 CF 報表出現不存在的現金流。
+  2. **同科目在不同事件語境下應有不同分類**：科目 `1201-99`（累計折舊）在折舊事件中應為 OPERATING
+     （非現金費用加回），但在處分事件中應為 INVESTING（清除折舊屬投資活動的一部分）。
+
+- **決策**：
+  以科目層級推導作為預設規則，但在 `CashFlowCategoryProjection.Apply()` 的 switch 加入事件感知特例：
+
+  | 事件 | 處理策略 | 理由 |
+  |------|----------|------|
+  | `EventInstallmentCreated` | 直接 `return nil`，不寫任何 CF | 無實際現金流；CF 於 PeriodPaid 事件分期認列 |
+  | `EventAssetPurchased` (LEASE) | `st.Ledger == nil` 時 `return nil` | 非現金交易（使用權資產 vs 租賃負債） |
+  | `EventAssetPurchased` (CASH) | 正常科目推導 | 現金流出購置資產，科目 INVESTING 正確 |
+  | `EventAssetDisposed` | `applyTxnEntriesOverrideAll(..., INVESTING)` | 所有可分類分錄強制 INVESTING；累計折舊科目的 OPERATING 於此語境不適用 |
+  | 其他所有事件 | 科目層級推導 | 預設路徑，OPERATING/INVESTING/FINANCING 直接取帳戶設定，CASH/NULL 跳過 |
+
+  `applyTxnEntriesOverrideAll`：遍歷所有分錄，若帳戶 CF 屬於 {OPERATING, INVESTING, FINANCING}，
+  強制寫入指定分類（而非帳戶本身的分類）；CASH 與 NULL 帳戶仍跳過，確保現金帳不被誤分類。
+
+- **替代方案**：
+  - **保留 payload 層 per-entry CF 標記**：原 Phase 4 前的設計。所有 builder 函式各自設定 CF，
+    移除後測試立即反映語義差異。不採用：業務邏輯分散在 builder 與 projection 兩層，新增事件類型易遺漏。
+  - **純科目層級推導（無事件感知）**：最簡單，但會產生上述兩類語義錯誤，CF 報表數字不正確。不採用。
+  - **在 payload 加入 `skip_cf_classification` 旗標**：可保持 projection 無狀態，但每個 builder
+    仍需手動設定旗標，分散邏輯的問題未解決。不採用。
+
+- **後果**：
+  - 正面：CF 報表數字正確；新增普通事件只需定義科目 CF 分類，不需修改 builder；消除 builder 中的 CF 重複設定。
+  - 負面：新增「有特殊 CF 語境」的事件類型時，需在 `CashFlowCategoryProjection.Apply()` 的 switch 加入特例，
+    不可僅靠科目推導。此規則需在 `doc/ARCHITECTURE.md`（本 ADR）記錄，避免未來遺漏。
 
 ---
 

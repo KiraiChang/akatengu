@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"akatengu/internal/database/sqlcdb"
@@ -696,12 +697,12 @@ func TestGetCashFlowStatement_BeginningAndEndingCash(t *testing.T) {
 	}
 }
 
-// cfPtr 將字串字面值轉換為指標，用於 sumInsertTxnWithCF 的 cash_flow_category 參數。
+// cfPtr converts a string literal to a pointer, used for sumInsertTxnWithCF CF params.
 func cfPtr(s string) *string { return &s }
 
 // TestGetCashFlowStatement_ThreeSections
 // 三大活動分類各自出現在對應 section，金額符合 credit−debit 公式。
-// 分類由 journal_entries.cash_flow_category 決定，非 accounts.cash_flow_category。
+// 分類由 entry_cf_categories.cf_category 決定。
 func TestGetCashFlowStatement_ThreeSections(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	repo := query.NewReportRepo(db)
@@ -1173,6 +1174,7 @@ type cfEntry struct {
 }
 
 // sumInsertTxnMulti 插入含任意數量分錄的交易，供需要 3+ 分錄的測試情境使用。
+// Also populates entry_cf_categories for entries with non-nil cf so report queries can JOIN it.
 func sumInsertTxnMulti(t *testing.T, db *sqlx.DB, txnID int64, date string, totalAmount float64, entries []cfEntry) {
 	t.Helper()
 	ctx := context.Background()
@@ -1182,12 +1184,21 @@ func sumInsertTxnMulti(t *testing.T, db *sqlx.DB, txnID int64, date string, tota
 	if err != nil {
 		t.Fatalf("sumInsertTxnMulti id=%d: %v", txnID, err)
 	}
-	for _, e := range entries {
+	for i, e := range entries {
+		entryUUID := fmt.Sprintf("test-entry-%d-%d", txnID, i)
 		_, err = db.ExecContext(ctx,
-			`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit, cash_flow_category) VALUES (?, ?, ?, ?, ?, ?)`,
-			txnID, testMerchantID, e.accountID, e.debit, e.credit, e.cf)
+			`INSERT INTO journal_entries (txn_id, merchant_id, account_id, entry_uuid, debit, credit) VALUES (?, ?, ?, ?, ?, ?)`,
+			txnID, testMerchantID, e.accountID, entryUUID, e.debit, e.credit)
 		if err != nil {
 			t.Fatalf("sumInsertTxnMulti entry %s: %v", e.accountID, err)
+		}
+		if e.cf != nil {
+			_, err = db.ExecContext(ctx,
+				`INSERT INTO entry_cf_categories (entry_uuid, merchant_id, cf_category, is_confirmed) VALUES (?, ?, ?, 1)`,
+				entryUUID, testMerchantID, *e.cf)
+			if err != nil {
+				t.Fatalf("sumInsertTxnMulti entry_cf_category %s: %v", e.accountID, err)
+			}
 		}
 	}
 }

@@ -34,6 +34,7 @@ type AccountRepo interface {
 	UpsertAccount(ctx context.Context, p projection.Account) error
 	CreateLedgerAccount(ctx context.Context, p projection.LedgerAccount) error
 	UpdateLedgerAccount(ctx context.Context, p projection.LedgerAccount) error
+	GetAccountCFCategory(ctx context.Context, accountId string, merchantID int64) (enums.CashFlowCategory, error)
 }
 
 //// 重建用
@@ -140,4 +141,8 @@ type BankStatementImportRepo interface {
 	UpdateBankTxnCreatedTxn(ctx context.Context, p sqlcdb.UpdateBankTxnCreatedTxnParams) error
 	ResetNonConfirmedMatches(ctx context.Context, p sqlcdb.ResetNonConfirmedMatchesParams) error
 	InsertBankStatementImportLedger(ctx context.Context, p sqlcdb.InsertBankStatementImportLedgerParams) error
+}
+
+type EntryCFCategoryRepo interface {
+	UpsertEntryCFCategory(ctx context.Context, p sqlcdb.UpsertEntryCFCategoryParams) error
 }

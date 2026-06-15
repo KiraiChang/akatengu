@@ -22,6 +22,7 @@ type TxProjectionRepository struct {
 	BankCsvTemplateRepo              BankCsvTemplateRepo
 	BankPdfTemplateRepo              BankPdfTemplateRepo
 	BankStatementImportRepo          BankStatementImportRepo
+	EntryCFCategoryRepo              EntryCFCategoryRepo
 }
 
 func NewTxProjectionRepository(q *sqlcdb.Queries) *TxProjectionRepository {
@@ -43,5 +44,6 @@ func NewTxProjectionRepository(q *sqlcdb.Queries) *TxProjectionRepository {
 		BankCsvTemplateRepo:              NewBankCsvTemplateRepo(q),
 		BankPdfTemplateRepo:              NewBankPdfTemplateRepo(q),
 		BankStatementImportRepo:          NewBankStatementImportRepo(q),
+		EntryCFCategoryRepo:              NewEntryCFCategoryRepo(q),
 	}
 }

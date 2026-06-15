@@ -54,6 +54,7 @@ func (p *registry) register(query *query.Repo) {
 	p.rules[event_types.EventTransactionCreated.Enum()] = NewEventTransactionCreatedPipeline(query)
 	p.rules[event_types.EventTransactionVoided.Enum()] = NewEventTransactionVoidedPipeline(query)
 	p.rules[event_types.EventTransactionCorrected.Enum()] = NewEventTransactionCorrectedPipeline(query)
+	p.rules[event_types.EventTransactionCFCategoryUpdated.Enum()] = NewEventTransactionCFCategoryUpdatedPipeline(query)
 
 	p.rules[event_types.EventPeriodMonthStarted.Enum()] = NewEventPeriodMonthStartedPipeline(query)
 	p.rules[event_types.EventPeriodMonthClosed.Enum()] = NewEventPeriodMonthClosedPipeline(query)

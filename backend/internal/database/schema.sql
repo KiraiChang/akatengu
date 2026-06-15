@@ -117,9 +117,18 @@ CREATE TABLE journal_entries (
     debit               REAL    NOT NULL DEFAULT 0,
     credit              REAL    NOT NULL DEFAULT 0,
     note                TEXT,
-    cash_flow_category  TEXT    CHECK (cash_flow_category IN ('OPERATING', 'INVESTING', 'FINANCING')),
     updated_by          TEXT,
     updated_at          TEXT
+);
+
+CREATE TABLE entry_cf_categories (
+    entry_uuid   TEXT    NOT NULL,
+    merchant_id  INTEGER NOT NULL,
+    cf_category  TEXT    CHECK (cf_category IN ('OPERATING', 'INVESTING', 'FINANCING')),
+    is_confirmed INTEGER NOT NULL DEFAULT 0,
+    updated_at   TEXT,
+    updated_by   TEXT,
+    PRIMARY KEY (entry_uuid, merchant_id)
 );
 
 CREATE TABLE installments(

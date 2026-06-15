@@ -65,6 +65,7 @@ func NewProjection() []Projection {
 		&ConfigProjectionService{},
 		&PeriodProjectionService{},
 		&TransactionProjectionService{},
+		&CashFlowCategoryProjection{},
 		&AccountBalanceRealtimeProjection{},
 		&AccountBalanceSnapshotProjection{},
 		&LedgerAccountBalanceSnapshotProjection{},

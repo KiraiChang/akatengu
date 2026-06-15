@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -57,8 +58,8 @@ func sumInsertTxn(t *testing.T, db *sqlx.DB, txnID int64, date, debitAcct, credi
 	sumInsertTxnWithCF(t, db, txnID, date, debitAcct, creditAcct, amount, nil, nil)
 }
 
-// sumInsertTxnWithCF inserts a transaction with two journal entries; debitCF / creditCF set
-// cash_flow_category on each side (nil = NULL, no cash-flow classification).
+// sumInsertTxnWithCF inserts a transaction with two journal entries and
+// populates entry_cf_categories for non-nil CF values so report queries can JOIN it.
 func sumInsertTxnWithCF(t *testing.T, db *sqlx.DB, txnID int64, date, debitAcct, creditAcct string, amount float64, debitCF, creditCF *string) {
 	t.Helper()
 	ctx := context.Background()
@@ -68,17 +69,35 @@ func sumInsertTxnWithCF(t *testing.T, db *sqlx.DB, txnID int64, date, debitAcct,
 	if err != nil {
 		t.Fatalf("sumInsertTxnWithCF id=%d: %v", txnID, err)
 	}
+	debitUUID := fmt.Sprintf("test-entry-%d-0", txnID)
+	creditUUID := fmt.Sprintf("test-entry-%d-1", txnID)
 	_, err = db.ExecContext(ctx,
-		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit, cash_flow_category) VALUES (?, ?, ?, ?, 0, ?)`,
-		txnID, testMerchantID, debitAcct, amount, debitCF)
+		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, entry_uuid, debit, credit) VALUES (?, ?, ?, ?, ?, 0)`,
+		txnID, testMerchantID, debitAcct, debitUUID, amount)
 	if err != nil {
 		t.Fatalf("sumInsertTxnWithCF debit: %v", err)
 	}
 	_, err = db.ExecContext(ctx,
-		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, debit, credit, cash_flow_category) VALUES (?, ?, ?, 0, ?, ?)`,
-		txnID, testMerchantID, creditAcct, amount, creditCF)
+		`INSERT INTO journal_entries (txn_id, merchant_id, account_id, entry_uuid, debit, credit) VALUES (?, ?, ?, ?, 0, ?)`,
+		txnID, testMerchantID, creditAcct, creditUUID, amount)
 	if err != nil {
 		t.Fatalf("sumInsertTxnWithCF credit: %v", err)
+	}
+	if debitCF != nil {
+		_, err = db.ExecContext(ctx,
+			`INSERT INTO entry_cf_categories (entry_uuid, merchant_id, cf_category, is_confirmed) VALUES (?, ?, ?, 1)`,
+			debitUUID, testMerchantID, *debitCF)
+		if err != nil {
+			t.Fatalf("sumInsertTxnWithCF debit ecc: %v", err)
+		}
+	}
+	if creditCF != nil {
+		_, err = db.ExecContext(ctx,
+			`INSERT INTO entry_cf_categories (entry_uuid, merchant_id, cf_category, is_confirmed) VALUES (?, ?, ?, 1)`,
+			creditUUID, testMerchantID, *creditCF)
+		if err != nil {
+			t.Fatalf("sumInsertTxnWithCF credit ecc: %v", err)
+		}
 	}
 }
 

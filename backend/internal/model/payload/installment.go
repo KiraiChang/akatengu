@@ -244,20 +244,19 @@ func BuildInstallmentCreatedTransaction(p InstallmentCreatedPayload, ledger *pro
 // BuildInstallmentPeriodPaidTransaction assembles the journal entry payload for EventInstallmentPeriodPaid.
 // Called by the pipeline factory; the result is stored in InstallmentPeriodPaidState.Transaction.
 func BuildInstallmentPeriodPaidTransaction(p InstallmentPeriodPaidPayload, installment *projection.Installment, payment *projection.InstallmentPayment, ledger *projection.LedgerAccount, paidLedger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, sysAccountExpenseInterestExpense string) (TransactionCreatedPayload, error) {
-	cfFin := enums.CashFlowCategoryFinancing.Enum()
 	var entries []TransactionEntryPayload
 	ledgerId := ledger.LedgerId
 	paidLedgerId := paidLedger.LedgerId
 	switch installment.InterestType.Val() {
 	case enums.InterestTypeFree:
 		entries = []TransactionEntryPayload{
-			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: payment.Amount, Credit: decimal.Zero, CashFlowCategory: &cfFin},
+			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: payment.Amount, Credit: decimal.Zero},
 			{AccountId: paidLedger.AccountId, LedgerId: &paidLedgerId, Debit: decimal.Zero, Credit: payment.Amount},
 		}
 	case enums.InterestTypeFixedRate:
 		totalAmount := payment.Amount.Add(payment.Interest)
 		entries = []TransactionEntryPayload{
-			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: payment.Amount, Credit: decimal.Zero, CashFlowCategory: &cfFin},
+			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: payment.Amount, Credit: decimal.Zero},
 			{AccountId: sysAccountAssetPrepaidInterest, Debit: decimal.Zero, Credit: payment.Interest},
 			{AccountId: sysAccountExpenseInterestExpense, Debit: payment.Interest, Credit: decimal.Zero},
 			{AccountId: paidLedger.AccountId, LedgerId: &paidLedgerId, Debit: decimal.Zero, Credit: totalAmount},

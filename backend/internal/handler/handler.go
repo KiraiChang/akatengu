@@ -53,6 +53,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	audit := newAuditHandler(db, eventService, logger)
 	bankStatement := newBankStatementHandler(db, eventService, logger)
 	bankPdfTemplate := newBankPdfTemplateHandler(db, eventService, logger)
+	entryCFCategory := newEntryCFCategoryHandler(db, eventService, logger)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求
@@ -123,6 +124,8 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 
 	bizApi.HandleFunc("GET /txn/paged", txn.GetTransactionPaged)
 	bizApi.HandleFunc("GET /txn/{txn_id}", txn.GetEntries)
+	bizApi.HandleFunc("GET /cf-categories", entryCFCategory.GetCFReview)
+	bizApi.HandleFunc("PUT /txn/{txn_uuid}/cf-category", entryCFCategory.UpdateCFCategory)
 
 	bizApi.HandleFunc("GET /aggerate/{aggerate_type}", aggerate.GetVersion)
 

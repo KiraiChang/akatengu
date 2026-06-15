@@ -95,15 +95,13 @@ func (p PrepaidCreatedWithInstallmentPayload) ToInstallmentPayload(accountID str
 }
 
 // BuildPrepaidCreatedWithInstallmentTransaction 組合預付費用分期支付的會計分錄。
-// 借方預付科目標記 Operating；信用卡貸方不標記（此時無實際現金流出）。
 func BuildPrepaidCreatedWithInstallmentTransaction(p PrepaidCreatedWithInstallmentPayload, category *projection.PrepaidCategory, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
-	cfOperating := enums.CashFlowCategoryOperating.Enum()
 	ip := p.ToInstallmentPayload(category.AccountID)
 	var entries []TransactionEntryPayload
 	switch ip.InterestType.Val() {
 	case enums.InterestTypeFree:
 		entries = []TransactionEntryPayload{
-			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero},
 			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.TotalAmount},
 		}
 	case enums.InterestTypeFixedRate:
@@ -112,7 +110,7 @@ func BuildPrepaidCreatedWithInstallmentTransaction(p PrepaidCreatedWithInstallme
 			interest = interest.Add(pmt.Interest)
 		}
 		entries = []TransactionEntryPayload{
-			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero},
 			{AccountId: sysAccountAssetPrepaidInterest, Debit: interest, Credit: decimal.Zero},
 			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.TotalAmount.Add(interest)},
 		}
@@ -175,14 +173,13 @@ func AmortizationAmount(total decimal.Decimal, periods int64, amortizedPeriods i
 // BuildPrepaidCreatedTransaction assembles the journal entry payload for EventPrepaidCreated.
 // Called by the pipeline factory; the result is stored in PrepaidCreatedState.Transaction.
 func BuildPrepaidCreatedTransaction(p PrepaidCreatedPayload, category *projection.PrepaidCategory, ledger *projection.LedgerAccount) TransactionCreatedPayload {
-	cfOperating := enums.CashFlowCategoryOperating.Enum()
 	ledgerId := ledger.LedgerId
 	return TransactionCreatedPayload{
 		TransactionDate: p.StartDate,
 		Description:     fmt.Sprintf("預付費用 %s", p.Name),
 		Currency:        "TWD",
 		Entries: []TransactionEntryPayload{
-			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero, CashFlowCategory: &cfOperating},
+			{AccountId: category.AccountID, Debit: p.TotalAmount, Credit: decimal.Zero},
 			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.TotalAmount},
 		},
 	}
@@ -191,7 +188,6 @@ func BuildPrepaidCreatedTransaction(p PrepaidCreatedPayload, category *projectio
 // BuildPrepaidAmortizedTransaction assembles the journal entry payload for EventPrepaidAmortized.
 // Called by the pipeline factory; the result is stored in PrepaidAmortizedState.Transaction.
 func BuildPrepaidAmortizedTransaction(p PrepaidAmortizedPayload, prepaid *projection.Prepaid) TransactionCreatedPayload {
-	cfOperating := enums.CashFlowCategoryOperating.Enum()
 	amortAmount := AmortizationAmount(prepaid.TotalAmount, prepaid.Periods, prepaid.AmortizedPeriods, prepaid.AmortizedAmount)
 	return TransactionCreatedPayload{
 		TransactionDate: p.PeriodDate + "-01",
@@ -199,7 +195,7 @@ func BuildPrepaidAmortizedTransaction(p PrepaidAmortizedPayload, prepaid *projec
 		Currency:        "TWD",
 		Entries: []TransactionEntryPayload{
 			{AccountId: prepaid.ExpenseAccountID, Debit: amortAmount, Credit: decimal.Zero},
-			{AccountId: prepaid.AccountID, Debit: decimal.Zero, Credit: amortAmount, CashFlowCategory: &cfOperating},
+			{AccountId: prepaid.AccountID, Debit: decimal.Zero, Credit: amortAmount},
 		},
 	}
 }
@@ -207,7 +203,6 @@ func BuildPrepaidAmortizedTransaction(p PrepaidAmortizedPayload, prepaid *projec
 // BuildPrepaidDisposedTransaction assembles the journal entry payload for EventPrepaidDisposed.
 // Called by the pipeline factory; the result is stored in PrepaidDisposedState.Transaction.
 func BuildPrepaidDisposedTransaction(p PrepaidDisposedPayload, prepaid *projection.Prepaid) TransactionCreatedPayload {
-	cfOperating := enums.CashFlowCategoryOperating.Enum()
 	remaining := prepaid.TotalAmount.Sub(prepaid.AmortizedAmount)
 	return TransactionCreatedPayload{
 		TransactionDate: p.DisposalDate,
@@ -215,7 +210,7 @@ func BuildPrepaidDisposedTransaction(p PrepaidDisposedPayload, prepaid *projecti
 		Currency:        "TWD",
 		Entries: []TransactionEntryPayload{
 			{AccountId: prepaid.ExpenseAccountID, Debit: remaining, Credit: decimal.Zero},
-			{AccountId: prepaid.AccountID, Debit: decimal.Zero, Credit: remaining, CashFlowCategory: &cfOperating},
+			{AccountId: prepaid.AccountID, Debit: decimal.Zero, Credit: remaining},
 		},
 	}
 }

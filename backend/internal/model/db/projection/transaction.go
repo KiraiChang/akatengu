@@ -21,9 +21,8 @@ type Entry struct {
 	AccountId        string                 `db:"account_id" json:"account_id"`
 	Debit            decimal.Decimal        `db:"debit" json:"debit"`
 	Credit           decimal.Decimal        `db:"credit" json:"credit"`
-	Note             *string                `db:"note" json:"note"`
-	CashFlowCategory enums.CashFlowCategory `db:"cash_flow_category" json:"cash_flow_category"`
-	UpdatedBy        *string                `db:"updated_by" json:"updated_by"`
+	Note      *string `db:"note" json:"note"`
+	UpdatedBy *string `db:"updated_by" json:"updated_by"`
 	UpdatedAt        *string                `db:"updated_at" json:"updated_at"`
 }
 

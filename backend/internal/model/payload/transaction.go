@@ -9,13 +9,12 @@ import (
 )
 
 // TransactionEntryPayload 範例
-// { "account_id": "5220", "ledger_id": null, "debit": 1250, "credit": 0, "cash_flow_category": "OPERATING" }
+// { "account_id": "5220", "ledger_id": null, "debit": 1250, "credit": 0 }
 type TransactionEntryPayload struct {
-	AccountId        string                  `json:"account_id"`
-	LedgerId         *int64                  `json:"ledger_id"`
-	Debit            decimal.Decimal         `json:"debit"`
-	Credit           decimal.Decimal         `json:"credit"`
-	CashFlowCategory *enums.CashFlowCategory `json:"cash_flow_category"`
+	AccountId string          `json:"account_id"`
+	LedgerId  *int64          `json:"ledger_id"`
+	Debit     decimal.Decimal `json:"debit"`
+	Credit    decimal.Decimal `json:"credit"`
 }
 
 // TransactionCreatedPayload 範例
@@ -135,5 +134,36 @@ func (p TransactionVoidedPayload) Validate() error {
 		errs = append(errs, "reason is required")
 	}
 
+	return joinErrors(errs)
+}
+
+// TransactionCFEntryItem represents a single entry's CF category update
+type TransactionCFEntryItem struct {
+	EntryUUID  string                 `json:"entry_uuid"`
+	CFCategory enums.CashFlowCategory `json:"cf_category"`
+}
+
+// TransactionCFCategoryUpdatedPayload is the payload for transaction.cf_category_updated
+type TransactionCFCategoryUpdatedPayload struct {
+	TxnUUID string                   `json:"txn_uuid"`
+	Entries []TransactionCFEntryItem `json:"entries"`
+}
+
+func (p TransactionCFCategoryUpdatedPayload) Validate() error {
+	var errs []string
+	if p.TxnUUID == "" {
+		errs = append(errs, "txn_uuid is required")
+	}
+	if len(p.Entries) == 0 {
+		errs = append(errs, "entries must not be empty")
+	}
+	for i, e := range p.Entries {
+		if e.EntryUUID == "" {
+			errs = append(errs, fmt.Sprintf("entries[%d].entry_uuid is required", i))
+		}
+		if !e.CFCategory.In(enums.CashFlowCategoryOperating, enums.CashFlowCategoryInvesting, enums.CashFlowCategoryFinancing) {
+			errs = append(errs, fmt.Sprintf("entries[%d].cf_category must be OPERATING, INVESTING, or FINANCING", i))
+		}
+	}
 	return joinErrors(errs)
 }

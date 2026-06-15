@@ -349,7 +349,7 @@ func buildAssetPurchasedWithInstallmentScenarios() []assetPurchasedWithInstallme
 		{
 			given:    "無息分期，所有條件正常",
 			when:     "執行 AssetPurchasedWithInstallment pipeline",
-			then:     "State 包含 Category/Installment/Payments，Transaction 借方含 Investing 分類",
+			then:     "State 包含 Category/Installment/Payments，Transaction 有 2 筆分錄",
 			payload:  validAssetWithInstallmentPayload(),
 			period:   openPeriod(),
 			category: testFixedAssetCategory(),
@@ -361,11 +361,6 @@ func buildAssetPurchasedWithInstallmentScenarios() []assetPurchasedWithInstallme
 				Expect(len(st.InstallmentPayments)).To(Equal(12))
 				Expect(st.Transaction.TransactionDate).To(Equal("2026-05-01"))
 				Expect(len(st.Transaction.Entries)).To(Equal(2))
-				debit := st.Transaction.Entries[0]
-				Expect(debit.CashFlowCategory).NotTo(BeNil())
-				Expect(debit.CashFlowCategory.Val()).To(Equal(enums.CashFlowCategoryInvesting))
-				credit := st.Transaction.Entries[1]
-				Expect(credit.CashFlowCategory).To(BeNil())
 			},
 		},
 	}
@@ -444,7 +439,7 @@ func buildPrepaidCreatedWithInstallmentScenarios() []prepaidCreatedWithInstallme
 		{
 			given:    "無息分期，所有條件正常",
 			when:     "執行 PrepaidCreatedWithInstallment pipeline",
-			then:     "State 包含 Category/Installment/Payments，Transaction 借方含 Operating 分類",
+			then:     "State 包含 Category/Installment/Payments，Transaction 有 2 筆分錄",
 			payload:  validPrepaidWithInstallmentPayload(),
 			period:   openPeriod(),
 			category: testPrepaidCategory(),
@@ -456,11 +451,6 @@ func buildPrepaidCreatedWithInstallmentScenarios() []prepaidCreatedWithInstallme
 				Expect(len(st.InstallmentPayments)).To(Equal(12))
 				Expect(st.Transaction.TransactionDate).To(Equal("2026-05-01"))
 				Expect(len(st.Transaction.Entries)).To(Equal(2))
-				debit := st.Transaction.Entries[0]
-				Expect(debit.CashFlowCategory).NotTo(BeNil())
-				Expect(debit.CashFlowCategory.Val()).To(Equal(enums.CashFlowCategoryOperating))
-				credit := st.Transaction.Entries[1]
-				Expect(credit.CashFlowCategory).To(BeNil())
 			},
 		},
 	}

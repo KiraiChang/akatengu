@@ -190,7 +190,7 @@ VALUES
 (1,'4202-02', '4202', '股票股利（按公允價值認列）', 'INCOME', 'CREDIT', FALSE, 1, NULL),
 
 -- 孫科目 — 4203
-(1,'4203-01', '4203', '股票處分利得',   'INCOME', 'CREDIT', FALSE, 1, NULL),
+(1,'4203-01', '4203', '股票處分利得',   'INCOME', 'CREDIT', FALSE, 1, 'INVESTING'),
 (1,'4203-02', '4203', '基金處分利得',   'INCOME', 'CREDIT', FALSE, 1, NULL),
 (1,'4203-03', '4203', '黃金處分利得',   'INCOME', 'CREDIT', FALSE, 1, NULL),
 (1,'4203-04', '4203', '外幣處分利得',   'INCOME', 'CREDIT', FALSE, 1, NULL),
@@ -305,7 +305,7 @@ VALUES
 (1,'5401-04', '5401', '信用卡分期手續費',       'EXPENSE', 'DEBIT', FALSE, 1, NULL),
 
 -- 孫科目 — 5402
-(1,'5402-01', '5402', '股票交易手續費',           'EXPENSE', 'DEBIT', FALSE, 1, NULL),
+(1,'5402-01', '5402', '股票交易手續費',           'EXPENSE', 'DEBIT', FALSE, 1, 'INVESTING'),
 (1,'5402-02', '5402', '基金申購/贖回手續費',      'EXPENSE', 'DEBIT', FALSE, 1, NULL),
 (1,'5402-03', '5402', '黃金申購/贖回手續費',      'EXPENSE', 'DEBIT', FALSE, 1, NULL),
 (1,'5402-04', '5402', '外幣申購/贖回手續費',      'EXPENSE', 'DEBIT', FALSE, 1, NULL),

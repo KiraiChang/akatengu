@@ -54,11 +54,11 @@ WHERE txn_id = @txn_id AND merchant_id = @merchant_id;
 
 -- name: InsertJournalEntry :exec
 INSERT INTO journal_entries
-    (merchant_id, entry_uuid, txn_uuid, ledger_uuid, txn_id, ledger_id, account_id, debit, credit, note, cash_flow_category, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    (merchant_id, entry_uuid, txn_uuid, ledger_uuid, txn_id, ledger_id, account_id, debit, credit, note, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertJournalEntryWithID :exec
 INSERT INTO journal_entries
-    (entry_id, merchant_id, entry_uuid, txn_uuid, ledger_uuid, txn_id, ledger_id, account_id, debit, credit, note, cash_flow_category, updated_by)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (entry_id, merchant_id, entry_uuid, txn_uuid, ledger_uuid, txn_id, ledger_id, account_id, debit, credit, note, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(entry_id) DO NOTHING;

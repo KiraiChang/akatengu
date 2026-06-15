@@ -121,22 +121,16 @@ func (r *sqlxAccountAnalysisRepo) GetAccountJournalEntriesPaged(ctx context.Cont
 
 	result := make([]projection.AccountJournalEntryRow, len(rows))
 	for i, row := range rows {
-		var cfStr *string
-		if !row.CashFlowCategory.IsZero() {
-			s := row.CashFlowCategory.String()
-			cfStr = &s
-		}
 		result[i] = projection.AccountJournalEntryRow{
-			EntryID:          row.EntryID,
-			TxnID:            row.TxnID,
-			AccountID:        row.AccountID,
-			LedgerID:         row.LedgerID,
-			Debit:            row.Debit,
-			Credit:           row.Credit,
-			Note:             row.Note,
-			CashFlowCategory: cfStr,
-			TxnDate:          row.TxnDate,
-			Description:      row.Description,
+			EntryID:     row.EntryID,
+			TxnID:       row.TxnID,
+			AccountID:   row.AccountID,
+			LedgerID:    row.LedgerID,
+			Debit:       row.Debit,
+			Credit:      row.Credit,
+			Note:        row.Note,
+			TxnDate:     row.TxnDate,
+			Description: row.Description,
 		}
 	}
 	return result, total, nil

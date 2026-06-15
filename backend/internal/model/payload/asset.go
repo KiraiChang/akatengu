@@ -111,15 +111,13 @@ func (p AssetPurchasedWithInstallmentPayload) ToInstallmentPayload(assetAccountI
 }
 
 // BuildAssetPurchasedWithInstallmentTransaction 組合固定資產分期購入的會計分錄。
-// 借方資產科目標記 Investing；信用卡貸方不標記（此時無實際現金流出）。
 func BuildAssetPurchasedWithInstallmentTransaction(p AssetPurchasedWithInstallmentPayload, category *projection.FixedAssetCategory, ledger *projection.LedgerAccount, sysAccountAssetPrepaidInterest string, payments []*projection.InstallmentPayment) (TransactionCreatedPayload, error) {
-	cfInvesting := enums.CashFlowCategoryInvesting.Enum()
 	ip := p.ToInstallmentPayload(category.AssetAccountID)
 	var entries []TransactionEntryPayload
 	switch ip.InterestType.Val() {
 	case enums.InterestTypeFree:
 		entries = []TransactionEntryPayload{
-			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero},
 			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.Cost},
 		}
 	case enums.InterestTypeFixedRate:
@@ -128,7 +126,7 @@ func BuildAssetPurchasedWithInstallmentTransaction(p AssetPurchasedWithInstallme
 			interest = interest.Add(pmt.Interest)
 		}
 		entries = []TransactionEntryPayload{
-			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero},
 			{AccountId: sysAccountAssetPrepaidInterest, Debit: interest, Credit: decimal.Zero},
 			{AccountId: ledger.AccountId, LedgerId: &ledger.LedgerId, Debit: decimal.Zero, Credit: p.Cost.Add(interest)},
 		}
@@ -208,13 +206,12 @@ func DepreciationAmount(cost, residualValue decimal.Decimal, usefulLifeMonths, d
 // BuildAssetPurchasedTransaction assembles the journal entry payload for EventAssetPurchased.
 // Called by the pipeline factory; the result is stored in AssetPurchasedState.Transaction.
 func BuildAssetPurchasedTransaction(p AssetPurchasedPayload, category *projection.FixedAssetCategory, ledger *projection.LedgerAccount) (TransactionCreatedPayload, error) {
-	cfInvesting := enums.CashFlowCategoryInvesting.Enum()
 	var entries []TransactionEntryPayload
 	switch p.PaymentType.Val() {
 	case enums.AssetPaymentTypeCash:
 		ledgerId := ledger.LedgerId
 		entries = []TransactionEntryPayload{
-			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
+			{AccountId: category.AssetAccountID, Debit: p.Cost, Credit: decimal.Zero},
 			{AccountId: ledger.AccountId, LedgerId: &ledgerId, Debit: decimal.Zero, Credit: p.Cost},
 		}
 	case enums.AssetPaymentTypeLease:
@@ -236,7 +233,6 @@ func BuildAssetPurchasedTransaction(p AssetPurchasedPayload, category *projectio
 // BuildAssetDepreciatedTransaction assembles the journal entry payload for EventAssetDepreciated.
 // Called by the pipeline factory; the result is stored in AssetDepreciatedState.Transaction.
 func BuildAssetDepreciatedTransaction(p AssetDepreciatedPayload, asset *projection.FixedAsset) TransactionCreatedPayload {
-	cfOperating := enums.CashFlowCategoryOperating.Enum()
 	deprAmount := DepreciationAmount(asset.Cost, asset.ResidualValue, asset.UsefulLifeMonths, asset.DepreciatedPeriods, asset.TotalDepreciated)
 	return TransactionCreatedPayload{
 		TransactionDate: p.PeriodDate + "-01",
@@ -244,7 +240,7 @@ func BuildAssetDepreciatedTransaction(p AssetDepreciatedPayload, asset *projecti
 		Currency:        "TWD",
 		Entries: []TransactionEntryPayload{
 			{AccountId: asset.DepreciationExpenseAccountID, Debit: deprAmount, Credit: decimal.Zero},
-			{AccountId: asset.AccumDepreciationAccountID, Debit: decimal.Zero, Credit: deprAmount, CashFlowCategory: &cfOperating},
+			{AccountId: asset.AccumDepreciationAccountID, Debit: decimal.Zero, Credit: deprAmount},
 		},
 	}
 }
@@ -252,12 +248,11 @@ func BuildAssetDepreciatedTransaction(p AssetDepreciatedPayload, asset *projecti
 // BuildAssetDisposedTransaction assembles the journal entry payload for EventAssetDisposed.
 // Called by the pipeline factory; the result is stored in AssetDisposedState.Transaction.
 func BuildAssetDisposedTransaction(p AssetDisposedPayload, asset *projection.FixedAsset, proceedsLedger *projection.LedgerAccount) TransactionCreatedPayload {
-	cfInvesting := enums.CashFlowCategoryInvesting.Enum()
 	bookValue := asset.Cost.Sub(asset.TotalDepreciated)
 	gainLoss := p.Proceeds.Sub(bookValue)
 	entries := []TransactionEntryPayload{
-		{AccountId: asset.AccumDepreciationAccountID, Debit: asset.TotalDepreciated, Credit: decimal.Zero, CashFlowCategory: &cfInvesting},
-		{AccountId: asset.AssetAccountID, Debit: decimal.Zero, Credit: asset.Cost, CashFlowCategory: &cfInvesting},
+		{AccountId: asset.AccumDepreciationAccountID, Debit: asset.TotalDepreciated, Credit: decimal.Zero},
+		{AccountId: asset.AssetAccountID, Debit: decimal.Zero, Credit: asset.Cost},
 	}
 	if p.Proceeds.GreaterThan(decimal.Zero) && proceedsLedger != nil {
 		ledgerId := proceedsLedger.LedgerId
@@ -270,17 +265,15 @@ func BuildAssetDisposedTransaction(p AssetDisposedPayload, asset *projection.Fix
 	}
 	if gainLoss.GreaterThan(decimal.Zero) {
 		entries = append(entries, TransactionEntryPayload{
-			AccountId:        p.GainAccountID,
-			Credit:           gainLoss,
-			Debit:            decimal.Zero,
-			CashFlowCategory: &cfInvesting,
+			AccountId: p.GainAccountID,
+			Credit:    gainLoss,
+			Debit:     decimal.Zero,
 		})
 	} else if gainLoss.LessThan(decimal.Zero) {
 		entries = append(entries, TransactionEntryPayload{
-			AccountId:        p.LossAccountID,
-			Debit:            gainLoss.Abs(),
-			Credit:           decimal.Zero,
-			CashFlowCategory: &cfInvesting,
+			AccountId: p.LossAccountID,
+			Debit:     gainLoss.Abs(),
+			Credit:    decimal.Zero,
 		})
 	}
 	return TransactionCreatedPayload{

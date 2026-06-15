@@ -406,8 +406,10 @@ func queryEntries(t tHelper, db *sqlx.DB, txnID int64) []entryRow {
 	t.Helper()
 	var rows []entryScanRow
 	err := db.SelectContext(testCtx(), &rows,
-		`SELECT account_id, ledger_id, debit, credit, cash_flow_category
-		 FROM journal_entries WHERE txn_id=? AND merchant_id=? ORDER BY entry_id`, txnID, testMID)
+		`SELECT je.account_id, je.ledger_id, je.debit, je.credit, ecc.cf_category AS cash_flow_category
+		 FROM journal_entries je
+		 LEFT JOIN entry_cf_categories ecc ON ecc.entry_uuid = je.entry_uuid AND ecc.merchant_id = je.merchant_id
+		 WHERE je.txn_id=? AND je.merchant_id=? ORDER BY je.entry_id`, txnID, testMID)
 	if err != nil {
 		t.Fatalf("queryEntries(%d): %v", txnID, err)
 	}

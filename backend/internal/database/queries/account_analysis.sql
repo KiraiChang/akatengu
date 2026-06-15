@@ -10,7 +10,7 @@ WITH total AS (
       AND t.txn_date <= @to_date
 )
 SELECT je.entry_id, je.txn_id, je.account_id, je.ledger_id,
-       je.debit, je.credit, je.note, je.cash_flow_category,
+       je.debit, je.credit, je.note,
        t.txn_date, t.description,
        total.cnt AS total
 FROM journal_entries je

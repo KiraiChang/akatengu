@@ -21,16 +21,15 @@ type AccountChildrenBalanceResult struct {
 
 // AccountJournalEntryRow is a composite type (manual mapping, no dbmap annotation).
 type AccountJournalEntryRow struct {
-	EntryID          int64           `db:"entry_id" json:"entry_id"`
-	TxnID            int64           `db:"txn_id" json:"txn_id"`
-	AccountID        string          `db:"account_id" json:"account_id"`
-	LedgerID         *int64          `db:"ledger_id" json:"ledger_id"`
-	Debit            decimal.Decimal `db:"debit" json:"debit"`
-	Credit           decimal.Decimal `db:"credit" json:"credit"`
-	Note             *string         `db:"note" json:"note"`
-	CashFlowCategory *string         `db:"cash_flow_category" json:"cash_flow_category"`
-	TxnDate          string          `db:"txn_date" json:"txn_date"`
-	Description      string          `db:"description" json:"description"`
+	EntryID     int64           `db:"entry_id" json:"entry_id"`
+	TxnID       int64           `db:"txn_id" json:"txn_id"`
+	AccountID   string          `db:"account_id" json:"account_id"`
+	LedgerID    *int64          `db:"ledger_id" json:"ledger_id"`
+	Debit       decimal.Decimal `db:"debit" json:"debit"`
+	Credit      decimal.Decimal `db:"credit" json:"credit"`
+	Note        *string         `db:"note" json:"note"`
+	TxnDate     string          `db:"txn_date" json:"txn_date"`
+	Description string          `db:"description" json:"description"`
 }
 
 // AccountMonthlyBalance is computed in Go from snapshot + delta queries.

@@ -31,6 +31,7 @@ type Repo struct {
 	BankCsvTemplate      BankCsvTemplateRepo
 	BankPdfTemplate      BankPdfTemplateRepo
 	BankStatementImport  BankStatementImportRepo
+	EntryCFCategory      EntryCFCategoryRepo
 }
 
 func NewQueryRepository(db *sqlx.DB) *Repo {
@@ -60,5 +61,6 @@ func NewQueryRepository(db *sqlx.DB) *Repo {
 		BankCsvTemplate:     newBankCsvTemplateRepo(q),
 		BankPdfTemplate:     newBankPdfTemplateRepo(q),
 		BankStatementImport: newBankStatementImportRepo(q),
+		EntryCFCategory:     newEntryCFCategoryRepo(q),
 	}
 }

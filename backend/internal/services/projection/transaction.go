@@ -283,21 +283,16 @@ func (s *TransactionProjectionService) applyTransaction(ctx context.Context, tx 
 
 	entries := make([]projection.Entry, len(p.Entries))
 	for i, e := range p.Entries {
-		var cf enums.CashFlowCategory
-		if e.CashFlowCategory != nil {
-			cf = *e.CashFlowCategory
-		}
 		entries[i] = projection.Entry{
-			MerchantID:       merchantID,
-			EntryUuid:        uuidx.NewFromEvent(eventUUID, "entry:"+txnQualifier+":"+strconv.Itoa(i)),
-			TxnUuid:          txnUuid,
-			TransactionId:    txnId,
-			LedgerId:         e.LedgerId,
-			AccountId:        e.AccountId,
-			Debit:            e.Debit,
-			Credit:           e.Credit,
-			CashFlowCategory: cf,
-			UpdatedBy:        updatedBy,
+			MerchantID:    merchantID,
+			EntryUuid:     uuidx.NewFromEvent(eventUUID, "entry:"+txnQualifier+":"+strconv.Itoa(i)),
+			TxnUuid:       txnUuid,
+			TransactionId: txnId,
+			LedgerId:      e.LedgerId,
+			AccountId:     e.AccountId,
+			Debit:         e.Debit,
+			Credit:        e.Credit,
+			UpdatedBy:     updatedBy,
 		}
 	}
 

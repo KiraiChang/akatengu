@@ -466,22 +466,23 @@ type cashSumRow struct {
 	CreditTotal decimal.Decimal `db:"credit_total"`
 }
 
-// queryCashFlowChanges fetches period debit/credit grouped by journal_entries.cash_flow_category.
+// queryCashFlowChanges fetches period debit/credit grouped by entry_cf_categories.cf_category.
 // Leaf accounts join directly; summary accounts aggregate descendants via account_closure.
 // A parent account can appear in multiple sections if its descendants have entries with different categories.
 // args: merchant_id, start_date, end_date
 const queryCashFlowChanges = `
 WITH period_entries AS (
-    SELECT je.account_id, je.cash_flow_category,
+    SELECT je.account_id, ecc.cf_category AS cash_flow_category,
            COALESCE(SUM(je.debit), 0)  AS period_debit,
            COALESCE(SUM(je.credit), 0) AS period_credit
     FROM journal_entries je
     JOIN transactions t ON je.txn_id = t.txn_id AND t.status = 'ACTIVE'
         AND t.txn_date >= :start_date AND t.txn_date <= :end_date
         AND t.merchant_id = :merchant_id
+    JOIN entry_cf_categories ecc ON ecc.entry_uuid = je.entry_uuid AND ecc.merchant_id = :merchant_id
     WHERE je.merchant_id = :merchant_id
-      AND je.cash_flow_category IN ('OPERATING', 'INVESTING', 'FINANCING')
-    GROUP BY je.account_id, je.cash_flow_category
+      AND ecc.cf_category IN ('OPERATING', 'INVESTING', 'FINANCING')
+    GROUP BY je.account_id, ecc.cf_category
 ),
 leaf_cf AS (
     SELECT a.account_id, a.name, pe.cash_flow_category, 0 AS is_summary,
@@ -534,9 +535,9 @@ JOIN accounts a ON je.account_id = a.account_id
 WHERE je.merchant_id = :merchant_id`
 
 // queryDirectOperatingCash fetches period debit/credit of CASH accounts for operating transactions.
-// Operating transactions = those containing INCOME/EXPENSE entries OR OPERATING-tagged entries.
+// Operating transactions = those containing INCOME/EXPENSE entries (unclassified or OPERATING) OR explicit OPERATING-tagged entries.
+// CF classification is sourced from entry_cf_categories; INCOME/EXPENSE entries without a record default to OPERATING.
 // args: merchant_id, start_date, end_date
-// sqlx.Named is required because the IN clause for account types cannot be expressed statically.
 const queryDirectOperatingCash = `
 WITH period_txns AS (
     SELECT DISTINCT je.txn_id
@@ -549,13 +550,14 @@ WITH period_txns AS (
 operating_txns AS (
     SELECT DISTINCT je.txn_id
     FROM journal_entries je
+    LEFT JOIN entry_cf_categories ecc ON ecc.entry_uuid = je.entry_uuid AND ecc.merchant_id = :merchant_id
     JOIN accounts a ON je.account_id = a.account_id AND a.merchant_id = je.merchant_id
     WHERE je.txn_id IN (SELECT txn_id FROM period_txns)
       AND je.merchant_id = :merchant_id
       AND (
           (a.type IN ('INCOME', 'EXPENSE')
-           AND (je.cash_flow_category IS NULL OR je.cash_flow_category = 'OPERATING'))
-          OR je.cash_flow_category = 'OPERATING'
+           AND (ecc.cf_category IS NULL OR ecc.cf_category = 'OPERATING'))
+          OR ecc.cf_category = 'OPERATING'
       )
 )
 SELECT
