@@ -176,3 +176,93 @@
 - [x] [Test] 現金流量表快照路徑測試 — 完成日期：2026-05-15（`report_test.go`，驗證月結快照存在時期初現金/期間調整仍依日期邊界正確篩選）
 - [x] [Test] 股東權益變動表快照路徑測試 — 完成日期：2026-05-15（`report_test.go`，驗證月結快照存在時 begin_balance 與 period_change 正確分離）
 - [x] [Feature] 現金流量表支援科目階層彙總 — 完成日期：2026-05-15（`queryCashFlowChanges` 加入 summary_cf UNION ALL；`CashFlowItem` 新增 `is_summary`；補充兩個階層聚合測試）
+
+
+## 暫存
+
+### 預計專案結構
+```
+/project-root
+│
+├── cmd/
+│   └── api/
+│       └── main.go
+│
+├── internal/
+│   ├── kernal/
+│   │   ├── event/
+│   │   ├── errors/
+│   │   └── result/
+|   |
+│   │
+│   ├── domain/
+│   │   ├── event/
+│   │   │   ├── journal_posted.go
+│   │   │   ├── cash_movement_detected.go
+│   │   │   └── cash_flow_fact_created.go
+│   │   │
+│   │   ├── aggregate/
+│   │   │   ├── journal.go
+│   │   │   └── account.go
+│   │   │
+│   │   └── valueobject/
+│   │       ├── money.go
+│   │       └── id.go
+│   │
+│   │
+│   ├── process/
+│   │   ├── journal_pm.go
+│   │   ├── cashflow_pm.go
+│   │   └── registry.go
+│   │
+│   │
+│   ├── runtime/
+│   │   ├── engine/
+│   │   │   ├── bfs_engine.go
+│   │   │   ├── queue.go
+│   │   │   └── executor.go
+│   │   │
+│   │   ├── mediator/
+│   │   │   ├── mediator.go
+│   │   │   ├── dispatch.go
+│   │   │   └── registry.go
+│   │   │
+│   │   ├── scheduler/
+│   │   │   ├── worker_pool.go
+│   │   │   └── partition_router.go
+│   │   │
+│   │   └── safety/
+│   │       ├── cycle_detector.go
+│   │       ├── backpressure.go
+│   │       └── depth_guard.go
+│   │
+│   │
+│   ├── application/
+│   │   ├── api/
+│   │   │   ├── command_handler.go
+│   │   │   └── routes.go
+│   │   │
+│   │   └── service/
+│   │       ├── journal_service.go
+│   │       └── cashflow_service.go
+│   │
+│   │
+│   ├── persistence/
+│   │   ├── eventstore/
+│   │   │   ├── store.go
+│   │   │   ├── append.go
+│   │   │   └── snapshot.go
+│   │   │
+│   │   └── projection/
+│   │       ├── projector.go
+│   │       ├── ledger_projection.go
+│   │       └── cashflow_projection.go
+│   │
+│   │
+│   └── shared/
+│       ├── errors/
+│       ├── logger/
+│       └── utils/
+│
+└── go.mod
+```
