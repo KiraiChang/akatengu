@@ -10,7 +10,6 @@ import (
 var (
 	ErrBFSDepthExceeded  = errors.New("bfs: max depth exceeded")
 	ErrEventLoopDetected = errors.New("bfs: event loop detected")
-	ErrHandlerNotFound   = errors.New("bfs: handler not found")
 )
 
 type BFSEngine struct {
