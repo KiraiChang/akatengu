@@ -5,6 +5,7 @@ import (
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/runtime/mediator"
+	"akatengu/internal/runtime/safety"
 	"context"
 	"errors"
 	"fmt"
@@ -28,6 +29,10 @@ func extractEventError(err error) (kerrors.EventError, bool) {
 	return ee, errors.As(err, &ee)
 }
 
+func defaultMiddlewares() []safety.Middleware {
+	return []safety.Middleware{safety.DepthGuard(10), safety.CycleDetector()}
+}
+
 // ─── Spec runner ─────────────────────────────────────────────────────────────
 
 var _ = Describe("BFSEngine Run", func() {
@@ -38,7 +43,7 @@ var _ = Describe("BFSEngine Run", func() {
 		s := s
 		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
 		It(label, func() {
-			eng := NewBFSEngine(s.executor(), s.maxDepth)
+			eng := NewBFSEngine(s.executor(), s.middlewares...)
 			err := eng.Run(ctx, s.events())
 			ee, ok := extractEventError(err)
 			Expect(ok).To(BeTrue(), fmt.Sprintf("expected EventError, got %T: %v", err, err))
@@ -49,7 +54,7 @@ var _ = Describe("BFSEngine Run", func() {
 	// --- 執行驗證情境 ---
 
 	Context("GIVEN 一個 event，handler 回傳空 Children", func() {
-		When("Run 被呼叫", func() {
+		When("Run 被呼叫（含 DepthGuard + CycleDetector）", func() {
 			It("THEN handler 被執行且回傳 nil", func() {
 				called := false
 				med := mediator.NewMediator()
@@ -57,7 +62,7 @@ var _ = Describe("BFSEngine Run", func() {
 					called = true
 					return mediator.HandlerResult{}, nil
 				}))
-				eng := NewBFSEngine(NewExecutor(med), 10)
+				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
 				Expect(eng.Run(ctx, []event.Event{makeTestEvent(typeA)})).To(BeNil())
 				Expect(called).To(BeTrue())
 			})
@@ -65,7 +70,7 @@ var _ = Describe("BFSEngine Run", func() {
 	})
 
 	Context("GIVEN root event 發射一個 typeB child", func() {
-		When("Run 被呼叫", func() {
+		When("Run 被呼叫（含 DepthGuard + CycleDetector）", func() {
 			It("THEN 兩個 handler 依 BFS 順序各被執行一次，回傳 nil", func() {
 				var order []string
 				med := mediator.NewMediator()
@@ -77,7 +82,7 @@ var _ = Describe("BFSEngine Run", func() {
 					order = append(order, "B")
 					return mediator.HandlerResult{}, nil
 				}))
-				eng := NewBFSEngine(NewExecutor(med), 10)
+				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
 				Expect(eng.Run(ctx, []event.Event{makeTestEvent(typeA)})).To(BeNil())
 				Expect(order).To(Equal([]string{"A", "B"}))
 			})

@@ -1,38 +1,32 @@
 package engine
 
 import (
-	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/runtime/safety"
 	"context"
 )
 
 type BFSEngine struct {
-	executor *Executor
-	maxDepth int
+	process safety.BatchProcessor
 }
 
-func NewBFSEngine(executor *Executor, maxDepth int) *BFSEngine {
-	return &BFSEngine{executor: executor, maxDepth: maxDepth}
+func NewBFSEngine(executor *Executor, middlewares ...safety.Middleware) *BFSEngine {
+	terminal := safety.BatchProcessor(func(ctx context.Context, _ int, batch []event.Event) ([]event.Event, error) {
+		return executor.ExecuteBatch(ctx, batch)
+	})
+	return &BFSEngine{
+		process: safety.Chain(terminal, middlewares...),
+	}
 }
 
 func (e *BFSEngine) Run(ctx context.Context, events []event.Event) error {
 	q := &Queue{}
 	q.PushBatch(events)
-	seen := make(map[string]struct{})
 	depth := 0
 
 	for !q.Empty() {
-		if depth > e.maxDepth {
-			return errors.NewRuntimeError(errors.ErrBFSDepthExceeded, event.Event{}, nil, false, true)
-		}
 		batch := q.PopCurrentLevel()
-		for _, evt := range batch {
-			if _, ok := seen[evt.Uuid]; ok {
-				return errors.NewRuntimeError(errors.ErrEventLoopDetected, evt, nil, false, true)
-			}
-			seen[evt.Uuid] = struct{}{}
-		}
-		next, err := e.executor.ExecuteBatch(ctx, batch)
+		next, err := e.process(ctx, depth, batch)
 		if err != nil {
 			return err
 		}
