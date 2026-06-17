@@ -1,6 +1,7 @@
 package engine
 
 import (
+	kerrors "akatengu/internal/kernel/errors"
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/runtime/mediator"
@@ -22,6 +23,11 @@ func makeTestEvent(typ event_types.EventType) event.Event {
 	return event.NewEvent[testPayload]("agg-1", testPayload{typ: typ})
 }
 
+func extractEventError(err error) (kerrors.EventError, bool) {
+	var ee kerrors.EventError
+	return ee, errors.As(err, &ee)
+}
+
 // ─── Spec runner ─────────────────────────────────────────────────────────────
 
 var _ = Describe("BFSEngine Run", func() {
@@ -34,8 +40,9 @@ var _ = Describe("BFSEngine Run", func() {
 		It(label, func() {
 			eng := NewBFSEngine(s.executor(), s.maxDepth)
 			err := eng.Run(ctx, s.events())
-			Expect(errors.Is(err, s.wantErr)).To(BeTrue(),
-				fmt.Sprintf("expected error wrapping %v, got %v", s.wantErr, err))
+			ee, ok := extractEventError(err)
+			Expect(ok).To(BeTrue(), fmt.Sprintf("expected EventError, got %T: %v", err, err))
+			Expect(ee.Code).To(Equal(s.wantCode))
 		})
 	}
 

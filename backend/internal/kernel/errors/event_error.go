@@ -3,6 +3,7 @@ package errors
 import (
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/event"
+	"fmt"
 )
 
 type EventError struct {
@@ -14,6 +15,13 @@ type EventError struct {
 	Retryable     bool
 	Fatal         bool
 	Cause         error
+}
+
+func (e EventError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("[%s] %s: %s", e.Category, e.Code, e.Cause.Error())
+	}
+	return fmt.Sprintf("[%s] %s", e.Category, e.Code)
 }
 
 func NewEventError(

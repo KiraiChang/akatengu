@@ -2,14 +2,9 @@ package mediator
 
 import (
 	"akatengu/internal/enums/event_types"
+	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"context"
-	"errors"
-	"fmt"
-)
-
-var (
-	ErrHandlerNotFound = errors.New("bfs: handler not found")
 )
 
 type HandlerResult struct {
@@ -41,7 +36,7 @@ func (m *Mediator) Register(eventType event_types.EventType, h Handler) {
 func (m *Mediator) Dispatch(ctx context.Context, evt event.Event) (HandlerResult, error) {
 	h, ok := m.handlers[evt.EventType]
 	if !ok {
-		return HandlerResult{}, fmt.Errorf("eventType=%s: %w", evt.EventType, ErrHandlerNotFound)
+		return HandlerResult{}, errors.NewRuntimeError(errors.ErrHandlerNotFound, evt, nil, false, true)
 	}
 	return h.Handle(ctx, evt)
 }

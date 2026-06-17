@@ -1,15 +1,9 @@
 package engine
 
 import (
+	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"context"
-	"errors"
-	"fmt"
-)
-
-var (
-	ErrBFSDepthExceeded  = errors.New("bfs: max depth exceeded")
-	ErrEventLoopDetected = errors.New("bfs: event loop detected")
 )
 
 type BFSEngine struct {
@@ -29,12 +23,12 @@ func (e *BFSEngine) Run(ctx context.Context, events []event.Event) error {
 
 	for !q.Empty() {
 		if depth > e.maxDepth {
-			return fmt.Errorf("depth=%d: %w", depth, ErrBFSDepthExceeded)
+			return errors.NewRuntimeError(errors.ErrBFSDepthExceeded, event.Event{}, nil, false, true)
 		}
 		batch := q.PopCurrentLevel()
 		for _, evt := range batch {
 			if _, ok := seen[evt.Uuid]; ok {
-				return fmt.Errorf("uuid=%s: %w", evt.Uuid, ErrEventLoopDetected)
+				return errors.NewRuntimeError(errors.ErrEventLoopDetected, evt, nil, false, true)
 			}
 			seen[evt.Uuid] = struct{}{}
 		}
