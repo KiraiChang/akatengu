@@ -8,7 +8,7 @@ import (
 
 	"akatengu/internal/handler/response/model"
 	"akatengu/internal/repos/query"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 )
 
 // insertActiveTxnForAnalysis inserts a transaction (status=ACTIVE) with two journal entries.
@@ -38,7 +38,7 @@ func insertActiveTxnForAnalysis(t *testing.T, db *sqlx.DB, txnID int64, date, de
 
 // TestGetAccountDirectChildrenWithBalance verifies children are returned with running balances.
 func TestGetAccountDirectChildrenWithBalance(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	ctx := testCtx()
 
 	// Insert running balances for children of 1101.
@@ -95,7 +95,7 @@ func TestGetAccountDirectChildrenWithBalance(t *testing.T) {
 
 // TestGetAccountDirectChildrenWithBalance_NoBalance verifies zero balance when no running balance exists.
 func TestGetAccountDirectChildrenWithBalance_NoBalance(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	ctx := testCtx()
 
 	repo := query.NewAccountAnalysisRepo(db)
@@ -112,7 +112,7 @@ func TestGetAccountDirectChildrenWithBalance_NoBalance(t *testing.T) {
 
 // TestGetAccountJournalEntriesPaged verifies pagination and date range filtering.
 func TestGetAccountJournalEntriesPaged(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	ctx := testCtx()
 
 	insertActiveTxnForAnalysis(t, db, 1001, "2026-01-10", "1101-01", "5101-01", 1000.0)
@@ -167,7 +167,7 @@ func TestGetAccountJournalEntriesPaged(t *testing.T) {
 
 // TestGetAccountMonthlyBalances verifies monthly grouping and has_snapshot flag.
 func TestGetAccountMonthlyBalances(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	ctx := testCtx()
 
 	// January: two transactions (total debit 1500).
@@ -233,7 +233,7 @@ func TestGetAccountMonthlyBalances(t *testing.T) {
 
 // TestGetAccountMonthlyBalances_InvalidMonth verifies error on bad month format.
 func TestGetAccountMonthlyBalances_InvalidMonth(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	ctx := testCtx()
 
 	repo := query.NewAccountAnalysisRepo(db)

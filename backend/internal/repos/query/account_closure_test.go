@@ -6,7 +6,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 )
 
 type closureRow struct {
@@ -49,7 +49,7 @@ func closureInsertAccount(t *testing.T, db *sqlx.DB, accountId string, parentId 
 
 // TestAccountClosure_Migration_SeededAccounts 驗證 seed 帳戶經 trigger 正確填充 closure 表。
 func TestAccountClosure_Migration_SeededAccounts(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 
 	// 1101-01（葉）：self(0)、1101(1)、110(2)
 	rows := queryClosure(t, db, "1101-01")
@@ -72,7 +72,7 @@ func TestAccountClosure_Migration_SeededAccounts(t *testing.T) {
 
 // TestAccountClosure_Trigger_RootAccount 根科目（無父科目）INSERT 後 closure 只有 self。
 func TestAccountClosure_Trigger_RootAccount(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 
 	closureInsertAccount(t, db, "9000", nil, 1)
 
@@ -85,7 +85,7 @@ func TestAccountClosure_Trigger_RootAccount(t *testing.T) {
 
 // TestAccountClosure_Trigger_DirectChild 子科目 INSERT 後有 self(0) 及 parent→child(1)。
 func TestAccountClosure_Trigger_DirectChild(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 
 	parent := "9000"
 	closureInsertAccount(t, db, parent, nil, 1)
@@ -101,7 +101,7 @@ func TestAccountClosure_Trigger_DirectChild(t *testing.T) {
 
 // TestAccountClosure_Trigger_Grandchild 三層後孫科目有 self(0)、parent→gc(1)、grandparent→gc(2)。
 func TestAccountClosure_Trigger_Grandchild(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 
 	p0 := (*string)(nil)
 	p1 := func(s string) *string { return &s }

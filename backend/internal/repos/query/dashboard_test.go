@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"akatengu/internal/repos/query"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 )
 
 // TestGetDashboardSummary verifies assets, cash balance and zero income/expense when no transactions exist.
 func TestGetDashboardSummary(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	ctx := testCtx()
 
 	// Insert running balance: 1101-01 (ASSET, cash_flow_category=CASH, DEBIT normal balance)
@@ -57,7 +57,7 @@ func TestGetDashboardSummary(t *testing.T) {
 
 // TestGetDashboardMonthlyTrend verifies monthly income/expense grouping and net calculation.
 func TestGetDashboardMonthlyTrend(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	ctx := testCtx()
 
 	// Jan: income 3000 (credit 4101-01), expense 1000 (debit 5101-01)
@@ -112,7 +112,7 @@ func TestGetDashboardMonthlyTrend(t *testing.T) {
 
 // TestGetDashboardLedgerBalances verifies ledger balance includes name/institution/type and correct balance sign.
 func TestGetDashboardLedgerBalances(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	ctx := testCtx()
 
 	// Insert a ledger account (BANK_ACCOUNT, links to ASSET account 1101-01)

@@ -5,7 +5,7 @@ import (
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 	"encoding/json"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -18,7 +18,7 @@ import (
 
 var _ = Describe("EventFixedAssetCategoryCreated", func() {
 	It("GIVEN 有效固定資產類別 payload\n  WHEN 執行 EventFixedAssetCategoryCreated\n  THEN 建立類別記錄並可查詢到正確欄位", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -54,7 +54,7 @@ var _ = Describe("EventFixedAssetCategoryCreated", func() {
 
 var _ = Describe("EventFixedAssetCategoryUpdated", func() {
 	It("GIVEN 已建立的固定資產類別\n  WHEN 執行 EventFixedAssetCategoryUpdated\n  THEN 類別欄位更新為新值", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -103,7 +103,7 @@ var _ = Describe("EventFixedAssetCategoryUpdated", func() {
 
 var _ = Describe("EventFixedAssetCategoryDeleted", func() {
 	It("GIVEN 已建立的固定資產類別\n  WHEN 執行 EventFixedAssetCategoryDeleted\n  THEN 類別軟刪除（is_active = false）", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -140,7 +140,7 @@ var _ = Describe("EventFixedAssetCategoryDeleted", func() {
 	})
 
 	It("GIVEN 已軟刪除的固定資產類別\n  WHEN 再次執行 EventFixedAssetCategoryDeleted\n  THEN 回傳錯誤", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 
 		svc := newSvc(db)
@@ -187,7 +187,7 @@ var _ = Describe("EventFixedAssetCategoryDeleted", func() {
 
 var _ = Describe("EventPrepaidCategoryCreated", func() {
 	It("GIVEN 有效預付費用類別 payload\n  WHEN 執行 EventPrepaidCategoryCreated\n  THEN 建立類別記錄並可查詢到正確欄位", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -220,7 +220,7 @@ var _ = Describe("EventPrepaidCategoryCreated", func() {
 
 var _ = Describe("EventPrepaidCategoryUpdated", func() {
 	It("GIVEN 已建立的預付費用類別\n  WHEN 執行 EventPrepaidCategoryUpdated\n  THEN 類別欄位更新為新值", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -260,7 +260,7 @@ var _ = Describe("EventPrepaidCategoryUpdated", func() {
 
 var _ = Describe("EventPrepaidCategoryDeleted", func() {
 	It("GIVEN 已建立的預付費用類別\n  WHEN 執行 EventPrepaidCategoryDeleted\n  THEN 類別軟刪除（is_active = false）", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -294,7 +294,7 @@ var _ = Describe("EventPrepaidCategoryDeleted", func() {
 	})
 
 	It("GIVEN 已軟刪除的預付費用類別\n  WHEN 再次執行 EventPrepaidCategoryDeleted\n  THEN 回傳錯誤", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 
 		svc := newSvc(db)

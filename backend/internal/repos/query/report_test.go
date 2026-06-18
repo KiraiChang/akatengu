@@ -9,7 +9,7 @@ import (
 	"akatengu/internal/model/db/report"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store/projection_repo"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/shopspring/decimal"
@@ -113,7 +113,7 @@ func assertISAmount(t *testing.T, is *report.IncomeStatement, accountId string, 
 // TestGetBalanceSheet_NoSnapshot_LeafOnly
 // 無月結，直接掃描 journal_entries；葉科目借貸正確反映 normal_balance。
 func TestGetBalanceSheet_NoSnapshot_LeafOnly(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -134,7 +134,7 @@ func TestGetBalanceSheet_NoSnapshot_LeafOnly(t *testing.T) {
 // TestGetBalanceSheet_NoSnapshot_ParentAggregates
 // 無月結，父科目餘額應等於所有子葉科目的加總。
 func TestGetBalanceSheet_NoSnapshot_ParentAggregates(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -159,7 +159,7 @@ func TestGetBalanceSheet_NoSnapshot_ParentAggregates(t *testing.T) {
 // TestGetBalanceSheet_WithSnapshot_NoPostDelta
 // 月結後無新交易，查詢結果應等於快照值（含父科目）。
 func TestGetBalanceSheet_WithSnapshot_NoPostDelta(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	snapRepo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
@@ -185,7 +185,7 @@ func TestGetBalanceSheet_WithSnapshot_NoPostDelta(t *testing.T) {
 // TestGetBalanceSheet_WithSnapshot_WithDelta
 // 月結後新增交易，結果應為快照 + delta，父科目亦同步聚合 delta。
 func TestGetBalanceSheet_WithSnapshot_WithDelta(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	snapRepo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
@@ -219,7 +219,7 @@ func TestGetBalanceSheet_WithSnapshot_WithDelta(t *testing.T) {
 // TestGetIncomeStatement_NoSnapshot_LeafOnly
 // 無月結，直接掃描期間分錄；INCOME/EXPENSE 葉科目金額正確。
 func TestGetIncomeStatement_NoSnapshot_LeafOnly(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -240,7 +240,7 @@ func TestGetIncomeStatement_NoSnapshot_LeafOnly(t *testing.T) {
 // TestGetIncomeStatement_NoSnapshot_ParentAggregates
 // 無月結，同一父科目下多個葉科目的金額應被正確聚合。
 func TestGetIncomeStatement_NoSnapshot_ParentAggregates(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -271,7 +271,7 @@ func TestGetIncomeStatement_NoSnapshot_ParentAggregates(t *testing.T) {
 // snap_pre.period_end = startDate-1（月底對齊），delta_pre 為空；
 // period_income = snap_end - snap_pre。
 func TestGetIncomeStatement_BothSnaps_MonthlyAligned(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	snapRepo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
@@ -311,7 +311,7 @@ func TestGetIncomeStatement_BothSnaps_MonthlyAligned(t *testing.T) {
 // 三個連續月結（Nov→Dec→Jan），查詢範圍 [2024-12-16, 2025-01-31]，
 // delta_pre 非空（Dec 前半段 Dec10 交易），驗證兩快照公式正確。
 func TestGetIncomeStatement_BothSnaps_ThreeCloses(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	snapRepo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
@@ -362,7 +362,7 @@ func TestGetIncomeStatement_BothSnaps_ThreeCloses(t *testing.T) {
 // has_child 必須根據「實際有子科目指向自己」判斷，而非 is_summary 標記；
 // 葉科目 has_child=false，父科目 has_child=true，且 depth 關係正確。
 func TestGetBalanceSheet_HasChildAndDepth(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -416,7 +416,7 @@ func TestGetBalanceSheet_HasChildAndDepth(t *testing.T) {
 // TestGetIncomeStatement_HasChildAndDepth
 // 損益表中葉科目 has_child=false，父科目 has_child=true，depth 層級關係正確。
 func TestGetIncomeStatement_HasChildAndDepth(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -539,7 +539,7 @@ func assertCFItem(t *testing.T, items []report.CashFlowItem, accountId string, w
 // TestGetEquityStatement_BeginAndPeriodDistinction
 // start_date 前的分錄計入 begin_balance，期間內計入 period_change。
 func TestGetEquityStatement_BeginAndPeriodDistinction(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -562,7 +562,7 @@ func TestGetEquityStatement_BeginAndPeriodDistinction(t *testing.T) {
 // TestGetEquityStatement_SummaryAggregates
 // 彙總科目 3103 的 period_change 應等於子葉科目 3103-01 + 3103-02 的加總。
 func TestGetEquityStatement_SummaryAggregates(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -585,7 +585,7 @@ func TestGetEquityStatement_SummaryAggregates(t *testing.T) {
 // TestGetEquityStatement_NetIncomeVirtualRow
 // 有收入 / 費用時，虛擬本期淨利行必須出現且金額正確。
 func TestGetEquityStatement_NetIncomeVirtualRow(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -629,7 +629,7 @@ func TestGetEquityStatement_NetIncomeVirtualRow(t *testing.T) {
 // total_begin 僅含頂層科目 (310)，total_period 含權益變動 + 本期淨利，
 // total_end = total_begin + total_period。
 func TestGetEquityStatement_TotalIncludesNetIncome(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -669,7 +669,7 @@ func TestGetEquityStatement_TotalIncludesNetIncome(t *testing.T) {
 // TestGetCashFlowStatement_BeginningAndEndingCash
 // CASH 類別科目的期初/期末餘額計算正確。
 func TestGetCashFlowStatement_BeginningAndEndingCash(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -704,7 +704,7 @@ func cfPtr(s string) *string { return &s }
 // 三大活動分類各自出現在對應 section，金額符合 credit−debit 公式。
 // 分類由 entry_cf_categories.cf_category 決定。
 func TestGetCashFlowStatement_ThreeSections(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -731,7 +731,7 @@ func TestGetCashFlowStatement_ThreeSections(t *testing.T) {
 // TestGetCashFlowStatement_NetIncomeInOperating
 // 本期淨利計入營業活動小計。
 func TestGetCashFlowStatement_NetIncomeInOperating(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -760,7 +760,7 @@ func TestGetCashFlowStatement_NetIncomeInOperating(t *testing.T) {
 // 月結快照存在時，全量掃描查詢仍能正確按日期邊界篩選：
 // 期初現金包含快照前交易，調整項僅計入查詢期間內的交易。
 func TestGetCashFlowStatement_WithSnapshot(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	snapRepo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
@@ -775,7 +775,7 @@ func TestGetCashFlowStatement_WithSnapshot(t *testing.T) {
 	}
 
 	// M（二月，查詢期間）：OPERATING 應收帳 500，INVESTING 買入 1000
-	sumInsertTxnWithCF(t, db, 3, "2025-02-10", rptAcctCash, rptAcctOperating, 500, nil, cfPtr("OPERATING"))   // CR 1103-01（應收收回，流入）
+	sumInsertTxnWithCF(t, db, 3, "2025-02-10", rptAcctCash, rptAcctOperating, 500, nil, cfPtr("OPERATING"))  // CR 1103-01（應收收回，流入）
 	sumInsertTxnWithCF(t, db, 4, "2025-02-20", rptAcctInvesting, rptAcctCash, 1000, cfPtr("INVESTING"), nil) // DR 1102-01（買入投資，流出）
 
 	cf, err := repo.GetCashFlowStatement(ctx, "2025-02-01", "2025-02-28")
@@ -805,7 +805,7 @@ func TestGetCashFlowStatement_WithSnapshot(t *testing.T) {
 // TestGetCashFlowStatement_NetChange
 // NetChange = 營業活動 + 投資活動 + 籌資活動。
 func TestGetCashFlowStatement_NetChange(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -831,7 +831,7 @@ func TestGetCashFlowStatement_NetChange(t *testing.T) {
 // TestGetEquityStatement_WithSnapshot
 // 月結快照存在時，全量掃描查詢仍能正確分離期初餘額與期間變動。
 func TestGetEquityStatement_WithSnapshot(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	snapRepo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
@@ -882,7 +882,7 @@ const (
 // 葉節點 entry 標記 OPERATING，父科目應以彙總行（is_summary=true）出現，
 // 金額為所有後裔 OPERATING entry 的加總；葉節點行也同步出現。
 func TestGetCashFlowStatement_HierarchyAggregation(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -936,7 +936,7 @@ func TestGetCashFlowStatement_HierarchyAggregation(t *testing.T) {
 // TestGetCashFlowStatement_HierarchyAggregation_LeafIsSummaryFalse
 // 葉節點 entry 標記 OPERATING，該葉科目行的 is_summary 應為 false。
 func TestGetCashFlowStatement_HierarchyAggregation_LeafIsSummaryFalse(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -968,7 +968,7 @@ func TestGetCashFlowStatement_HierarchyAggregation_LeafIsSummaryFalse(t *testing
 // TestGetDirectCashFlowStatement_OperatingReceiptsAndPayments
 // 有收入與費用的現金交易時，CashReceived / CashPaid / Total 計算正確。
 func TestGetDirectCashFlowStatement_OperatingReceiptsAndPayments(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1000,7 +1000,7 @@ func TestGetDirectCashFlowStatement_OperatingReceiptsAndPayments(t *testing.T) {
 // TestGetDirectCashFlowStatement_MatchesIndirectOperatingTotal
 // 直接法的 OperatingActivities.Total 必須等於間接法的 OperatingActivities.Total。
 func TestGetDirectCashFlowStatement_MatchesIndirectOperatingTotal(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1031,7 +1031,7 @@ func TestGetDirectCashFlowStatement_MatchesIndirectOperatingTotal(t *testing.T) 
 // TestGetDirectCashFlowStatement_InvestingMatchesIndirect
 // 投資活動的 Items 與 Total 與間接法相同。
 func TestGetDirectCashFlowStatement_InvestingMatchesIndirect(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1063,7 +1063,7 @@ func TestGetDirectCashFlowStatement_InvestingMatchesIndirect(t *testing.T) {
 // TestGetDirectCashFlowStatement_FinancingMatchesIndirect
 // 籌資活動的 Items 與 Total 與間接法相同。
 func TestGetDirectCashFlowStatement_FinancingMatchesIndirect(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1091,7 +1091,7 @@ func TestGetDirectCashFlowStatement_FinancingMatchesIndirect(t *testing.T) {
 // TestGetDirectCashFlowStatement_NetChange
 // NetChange = 三大活動之和；EndingCash - BeginningCash = NetChange。
 func TestGetDirectCashFlowStatement_NetChange(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1127,7 +1127,7 @@ func TestGetDirectCashFlowStatement_NetChange(t *testing.T) {
 // 僅含 OPERATING-tagged 分錄（無 INCOME/EXPENSE 科目）時，
 // 現金科目的借貸正確納入 CashReceived / CashPaid。
 func TestGetDirectCashFlowStatement_WithOperatingTaggedEntry(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1208,7 +1208,7 @@ func sumInsertTxnMulti(t *testing.T, db *sqlx.DB, txnID int64, date string, tota
 // TestGetCashFlowStatement_InvestmentBuy_InvestingOnly
 // 買入投資（無費用）：全額歸投資活動，NI=0，間接法營業=0，NetChange=-price。
 func TestGetCashFlowStatement_InvestmentBuy_InvestingOnly(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1247,7 +1247,7 @@ func TestGetCashFlowStatement_InvestmentBuy_InvestingOnly(t *testing.T) {
 // TestGetCashFlowStatement_InvestmentBuyWithFee_NIReclassification
 // 買入含手續費：費用科目標記 INVESTING，NI 中的費用必須從營業 NI 移除（重分類）。
 func TestGetCashFlowStatement_InvestmentBuyWithFee_NIReclassification(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1288,7 +1288,7 @@ func TestGetCashFlowStatement_InvestmentBuyWithFee_NIReclassification(t *testing
 // 出售含手續費/交易稅：已實現損益、費用均標 INVESTING，
 // 間接法 OperatingNI=0，直接法 OperatingTotal=0，兩者一致。
 func TestGetCashFlowStatement_InvestmentSell_DirectIndirectConsistency(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1350,7 +1350,7 @@ func TestGetCashFlowStatement_InvestmentSell_DirectIndirectConsistency(t *testin
 // FVTPL 公允價值調整（非現金）：投資資產標 OPERATING，沖銷 NI 影響，
 // 間接法 OperatingTotal=0，NetChange=0。
 func TestGetCashFlowStatement_FVTPLMark_NonCashZeroNetChange(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1401,7 +1401,7 @@ func TestGetCashFlowStatement_FVTPLMark_NonCashZeroNetChange(t *testing.T) {
 // 免息分期每期還款：DR 貸款負債 [FINANCING]，CR 銀行；
 // 融資活動現金流出，間接法與直接法一致。
 func TestGetCashFlowStatement_InstallmentFree_FinancingTag(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1451,7 +1451,7 @@ func TestGetCashFlowStatement_InstallmentFree_FinancingTag(t *testing.T) {
 // 直接法僅薪資交易進 operating_txns，買入與手續費不進；
 // 間接法透過 NI 重分類排除手續費；兩者 OperatingTotal 相同。
 func TestGetCashFlowStatement_InvestmentAndIncome_DirectIndirectConsistency(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1527,12 +1527,12 @@ func TestGetCashFlowStatement_InvestmentAndIncome_DirectIndirectConsistency(t *t
 
 // 預付費用帳號常數（來自 accounts.sql seeds）
 const (
-	rptAcctPrepaidAsset    = "1103-01" // 應收薪資款 (ASSET, DEBIT) — 作為預付科目的代替
-	rptAcctPrepaidExpense  = "5101-01" // 房租費用 (EXPENSE, DEBIT)
-	rptAcctAccumDepr       = "1103-02" // 應收租金 (ASSET, DEBIT) — 作為累計折舊的代替
-	rptAcctAsset           = "1102-01" // 投資 FVTPL (ASSET, DEBIT, INVESTING) — 作為固定資產的代替
-	rptAcctDisposalGain    = "4205" // 處分固定資產利得 (INCOME, CREDIT, INVESTING)
-	rptAcctDisposalLoss    = "5601" // 固定資產處分損失 (EXPENSE, DEBIT, INVESTING)
+	rptAcctPrepaidAsset   = "1103-01" // 應收薪資款 (ASSET, DEBIT) — 作為預付科目的代替
+	rptAcctPrepaidExpense = "5101-01" // 房租費用 (EXPENSE, DEBIT)
+	rptAcctAccumDepr      = "1103-02" // 應收租金 (ASSET, DEBIT) — 作為累計折舊的代替
+	rptAcctAsset          = "1102-01" // 投資 FVTPL (ASSET, DEBIT, INVESTING) — 作為固定資產的代替
+	rptAcctDisposalGain   = "4205"    // 處分固定資產利得 (INCOME, CREDIT, INVESTING)
+	rptAcctDisposalLoss   = "5601"    // 固定資產處分損失 (EXPENSE, DEBIT, INVESTING)
 )
 
 // TestGetCashFlowStatement_PrepaidCreated_OperatingOutflow
@@ -1541,7 +1541,7 @@ const (
 // 直接法：OPERATING-tagged entry 觸發 operating_txns，CR 現金→ CashPaid=12000 → OperatingTotal=-12000。
 // 兩法一致。
 func TestGetCashFlowStatement_PrepaidCreated_OperatingOutflow(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1592,7 +1592,7 @@ func TestGetCashFlowStatement_PrepaidCreated_OperatingOutflow(t *testing.T) {
 // 直接法：費用科目→ operating_txns，但無現金科目 → CashPaid=0 → OperatingTotal=0。
 // 兩法一致（均為 0）。
 func TestGetCashFlowStatement_PrepaidAmortized_NonCash(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1644,7 +1644,7 @@ func TestGetCashFlowStatement_PrepaidAmortized_NonCash(t *testing.T) {
 // 直接法：無 INCOME/EXPENSE → 不進 operating；InvestingTotal=-30000。
 // 兩法 InvestingTotal、NetChange 一致。
 func TestGetCashFlowStatement_AssetPurchase_InvestingOutflow(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1696,7 +1696,7 @@ func TestGetCashFlowStatement_AssetPurchase_InvestingOutflow(t *testing.T) {
 // 直接法：費用科目→ operating_txns，無現金科目 → OperatingTotal=0。
 // 兩法均為 0，NetChange=0。
 func TestGetCashFlowStatement_AssetDepreciation_NonCash(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1746,7 +1746,7 @@ func TestGetCashFlowStatement_AssetDepreciation_NonCash(t *testing.T) {
 // 間接法：NI=利得，重分類至 INVESTING → OperatingNI=0；InvestingTotal=收款金額。
 // 直接法：利得 [INVESTING] 排除 → 不進 operating；InvestingTotal 一致。
 func TestGetCashFlowStatement_AssetDisposal_WithGain_DirectIndirectConsistency(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 
@@ -1815,7 +1815,7 @@ func TestGetCashFlowStatement_AssetDisposal_WithGain_DirectIndirectConsistency(t
 // DR 累計折舊 [INVESTING], CR 資產 [INVESTING], DR 現金 [NULL], DR 損失 [INVESTING]。
 // 間接法：NI=-損失，重分類至 INVESTING → OperatingNI=0；InvestingTotal=現金收款。
 func TestGetCashFlowStatement_AssetDisposal_WithLoss_DirectIndirectConsistency(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := query.NewReportRepo(db)
 	ctx := testCtx()
 

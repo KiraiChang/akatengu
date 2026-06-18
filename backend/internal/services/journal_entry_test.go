@@ -4,7 +4,7 @@ import (
 	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/payload"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -16,7 +16,7 @@ import (
 
 var _ = Describe("EventPrepaidCreated", func() {
 	It("GIVEN 有效預付費用 payload\n  WHEN 執行 EventPrepaidCreated\n  THEN 建立預付記錄、寫入 2 筆分錄（借方標記 OPERATING）並更新即時餘額", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -51,7 +51,7 @@ var _ = Describe("EventPrepaidCreated", func() {
 
 var _ = Describe("EventPrepaidAmortized", func() {
 	It("GIVEN 已建立的預付費用\n  WHEN 執行 EventPrepaidAmortized\n  THEN 寫入第一期攤提分錄（貸方標記 OPERATING）並更新即時餘額", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -95,7 +95,7 @@ var _ = Describe("EventPrepaidAmortized", func() {
 
 var _ = Describe("EventPrepaidDisposed", func() {
 	It("GIVEN 已攤提一期的預付費用\n  WHEN 執行 EventPrepaidDisposed\n  THEN 一次認列剩餘 11000 並使科目歸零", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -147,7 +147,7 @@ var _ = Describe("EventPrepaidDisposed", func() {
 var _ = Describe("EventAssetPurchased", func() {
 	Context("CASH 付款", func() {
 		It("GIVEN CASH 付款 payload\n  WHEN 執行 EventAssetPurchased\n  THEN 寫入 2 筆分錄（借方標記 INVESTING）並更新即時餘額", func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
@@ -185,7 +185,7 @@ var _ = Describe("EventAssetPurchased", func() {
 
 	Context("LEASE 付款", func() {
 		It("GIVEN LEASE 付款 payload\n  WHEN 執行 EventAssetPurchased\n  THEN 寫入 2 筆分錄（無 CF 標記）並更新即時餘額", func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
@@ -222,7 +222,7 @@ var _ = Describe("EventAssetPurchased", func() {
 
 var _ = Describe("EventAssetDepreciated", func() {
 	It("GIVEN 已現金購入的固定資產\n  WHEN 執行 EventAssetDepreciated\n  THEN 寫入折舊分錄（貸方標記 OPERATING）並更新即時餘額", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -270,7 +270,7 @@ var _ = Describe("EventAssetDepreciated", func() {
 var _ = Describe("EventAssetDisposed", func() {
 	Context("處分利得（收益 > 帳面價值）", func() {
 		It("GIVEN 折舊 2 期後處分，收益 124000 帳面 116000\n  WHEN 執行 EventAssetDisposed\n  THEN 寫入 4 筆分錄並認列處分利得 8000", func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
@@ -329,7 +329,7 @@ var _ = Describe("EventAssetDisposed", func() {
 
 	Context("處分損失（收益 < 帳面價值）", func() {
 		It("GIVEN 折舊 2 期後處分，收益 100000 帳面 116000\n  WHEN 執行 EventAssetDisposed\n  THEN 寫入 4 筆分錄並認列處分損失 16000", func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
@@ -388,7 +388,7 @@ var _ = Describe("EventAssetDisposed", func() {
 var _ = Describe("EventInstallmentCreated", func() {
 	Context("無息分期", func() {
 		It("GIVEN 無息分期 payload\n  WHEN 執行 EventInstallmentCreated\n  THEN 寫入 2 筆分錄（無 CF 標記）並更新即時餘額", func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
@@ -426,7 +426,7 @@ var _ = Describe("EventInstallmentCreated", func() {
 var _ = Describe("EventInstallmentPeriodPaid", func() {
 	Context("無息分期第一期還款", func() {
 		It("GIVEN 已建立的無息分期\n  WHEN 執行 EventInstallmentPeriodPaid（第 1 期）\n  THEN 寫入 2 筆分錄（借方標記 FINANCING）並更新即時餘額", func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
@@ -479,7 +479,7 @@ var _ = Describe("EventInstallmentPeriodPaid", func() {
 
 var _ = Describe("EventInvestmentBought", func() {
 	It("GIVEN 股票買入 payload（數量 10、單價 100、手續費 5）\n  WHEN 執行 EventInvestmentBought\n  THEN 寫入 3 筆分錄（投資與費用標記 INVESTING）並更新即時餘額", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -521,7 +521,7 @@ var _ = Describe("EventInvestmentBought", func() {
 var _ = Describe("EventInvestmentSold", func() {
 	Context("處分利得（賣出價高於成本）", func() {
 		It("GIVEN 以 100 買入後以 120 賣出（手續費 5）\n  WHEN 執行 EventInvestmentSold\n  THEN 寫入 4 筆分錄並認列利得 200（標記 INVESTING）", func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			t := GinkgoT()
 
@@ -578,7 +578,7 @@ var _ = Describe("EventInvestmentSold", func() {
 
 var _ = Describe("EventDividendReceived", func() {
 	It("GIVEN 持有 10 股後收取股利 1000\n  WHEN 執行 EventDividendReceived\n  THEN 寫入 2 筆分錄並更新即時餘額", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -632,7 +632,7 @@ var _ = Describe("EventDividendReceived", func() {
 
 var _ = Describe("EventPeriodAnnualClosed", func() {
 	It("GIVEN 2025 年所有月份已關帳且年度期間 OPEN\n  WHEN 執行 EventPeriodAnnualClosed\n  THEN 產生結帳與開帳兩筆交易，並正確轉移淨利至權益", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
@@ -700,7 +700,7 @@ var _ = Describe("EventPeriodAnnualClosed", func() {
 
 var _ = Describe("EventPeriodAnnualReopened", func() {
 	It("GIVEN 已執行年度關帳\n  WHEN 執行 EventPeriodAnnualReopened\n  THEN 產生兩筆反轉交易且各帶 ref_txn_id", func() {
-		db, closeDB := testutil.NewTestDBGinkgo()
+		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 

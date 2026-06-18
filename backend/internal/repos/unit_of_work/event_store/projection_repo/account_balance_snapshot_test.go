@@ -9,7 +9,7 @@ import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/enums"
 	"akatengu/internal/repos/unit_of_work/event_store/projection_repo"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 )
 
 // 使用 seeds 中真實的科目（seeds 以 merchant_id=1 插入）
@@ -127,7 +127,7 @@ func assertSnapshot(t *testing.T, got map[string]snapshotRow, acct string, wantD
 
 // TestBulkInsert_FirstPeriod_NoHistory 第一次月結無前期快照，快照 = 本期交易加總。
 func TestBulkInsert_FirstPeriod_NoHistory(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -145,7 +145,7 @@ func TestBulkInsert_FirstPeriod_NoHistory(t *testing.T) {
 
 // TestBulkInsert_SecondPeriod_Incremental 第二次月結快照 = 前期快照 + 本期增量。
 func TestBulkInsert_SecondPeriod_Incremental(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -168,7 +168,7 @@ func TestBulkInsert_SecondPeriod_Incremental(t *testing.T) {
 
 // TestBulkInsert_EmptyPeriod_CopiesPrevSnapshot 空白期間無交易，快照沿用前期數值。
 func TestBulkInsert_EmptyPeriod_CopiesPrevSnapshot(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -191,7 +191,7 @@ func TestBulkInsert_EmptyPeriod_CopiesPrevSnapshot(t *testing.T) {
 // TestBulkInsert_Annual_UsesPrevAnnualSnapshot 年結以上一年年結快照為基準，
 // 不使用月結快照鏈；period_end < annual.period_start 過濾確保月結快照不被誤選。
 func TestBulkInsert_Annual_UsesPrevAnnualSnapshot(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -223,7 +223,7 @@ func TestBulkInsert_Annual_UsesPrevAnnualSnapshot(t *testing.T) {
 
 // TestDeleteByClosingId_RemovesOnlyTargetPeriod 只刪除指定期間的快照，其他期間不受影響。
 func TestDeleteByClosingId_RemovesOnlyTargetPeriod(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -252,7 +252,7 @@ func TestDeleteByClosingId_RemovesOnlyTargetPeriod(t *testing.T) {
 
 // TestBulkInsert_ParentAggregatesLeaf 父科目快照應等於其子葉科目快照的加總（兩層）。
 func TestBulkInsert_ParentAggregatesLeaf(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -278,7 +278,7 @@ func TestBulkInsert_ParentAggregatesLeaf(t *testing.T) {
 
 // TestBulkInsert_ParentAggregatesTwoLeaves 父科目應加總同層的兩個葉科目。
 func TestBulkInsert_ParentAggregatesTwoLeaves(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -305,7 +305,7 @@ func TestBulkInsert_ParentAggregatesTwoLeaves(t *testing.T) {
 
 // TestBulkInsert_ParentIncrementalAggregation 父科目快照在連續月結中應累積正確數值。
 func TestBulkInsert_ParentIncrementalAggregation(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 

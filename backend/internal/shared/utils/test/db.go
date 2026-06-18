@@ -1,4 +1,4 @@
-package testutil
+package test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"akatengu/internal/database"
 	"akatengu/internal/enums"
+
 	_ "modernc.org/sqlite"
 )
 

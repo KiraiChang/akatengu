@@ -9,7 +9,7 @@ import (
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/services"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -159,7 +159,7 @@ var _ = Describe("FixedAssetProjectionService — applyPurchased", func() {
 		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
 
 		It(label, func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			ctx := projTestCtx()
 			projInsertOpenPeriod(db, ctx, 1, "2026-05-01")
@@ -193,7 +193,7 @@ var _ = Describe("FixedAssetProjectionService — applyDepreciated", func() {
 		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
 
 		It(label, func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			ctx := projTestCtx()
 			projInsertOpenPeriod(db, ctx, 1, "2026-05-01")
@@ -241,7 +241,7 @@ var _ = Describe("FixedAssetProjectionService — applyDisposed", func() {
 		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
 
 		It(label, func() {
-			db, closeDB := testutil.NewTestDBGinkgo()
+			db, closeDB := test.NewTestDBGinkgo()
 			DeferCleanup(closeDB)
 			ctx := projTestCtx()
 			projInsertOpenPeriod(db, ctx, 1, "2026-05-01")

@@ -9,7 +9,7 @@ import (
 
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/repos/unit_of_work/event_store/projection_repo"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 )
 
 // insertActiveTxn 插入一筆 ACTIVE 交易及其分錄。
@@ -117,7 +117,7 @@ var (
 
 // TestApplyAccountBalance_Create 一般交易建立後葉科目及祖先科目餘額正確。
 func TestApplyAccountBalance_Create(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	q := sqlcdb.New(db)
 	accRepo := projection_repo.NewAccountRunningBalanceRepo(q)
 	ledRepo := projection_repo.NewLedgerRunningBalanceRepo(q)
@@ -138,7 +138,7 @@ func TestApplyAccountBalance_Create(t *testing.T) {
 
 // TestApplyLedgerBalance_Create 帶 ledger_id 的交易建立後 ledger 餘額正確。
 func TestApplyLedgerBalance_Create(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	q := sqlcdb.New(db)
 	accRepo := projection_repo.NewAccountRunningBalanceRepo(q)
 	ledRepo := projection_repo.NewLedgerRunningBalanceRepo(q)
@@ -155,7 +155,7 @@ func TestApplyLedgerBalance_Create(t *testing.T) {
 
 // TestReverseAccountBalance_Voided 交易 voided 後餘額歸零。
 func TestReverseAccountBalance_Voided(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	q := sqlcdb.New(db)
 	accRepo := projection_repo.NewAccountRunningBalanceRepo(q)
 	ledRepo := projection_repo.NewLedgerRunningBalanceRepo(q)
@@ -179,7 +179,7 @@ func TestReverseAccountBalance_Voided(t *testing.T) {
 
 // TestReverseAccountBalance_Corrected 更正後餘額僅保留更正交易金額。
 func TestReverseAccountBalance_Corrected(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	q := sqlcdb.New(db)
 	accRepo := projection_repo.NewAccountRunningBalanceRepo(q)
 	ledRepo := projection_repo.NewLedgerRunningBalanceRepo(q)
@@ -200,15 +200,15 @@ func TestReverseAccountBalance_Corrected(t *testing.T) {
 
 // TestApplyMultipleEntries_AncestorAccumulates 同層兩個葉科目的祖先正確累加。
 func TestApplyMultipleEntries_AncestorAccumulates(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	q := sqlcdb.New(db)
 	accRepo := projection_repo.NewAccountRunningBalanceRepo(q)
 	ledRepo := projection_repo.NewLedgerRunningBalanceRepo(q)
 	ctx := context.Background()
 
 	entries := []testEntry{
-		{accountId: acctCash, debit: 100, credit: 0},  // 1101-01
-		{accountId: acctCash2, debit: 50, credit: 0},  // 1101-02（同一 1101 下）
+		{accountId: acctCash, debit: 100, credit: 0}, // 1101-01
+		{accountId: acctCash2, debit: 50, credit: 0}, // 1101-02（同一 1101 下）
 	}
 	applyBalance(t, ctx, accRepo, ledRepo, entries, pos)
 
@@ -220,7 +220,7 @@ func TestApplyMultipleEntries_AncestorAccumulates(t *testing.T) {
 
 // TestReverseIdempotent Apply 一次再 Reverse 一次，餘額應為 0 不為負。
 func TestReverseIdempotent(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	q := sqlcdb.New(db)
 	accRepo := projection_repo.NewAccountRunningBalanceRepo(q)
 	ledRepo := projection_repo.NewLedgerRunningBalanceRepo(q)
@@ -238,7 +238,7 @@ func TestReverseIdempotent(t *testing.T) {
 
 // TestGetEntriesByTxnId_ReturnsCorrectEntries 確認 GetEntriesByTxnId 正確回傳分錄。
 func TestGetEntriesByTxnId_ReturnsCorrectEntries(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	q := sqlcdb.New(db)
 	txnRepo := projection_repo.NewTransactionRepo(q)
 	ctx := context.Background()

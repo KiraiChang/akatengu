@@ -9,7 +9,7 @@ import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/enums"
 	"akatengu/internal/repos/unit_of_work/event_store/projection_repo"
-	"akatengu/internal/testutil"
+	"akatengu/internal/shared/utils/test"
 )
 
 const (
@@ -113,7 +113,7 @@ func assertLedgerSnapshot(t *testing.T, got map[int64]ledgerSnapshotRow, ledgerI
 
 // TestLedger_BulkInsert_FirstPeriod_NoHistory 第一次月結無前期快照，快照 = 本期交易加總。
 func TestLedger_BulkInsert_FirstPeriod_NoHistory(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewLedgerAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -132,7 +132,7 @@ func TestLedger_BulkInsert_FirstPeriod_NoHistory(t *testing.T) {
 
 // TestLedger_BulkInsert_SecondPeriod_Incremental 第二次月結快照 = 前期快照 + 本期增量。
 func TestLedger_BulkInsert_SecondPeriod_Incremental(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewLedgerAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -156,7 +156,7 @@ func TestLedger_BulkInsert_SecondPeriod_Incremental(t *testing.T) {
 
 // TestLedger_BulkInsert_EmptyPeriod_CopiesPrevSnapshot 本期無交易，快照沿用前期數值。
 func TestLedger_BulkInsert_EmptyPeriod_CopiesPrevSnapshot(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewLedgerAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -179,7 +179,7 @@ func TestLedger_BulkInsert_EmptyPeriod_CopiesPrevSnapshot(t *testing.T) {
 
 // TestLedger_BulkInsert_Annual_UsesPrevAnnualSnapshot 年結以前年年結快照為基準，不使用月結快照。
 func TestLedger_BulkInsert_Annual_UsesPrevAnnualSnapshot(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewLedgerAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
@@ -211,7 +211,7 @@ func TestLedger_BulkInsert_Annual_UsesPrevAnnualSnapshot(t *testing.T) {
 
 // TestLedger_DeleteByClosingId_RemovesOnlyTarget 只刪除指定期間快照，不影響其他期間。
 func TestLedger_DeleteByClosingId_RemovesOnlyTarget(t *testing.T) {
-	db := testutil.NewTestDB(t)
+	db := test.NewTestDB(t)
 	repo := projection_repo.NewLedgerAccountBalanceSnapshotRepo(sqlcdb.New(db))
 	ctx := context.Background()
 
