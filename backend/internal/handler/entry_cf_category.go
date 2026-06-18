@@ -7,6 +7,7 @@ import (
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/repos/query"
+	"akatengu/internal/runtime/engine"
 	"akatengu/internal/services"
 	"encoding/json"
 	"net/http"
@@ -20,15 +21,17 @@ type entryCFCategoryHandler struct {
 	txnQ    query.TransactionRepo
 	es      *services.EventStoreService
 	l       *zap.Logger
+	bfs     *engine.BFSEngine
 }
 
-func newEntryCFCategoryHandler(db *sqlx.DB, es *services.EventStoreService, l *zap.Logger) *entryCFCategoryHandler {
+func newEntryCFCategoryHandler(db *sqlx.DB, es *services.EventStoreService, l *zap.Logger, engine *engine.BFSEngine) *entryCFCategoryHandler {
 	qr := query.NewQueryRepository(db)
 	return &entryCFCategoryHandler{
 		service: services.NewEntryCFCategoryService(db),
 		txnQ:    qr.Transaction,
 		es:      es,
 		l:       l,
+		bfs:     engine,
 	}
 }
 

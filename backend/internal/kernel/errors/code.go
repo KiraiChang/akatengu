@@ -16,6 +16,8 @@ const (
 	ErrExecutionTimeout  EventErrorCode = "RUNTIME_EXECUTION_TIMEOUT"
 	ErrBFSDepthExceeded  EventErrorCode = "RUNTIME_BFS_DEPTH_EXCEEDED"
 	ErrEventLoopDetected EventErrorCode = "RUNTIME_EVENT_LOOP_DETECTED"
+	ErrProjectorNotFound EventErrorCode = "RUNTIME_PROJECTOR_NOT_FOUND"
+	ErrProjectorError    EventErrorCode = "RUNTIME_PROJECTOR_ERROR"
 )
 
 // ========== BUSINESS LAYER ==========

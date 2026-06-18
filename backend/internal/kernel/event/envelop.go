@@ -19,13 +19,16 @@ type Payload interface {
 
 // Event 事件的封套
 type Event struct {
-	Uuid          string
-	AggregateUuid string
-	AggregateType enums.AggregateType
-	Version       int
-	EventType     event_types.EventType
-	Metadata      Metadata
-	Payload       any
+	Uuid            string
+	AggregateUuid   string
+	AggregateType   enums.AggregateType
+	Version         int
+	EventType       event_types.EventType
+	Metadata        Metadata
+	Payload         any
+	UpdatedBy       string
+	MerchantID      int64
+	ExpectedVersion int64
 }
 
 func NewEvent[T Payload](

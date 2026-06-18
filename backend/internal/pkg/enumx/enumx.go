@@ -144,6 +144,15 @@ func (e Enum[T]) In(vals ...T) bool {
 	return false
 }
 
+func (e Enum[T]) InValues(vals ...Enum[T]) bool {
+	for _, v := range vals {
+		if e.value == v.value {
+			return true
+		}
+	}
+	return false
+}
+
 // -------------------------
 // JSON
 // -------------------------

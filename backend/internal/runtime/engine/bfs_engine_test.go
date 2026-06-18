@@ -5,6 +5,7 @@ import (
 	kerrors "akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/kernel/result"
+	"akatengu/internal/persistence/handle"
 	"akatengu/internal/runtime/mediator"
 	"akatengu/internal/runtime/safety"
 	"context"
@@ -121,6 +122,83 @@ var _ = Describe("BFSEngine Run", func() {
 				eng := NewBFSEngine(NewExecutor(med)).WithMiddleware(defaultMiddlewares()...)
 				Expect(eng.Run(ctx, evtA)).To(BeNil())
 				Expect(order).To(Equal([]string{"A", "B", "C", "D", "E"}))
+			})
+		})
+	})
+
+	// ─── UnitOfWork 路徑 ──────────────────────────────────────────────────────
+
+	Context("GIVEN UnitOfWork 已設定", func() {
+		When("handler 成功（單一事件）", func() {
+			It("THEN Store.Append 被呼叫 1 次", func() {
+				store := &mockStore{}
+				uow := &mockUoW{store: store}
+				med := mediator.NewMediator()
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+					return result.EventResult{}, nil
+				}))
+				eng := NewBFSEngine(NewExecutor(med)).
+					WithMiddleware(defaultMiddlewares()...).
+					WithUnitOfWork(uow)
+				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
+				Expect(store.appendCount).To(Equal(1))
+			})
+		})
+
+		When("BFS A → B（兩個事件依序處理）", func() {
+			It("THEN Store.Append 被呼叫 2 次", func() {
+				store := &mockStore{}
+				uow := &mockUoW{store: store}
+				med := mediator.NewMediator()
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+					return result.EventResult{Events: []event.Event{makeTestEvent(typeB)}}, nil
+				}))
+				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+					return result.EventResult{}, nil
+				}))
+				eng := NewBFSEngine(NewExecutor(med)).
+					WithMiddleware(defaultMiddlewares()...).
+					WithUnitOfWork(uow)
+				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
+				Expect(store.appendCount).To(Equal(2))
+			})
+		})
+
+		When("Store.Append 回傳錯誤", func() {
+			It("THEN Run 回傳該錯誤", func() {
+				storeErr := errors.New("store failed")
+				store := &mockStore{err: storeErr}
+				uow := &mockUoW{store: store}
+				med := mediator.NewMediator()
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+					return result.EventResult{}, nil
+				}))
+				eng := NewBFSEngine(NewExecutor(med)).
+					WithMiddleware(defaultMiddlewares()...).
+					WithUnitOfWork(uow)
+				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(MatchError(storeErr))
+			})
+		})
+	})
+
+	Context("GIVEN UnitOfWork + Projector 已設定", func() {
+		When("handler 成功，projector 型別符合事件", func() {
+			It("THEN Projector.Apply 被呼叫 1 次", func() {
+				store := &mockStore{}
+				uow := &mockUoW{store: store}
+				proj := &mockProjector{types: []event_types.EventType{typeA}}
+				registry := handle.NewRegistry(nil)
+				registry.Register(proj)
+				med := mediator.NewMediator()
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+					return result.EventResult{}, nil
+				}))
+				eng := NewBFSEngine(NewExecutor(med)).
+					WithMiddleware(defaultMiddlewares()...).
+					WithUnitOfWork(uow).
+					WithProjector(registry)
+				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
+				Expect(proj.applyCount).To(Equal(1))
 			})
 		})
 	})

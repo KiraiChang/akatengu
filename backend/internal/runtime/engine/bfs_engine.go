@@ -3,8 +3,8 @@ package engine
 import (
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/kernel/result"
-	"akatengu/internal/persistence/eventstore"
-	"akatengu/internal/persistence/projection"
+	"akatengu/internal/persistence/handle"
+	"akatengu/internal/persistence/repos"
 	"akatengu/internal/runtime/safety"
 	"context"
 )
@@ -12,28 +12,34 @@ import (
 type BFSEngine struct {
 	executor  *Executor
 	process   safety.EventProcessor
-	store     eventstore.Store
-	projector *projection.Registry
+	uow       repos.UnitOfWork
+	projector *handle.Registry
 }
 
 func NewBFSEngine(executor *Executor) *BFSEngine {
 	e := &BFSEngine{executor: executor}
 	e.process = func(ctx context.Context, _ int, ev event.Event) (result.EventResult, error) {
-		if e.store != nil {
-			if err := e.store.Append(ctx, ev); err != nil {
-				return result.EventResult{}, err
-			}
-		}
-
 		r, err := e.executor.Dispatch(ctx, ev)
 		if err != nil {
 			// Pass through the result so callers can inspect r.Policy.
 			return r, err
 		}
 
-		if e.projector != nil {
-			if err := e.projector.ApplyAll(ctx, ev, r.State); err != nil {
-				return result.EventResult{}, err
+		if e.uow != nil {
+			err = e.uow.Do(ctx, func(tx *repos.Repos) error {
+				_, _, err := tx.Store.Append(ctx, ev)
+				if err != nil {
+					return err
+				}
+				if e.projector != nil {
+					if err := e.projector.ApplyAll(ctx, ev, r.State); err != nil {
+						return err
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				return r, err
 			}
 		}
 
@@ -47,12 +53,12 @@ func (e *BFSEngine) WithMiddleware(middlewares ...safety.Middleware) *BFSEngine 
 	return e
 }
 
-func (e *BFSEngine) WithStore(s eventstore.Store) *BFSEngine {
-	e.store = s
+func (e *BFSEngine) WithUnitOfWork(uow repos.UnitOfWork) *BFSEngine {
+	e.uow = uow
 	return e
 }
 
-func (e *BFSEngine) WithProjector(r *projection.Registry) *BFSEngine {
+func (e *BFSEngine) WithProjector(r *handle.Registry) *BFSEngine {
 	e.projector = r
 	return e
 }

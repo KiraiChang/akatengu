@@ -3,9 +3,14 @@ package handler
 import (
 	"akatengu/internal/bootstrap"
 	"akatengu/internal/handler/middleware"
+	"akatengu/internal/persistence/handle"
+	"akatengu/internal/persistence/repos"
 	"akatengu/internal/pkg/jwt"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
+	"akatengu/internal/runtime/engine"
+	"akatengu/internal/runtime/mediator"
+	"akatengu/internal/runtime/safety"
 	"akatengu/internal/services"
 	"akatengu/internal/web"
 	"net/http"
@@ -15,6 +20,23 @@ import (
 )
 
 func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMux {
+	// 1. Mediator
+	mediator := mediator.NewMediator()
+
+	// 2. event store
+	store := repos.NewUnitOfWork(db)
+
+	// 3. projector
+	projector := handle.NewRegistry(db)
+
+	// 4. executor
+	executor := engine.NewExecutor(mediator)
+
+	// 4. bfs
+	bfs := engine.NewBFSEngine(executor).
+		WithMiddleware([]safety.Middleware{safety.BackpressureScheduler(3), safety.DepthGuard(10), safety.CycleDetector()}...).
+		WithProjector(projector).
+		WithUnitOfWork(store)
 	// 4. DI（手動）
 	//builder := cache.NewBuilder()
 	//builder.WithLocalCache(time.Minute * 10)
@@ -53,7 +75,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	audit := newAuditHandler(db, eventService, logger)
 	bankStatement := newBankStatementHandler(db, eventService, logger)
 	bankPdfTemplate := newBankPdfTemplateHandler(db, eventService, logger)
-	entryCFCategory := newEntryCFCategoryHandler(db, eventService, logger)
+	entryCFCategory := newEntryCFCategoryHandler(db, eventService, logger, bfs)
 
 	mux := http.NewServeMux()
 	// SPA：所有其他請求

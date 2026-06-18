@@ -1,6 +1,7 @@
-package projection
+package handle
 
 import (
+	"akatengu/internal/kernel/errors"
 	"context"
 	"fmt"
 
@@ -9,6 +10,8 @@ import (
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/event"
 )
+
+type handle func(ctx context.Context, db *sqlx.DB, evt event.Event, state any) error
 
 // Projector updates a single read model in response to an event.
 // EventTypes returns the set of event types this projector handles;
@@ -36,20 +39,11 @@ func (r *Registry) Register(p Projector) {
 // ApplyAll dispatches evt to every projector whose EventTypes includes evt.EventType.
 func (r *Registry) ApplyAll(ctx context.Context, evt event.Event, state any) error {
 	for _, p := range r.projectors {
-		if matchesAny(p.EventTypes(), evt.EventType) {
+		if evt.EventType.InValues(p.EventTypes()...) {
 			if err := p.Apply(ctx, r.db, evt, state); err != nil {
-				return fmt.Errorf("projector %s: %w", p.Name(), err)
+				return errors.NewRuntimeError(errors.ErrProjectorError, evt, fmt.Errorf("projector %s: %w", p.Name(), err))
 			}
 		}
 	}
 	return nil
-}
-
-func matchesAny(types []event_types.EventType, target event_types.EventType) bool {
-	for _, t := range types {
-		if t == target {
-			return true
-		}
-	}
-	return false
 }
