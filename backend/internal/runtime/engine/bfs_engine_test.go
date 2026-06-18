@@ -187,7 +187,7 @@ var _ = Describe("BFSEngine Run", func() {
 				store := &mockStore{}
 				uow := &mockUoW{store: store}
 				proj := &mockProjector{types: []event_types.EventType{typeA}}
-				registry := handle.NewRegistry(nil)
+				registry := handle.NewRegistry()
 				registry.Register(proj)
 				med := mediator.NewMediator()
 				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {

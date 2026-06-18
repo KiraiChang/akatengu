@@ -3,10 +3,14 @@ package engine
 import (
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/kernel/result"
+	"akatengu/internal/model/db"
 	"akatengu/internal/persistence/handle"
 	"akatengu/internal/persistence/repos"
+	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/runtime/safety"
 	"context"
+	"encoding/json"
+	"fmt"
 )
 
 type BFSEngine struct {
@@ -26,14 +30,30 @@ func NewBFSEngine(executor *Executor) *BFSEngine {
 		}
 
 		if e.uow != nil {
-			err = e.uow.Do(ctx, func(tx *repos.Repos) error {
-				_, _, err := tx.Store.Append(ctx, ev)
+			err = e.uow.Do(ctx, func(tx *repos.Transaction) error {
+				_, newVersion, err := tx.Store.Append(ctx, ev)
 				if err != nil {
 					return err
 				}
 				if e.projector != nil {
-					if err := e.projector.ApplyAll(ctx, ev, r.State); err != nil {
+					if err := e.projector.ApplyAll(ctx, tx, ev, r.State); err != nil {
 						return err
+					}
+				}
+
+				// snapshot 決策
+				if tx.Snap != nil {
+					if newVersion%50 == 0 {
+						state, _ := json.Marshal(ev)
+						if err := tx.Snap.Upsert(ctx, db.Snapshot{
+							SnapshotUuid:  uuidx.NewFromEvent(ev.Uuid, "snapshot"),
+							AggregateType: ev.AggregateType,
+							AggregateId:   ev.AggregateUuid,
+							AtVersion:     newVersion,
+							State:         state,
+						}); err != nil {
+							return fmt.Errorf("upsert snapshot: %w", err)
+						}
 					}
 				}
 				return nil

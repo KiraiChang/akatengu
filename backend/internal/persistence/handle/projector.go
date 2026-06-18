@@ -2,16 +2,15 @@ package handle
 
 import (
 	"akatengu/internal/kernel/errors"
+	"akatengu/internal/persistence/repos"
 	"context"
 	"fmt"
-
-	"github.com/jmoiron/sqlx"
 
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/event"
 )
 
-type handle func(ctx context.Context, db *sqlx.DB, evt event.Event, state any) error
+type handle func(ctx context.Context, tx *repos.Transaction, evt event.Event, state any) error
 
 // Projector updates a single read model in response to an event.
 // EventTypes returns the set of event types this projector handles;
@@ -19,17 +18,16 @@ type handle func(ctx context.Context, db *sqlx.DB, evt event.Event, state any) e
 type Projector interface {
 	Name() string
 	EventTypes() []event_types.EventType
-	Apply(ctx context.Context, db *sqlx.DB, evt event.Event, state any) error
+	Apply(ctx context.Context, tx *repos.Transaction, evt event.Event, state any) error
 }
 
 // Registry holds all registered projectors and dispatches events to matching ones.
 type Registry struct {
-	db         *sqlx.DB
 	projectors []Projector
 }
 
-func NewRegistry(db *sqlx.DB) *Registry {
-	return &Registry{db: db}
+func NewRegistry() *Registry {
+	return &Registry{}
 }
 
 func (r *Registry) Register(p Projector) {
@@ -37,10 +35,10 @@ func (r *Registry) Register(p Projector) {
 }
 
 // ApplyAll dispatches evt to every projector whose EventTypes includes evt.EventType.
-func (r *Registry) ApplyAll(ctx context.Context, evt event.Event, state any) error {
+func (r *Registry) ApplyAll(ctx context.Context, tx *repos.Transaction, evt event.Event, state any) error {
 	for _, p := range r.projectors {
 		if evt.EventType.InValues(p.EventTypes()...) {
-			if err := p.Apply(ctx, r.db, evt, state); err != nil {
+			if err := p.Apply(ctx, tx, evt, state); err != nil {
 				return errors.NewRuntimeError(errors.ErrProjectorError, evt, fmt.Errorf("projector %s: %w", p.Name(), err))
 			}
 		}

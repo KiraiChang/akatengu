@@ -5,8 +5,6 @@ import (
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/persistence/repos"
 	"context"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type mockStore struct {
@@ -24,11 +22,11 @@ type mockUoW struct {
 	err   error
 }
 
-func (m *mockUoW) Do(ctx context.Context, fn func(*repos.Repos) error) error {
+func (m *mockUoW) Do(ctx context.Context, fn func(*repos.Transaction) error) error {
 	if m.err != nil {
 		return m.err
 	}
-	return fn(&repos.Repos{Store: m.store})
+	return fn(&repos.Transaction{Store: m.store})
 }
 
 type mockProjector struct {
@@ -39,7 +37,7 @@ type mockProjector struct {
 
 func (m *mockProjector) Name() string                        { return "mock" }
 func (m *mockProjector) EventTypes() []event_types.EventType { return m.types }
-func (m *mockProjector) Apply(_ context.Context, _ *sqlx.DB, _ event.Event, _ any) error {
+func (m *mockProjector) Apply(_ context.Context, _ *repos.Transaction, _ event.Event, _ any) error {
 	m.applyCount++
 	return m.applyErr
 }

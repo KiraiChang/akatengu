@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/persistence/repos"
 	"akatengu/internal/shared/utils"
 	"context"
 
@@ -23,19 +24,19 @@ func (c cashFlowCategoryProjector) EventTypes() []event_types.EventType {
 	return utils.Keys(c.handles)
 }
 
-func (c cashFlowCategoryProjector) Apply(ctx context.Context, db *sqlx.DB, evt event.Event, state any) error {
+func (c cashFlowCategoryProjector) Apply(ctx context.Context, tx *repos.Transaction, evt event.Event, state any) error {
 	h, ok := c.handles[evt.EventType]
 	if !ok {
 		return errors.NewRuntimeError(errors.ErrProjectorNotFound, evt)
 	}
-	return h(ctx, db, evt, state)
+	return h(ctx, tx, evt, state)
 }
 
 func (c cashFlowCategoryProjector) Name() string {
 	return "cashFlowCategoryProjector"
 }
 
-func (s *cashFlowCategoryProjector) applyUserUpdate(ctx context.Context, db *sqlx.DB, evt event.Event, state any) error {
+func (s *cashFlowCategoryProjector) applyUserUpdate(ctx context.Context, tx *repos.Transaction, evt event.Event, state any) error {
 	//p, err := checkAndGetPayload[payload.TransactionCFCategoryUpdatedPayload](&evt)
 	//if err != nil {
 	//	return err

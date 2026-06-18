@@ -27,7 +27,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	store := repos.NewUnitOfWork(db)
 
 	// 3. projector
-	projector := handle.NewRegistry(db)
+	projector := handle.NewRegistry()
 
 	// 4. executor
 	executor := engine.NewExecutor(mediator)

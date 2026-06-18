@@ -8,7 +8,7 @@ import (
 	"context"
 )
 
-type Repos struct {
+type Transaction struct {
 	Store      Store
 	Check      Checkpoint
 	Snap       Snapshot
