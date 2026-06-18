@@ -23,13 +23,14 @@ var _ = Describe("Safety Middlewares", func() {
 		for _, s := range depthGuardScenarios {
 			s := s
 			It(fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then), func() {
-				_, err := DepthGuard(s.maxDepth)(noop)(ctx, s.depth, event.Event{})
+				r, err := DepthGuard(s.maxDepth)(noop)(ctx, s.depth, event.Event{})
 				if s.wantCode == "" {
 					Expect(err).To(BeNil())
 				} else {
 					code, ok := extractCode(err)
 					Expect(ok).To(BeTrue(), "expected EventError, got %T", err)
 					Expect(code).To(Equal(s.wantCode))
+					Expect(r.Policy).To(Equal(s.wantPolicy))
 				}
 			})
 		}
@@ -43,13 +44,14 @@ var _ = Describe("Safety Middlewares", func() {
 			It(fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then), func() {
 				p := CycleDetector()(noop)
 				for i, c := range s.calls {
-					_, err := p(ctx, i, c.evt())
+					r, err := p(ctx, i, c.evt())
 					if c.wantCode == "" {
 						Expect(err).To(BeNil())
 					} else {
 						code, ok := extractCode(err)
 						Expect(ok).To(BeTrue(), "expected EventError, got %T", err)
 						Expect(code).To(Equal(c.wantCode))
+						Expect(r.Policy).To(Equal(c.wantPolicy))
 						return
 					}
 				}
@@ -65,13 +67,14 @@ var _ = Describe("Safety Middlewares", func() {
 			It(fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then), func() {
 				p := DeterministicLoopDetector()(noop)
 				for i, c := range s.calls {
-					_, err := p(ctx, i, c.evt())
+					r, err := p(ctx, i, c.evt())
 					if c.wantCode == "" {
 						Expect(err).To(BeNil())
 					} else {
 						code, ok := extractCode(err)
 						Expect(ok).To(BeTrue(), "expected EventError, got %T", err)
 						Expect(code).To(Equal(c.wantCode))
+						Expect(r.Policy).To(Equal(c.wantPolicy))
 						return
 					}
 				}
@@ -85,13 +88,14 @@ var _ = Describe("Safety Middlewares", func() {
 		for _, s := range backpressureScenarios {
 			s := s
 			It(fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then), func() {
-				_, err := BackpressureScheduler(s.maxPending)(s.terminal())(ctx, 0, s.evt())
+				r, err := BackpressureScheduler(s.maxPending)(s.terminal())(ctx, 0, s.evt())
 				if s.wantCode == "" {
 					Expect(err).To(BeNil())
 				} else {
 					code, ok := extractCode(err)
 					Expect(ok).To(BeTrue(), "expected EventError, got %T", err)
 					Expect(code).To(Equal(s.wantCode))
+					Expect(r.Policy).To(Equal(s.wantPolicy))
 				}
 			})
 		}

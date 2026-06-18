@@ -3,6 +3,7 @@ package safety
 import (
 	kerrors "akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/kernel/result"
 	"context"
 )
 
@@ -10,32 +11,35 @@ import (
 // in the BFS queue to maxPending.
 //
 //   - ErrBackpressureActive  – a root event (depth=0) enters when maxPending < 1.
+//     Policy: Retryable=true (caller may retry when load drops).
 //   - ErrQueueOverflow       – the children returned by a handler would push the
 //     pending count past the limit.
+//     Policy: zero (not retryable, not fatal — caller decides).
 func BackpressureScheduler(maxPending int) Middleware {
 	pending := 0
 	return func(next EventProcessor) EventProcessor {
-		return func(ctx context.Context, depth int, evt event.Event) ([]event.Event, error) {
+		return func(ctx context.Context, depth int, evt event.Event) (result.EventResult, error) {
 			if depth == 0 {
 				// New root event: reset pending counter to 1.
 				pending = 1
 				if pending > maxPending {
-					return nil, kerrors.NewRuntimeError(kerrors.ErrBackpressureActive, evt, nil, true, false)
+					return result.EventResult{Policy: result.Policy{Retryable: true}},
+						kerrors.NewRuntimeError(kerrors.ErrBackpressureActive, evt)
 				}
 			}
 
-			children, err := next(ctx, depth, evt)
+			r, err := next(ctx, depth, evt)
 			if err != nil {
-				return nil, err
+				return r, err
 			}
 
 			// Current event done; account for children it emitted.
-			pending = pending - 1 + len(children)
+			pending = pending - 1 + len(r.Events)
 			if pending > maxPending {
-				return nil, kerrors.NewRuntimeError(kerrors.ErrQueueOverflow, evt, nil, false, false)
+				return result.EventResult{}, kerrors.NewRuntimeError(kerrors.ErrQueueOverflow, evt)
 			}
 
-			return children, nil
+			return r, nil
 		}
 	}
 }

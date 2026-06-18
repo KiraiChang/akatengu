@@ -7,6 +7,7 @@ import (
 	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/kernel/result"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,8 +33,8 @@ var _ = BeforeSuite(func() {
 
 var ctx = context.Background()
 
-var noop = EventProcessor(func(_ context.Context, _ int, _ event.Event) ([]event.Event, error) {
-	return nil, nil
+var noop = EventProcessor(func(_ context.Context, _ int, _ event.Event) (result.EventResult, error) {
+	return result.EventResult{}, nil
 })
 
 func mkEvt(uuid string, typ event_types.EventType, causationID string) event.Event {
@@ -45,7 +46,7 @@ func mkEvt(uuid string, typ event_types.EventType, causationID string) event.Eve
 }
 
 func withChildren(children []event.Event) EventProcessor {
-	return func(_ context.Context, _ int, _ event.Event) ([]event.Event, error) {
-		return children, nil
+	return func(_ context.Context, _ int, _ event.Event) (result.EventResult, error) {
+		return result.EventResult{Events: children}, nil
 	}
 }

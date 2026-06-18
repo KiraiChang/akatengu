@@ -44,7 +44,7 @@ var _ = Describe("BFSEngine Run", func() {
 		s := s
 		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
 		It(label, func() {
-			eng := NewBFSEngine(s.executor(), s.middlewares...)
+			eng := NewBFSEngine(s.executor()).WithMiddleware(s.middlewares...)
 			err := eng.Run(ctx, s.evt())
 			ee, ok := extractEventError(err)
 			Expect(ok).To(BeTrue(), fmt.Sprintf("expected EventError, got %T: %v", err, err))
@@ -63,7 +63,7 @@ var _ = Describe("BFSEngine Run", func() {
 					called = true
 					return result.EventResult{}, nil
 				}))
-				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
+				eng := NewBFSEngine(NewExecutor(med)).WithMiddleware(defaultMiddlewares()...)
 				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
 				Expect(called).To(BeTrue())
 			})
@@ -83,7 +83,7 @@ var _ = Describe("BFSEngine Run", func() {
 					order = append(order, "B")
 					return result.EventResult{}, nil
 				}))
-				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
+				eng := NewBFSEngine(NewExecutor(med)).WithMiddleware(defaultMiddlewares()...)
 				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
 				Expect(order).To(Equal([]string{"A", "B"}))
 			})
@@ -118,7 +118,7 @@ var _ = Describe("BFSEngine Run", func() {
 				}))
 
 				evtA := event.Event{Uuid: "A", EventType: typeA}
-				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
+				eng := NewBFSEngine(NewExecutor(med)).WithMiddleware(defaultMiddlewares()...)
 				Expect(eng.Run(ctx, evtA)).To(BeNil())
 				Expect(order).To(Equal([]string{"A", "B", "C", "D", "E"}))
 			})

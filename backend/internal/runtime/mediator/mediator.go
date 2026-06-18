@@ -33,7 +33,7 @@ func (m *Mediator) Register(eventType event_types.EventType, h Handler) {
 func (m *Mediator) Dispatch(ctx context.Context, evt event.Event) (result.EventResult, error) {
 	h, ok := m.handlers[evt.EventType]
 	if !ok {
-		return result.EventResult{}, errors.NewRuntimeError(errors.ErrHandlerNotFound, evt, nil, false, true)
+		return result.EventResult{}, errors.NewRuntimeError(errors.ErrHandlerNotFound, evt)
 	}
 	return h.Handle(ctx, evt)
 }

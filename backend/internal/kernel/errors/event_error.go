@@ -12,8 +12,6 @@ type EventError struct {
 	EventType     event_types.EventType
 	Version       int
 	AggregateUuid string
-	Retryable     bool
-	Fatal         bool
 	Cause         error
 }
 
@@ -45,23 +43,22 @@ func NewContractError(
 	evt event.Event,
 	cause error,
 ) EventError {
-	err := NewEventError(code, CategoryContract, evt, cause)
-	err.Retryable = false
-	err.Fatal = true
-	return err
+	return NewEventError(code, CategoryContract, evt, cause)
 }
 
+// NewRuntimeError creates a runtime EventError. cause is optional; pass nil when absent.
+// Retry/fatal policy is now expressed via result.Policy returned by EventProcessor,
+// not embedded in the error itself.
 func NewRuntimeError(
 	code EventErrorCode,
 	evt event.Event,
-	cause error,
-	retryable bool,
-	fatal bool,
+	cause ...error,
 ) EventError {
-	err := NewEventError(code, CategoryRuntime, evt, cause)
-	err.Retryable = retryable
-	err.Fatal = fatal
-	return err
+	var c error
+	if len(cause) > 0 {
+		c = cause[0]
+	}
+	return NewEventError(code, CategoryRuntime, evt, c)
 }
 
 func NewBusinessError(
@@ -69,10 +66,7 @@ func NewBusinessError(
 	evt event.Event,
 	cause error,
 ) EventError {
-	err := NewEventError(code, CategoryBusiness, evt, cause)
-	err.Retryable = false
-	err.Fatal = false
-	return err
+	return NewEventError(code, CategoryBusiness, evt, cause)
 }
 
 func NewInfrastructureError(
@@ -80,8 +74,5 @@ func NewInfrastructureError(
 	evt event.Event,
 	cause error,
 ) EventError {
-	err := NewEventError(code, CategoryInfrastructure, evt, cause)
-	err.Retryable = true
-	err.Fatal = false
-	return err
+	return NewEventError(code, CategoryInfrastructure, evt, cause)
 }

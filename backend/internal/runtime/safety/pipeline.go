@@ -2,11 +2,13 @@ package safety
 
 import (
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/kernel/result"
 	"context"
 )
 
-// EventProcessor processes a single event and returns any child events it emits.
-type EventProcessor func(ctx context.Context, depth int, evt event.Event) ([]event.Event, error)
+// EventProcessor processes a single event and returns an EventResult containing
+// child events, aggregate state, and an error-handling policy.
+type EventProcessor func(ctx context.Context, depth int, evt event.Event) (result.EventResult, error)
 
 // Middleware wraps an EventProcessor with pre/post logic.
 type Middleware func(EventProcessor) EventProcessor
