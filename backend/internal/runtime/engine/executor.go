@@ -2,6 +2,7 @@ package engine
 
 import (
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/kernel/result"
 	"akatengu/internal/runtime/mediator"
 	"context"
 	"sync"
@@ -13,6 +14,12 @@ type Executor struct {
 
 func NewExecutor(m *mediator.Mediator) *Executor {
 	return &Executor{m}
+}
+
+// Dispatch dispatches a single event and returns the full HandlerResult (including State).
+// Used by BFSEngine as the terminal EventProcessor.
+func (e *Executor) Dispatch(ctx context.Context, evt event.Event) (result.EventResult, error) {
+	return e.mediator.Dispatch(ctx, evt)
 }
 
 // ExecuteBatch dispatches all events in the batch concurrently and returns their
@@ -40,7 +47,7 @@ func (e *Executor) ExecuteBatch(ctx context.Context, batch []event.Event) ([]eve
 		go func() {
 			defer wg.Done()
 			r, err := e.mediator.Dispatch(ctx, evt)
-			slots[i] = slot{r.Children, err}
+			slots[i] = slot{r.Events, err}
 		}()
 	}
 	wg.Wait()

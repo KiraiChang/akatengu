@@ -8,7 +8,7 @@ import (
 // ─── safetyCall：表達有狀態 middleware 的單次呼叫 ──────────────────────────────
 
 type safetyCall struct {
-	batch    func() []event.Event
+	evt      func() event.Event
 	wantCode kerrors.EventErrorCode // "" 表示不預期錯誤
 }
 
@@ -51,33 +51,23 @@ type cycleDetectorScenario struct {
 
 var cycleDetectorScenarios = []cycleDetectorScenario{
 	{
-		given: "兩個 level 的 event 各有唯一 UUID",
-		when:  "CycleDetector 依序被呼叫兩次",
+		given: "依序處理三個唯一 UUID 的 event",
+		when:  "CycleDetector 依序被呼叫三次",
 		then:  "不回傳錯誤",
 		calls: []safetyCall{
-			{batch: func() []event.Event { return []event.Event{mkEvt("a", typeA, ""), mkEvt("b", typeA, "")} }},
-			{batch: func() []event.Event { return []event.Event{mkEvt("c", typeA, "")} }},
+			{evt: func() event.Event { return mkEvt("a", typeA, "") }},
+			{evt: func() event.Event { return mkEvt("b", typeA, "") }},
+			{evt: func() event.Event { return mkEvt("c", typeA, "") }},
 		},
 	},
 	{
-		given: "同一 batch 中有兩個相同 UUID",
-		when:  "CycleDetector 被呼叫",
-		then:  "回傳 ErrEventLoopDetected",
-		calls: []safetyCall{
-			{
-				batch:    func() []event.Event { return []event.Event{mkEvt("a", typeA, ""), mkEvt("a", typeA, "")} },
-				wantCode: kerrors.ErrEventLoopDetected,
-			},
-		},
-	},
-	{
-		given: "相同 UUID 跨兩個 level 出現",
+		given: "相同 UUID 在第二次呼叫出現",
 		when:  "CycleDetector 依序被呼叫兩次",
 		then:  "第二次呼叫回傳 ErrEventLoopDetected",
 		calls: []safetyCall{
-			{batch: func() []event.Event { return []event.Event{mkEvt("a", typeA, "")} }},
+			{evt: func() event.Event { return mkEvt("a", typeA, "") }},
 			{
-				batch:    func() []event.Event { return []event.Event{mkEvt("a", typeA, "")} },
+				evt:      func() event.Event { return mkEvt("a", typeA, "") },
 				wantCode: kerrors.ErrEventLoopDetected,
 			},
 		},
@@ -94,10 +84,11 @@ type deterministicLoopScenario struct {
 var deterministicLoopScenarios = []deterministicLoopScenario{
 	{
 		given: "event 皆無 causation chain",
-		when:  "DeterministicLoopDetector 被呼叫",
+		when:  "DeterministicLoopDetector 依序被呼叫兩次",
 		then:  "不回傳錯誤",
 		calls: []safetyCall{
-			{batch: func() []event.Event { return []event.Event{mkEvt("a", typeA, ""), mkEvt("b", typeB, "")} }},
+			{evt: func() event.Event { return mkEvt("a", typeA, "") }},
+			{evt: func() event.Event { return mkEvt("b", typeB, "") }},
 		},
 	},
 	{
@@ -105,8 +96,8 @@ var deterministicLoopScenarios = []deterministicLoopScenario{
 		when:  "DeterministicLoopDetector 依序被呼叫兩次",
 		then:  "不回傳錯誤",
 		calls: []safetyCall{
-			{batch: func() []event.Event { return []event.Event{mkEvt("a", typeA, "")} }},
-			{batch: func() []event.Event { return []event.Event{mkEvt("b", typeB, "a")} }}, // typeB caused by typeA
+			{evt: func() event.Event { return mkEvt("a", typeA, "") }},
+			{evt: func() event.Event { return mkEvt("b", typeB, "a") }}, // typeB caused by typeA
 		},
 	},
 	{
@@ -114,9 +105,9 @@ var deterministicLoopScenarios = []deterministicLoopScenario{
 		when:  "DeterministicLoopDetector 依序被呼叫兩次",
 		then:  "第二次呼叫回傳 ErrEventLoopDetected",
 		calls: []safetyCall{
-			{batch: func() []event.Event { return []event.Event{mkEvt("a", typeA, "")} }},
+			{evt: func() event.Event { return mkEvt("a", typeA, "") }},
 			{
-				batch:    func() []event.Event { return []event.Event{mkEvt("b", typeA, "a")} },
+				evt:      func() event.Event { return mkEvt("b", typeA, "a") },
 				wantCode: kerrors.ErrEventLoopDetected,
 			},
 		},
@@ -126,10 +117,10 @@ var deterministicLoopScenarios = []deterministicLoopScenario{
 		when:  "DeterministicLoopDetector 依序被呼叫三次",
 		then:  "第三次呼叫回傳 ErrEventLoopDetected",
 		calls: []safetyCall{
-			{batch: func() []event.Event { return []event.Event{mkEvt("a", typeA, "")} }},
-			{batch: func() []event.Event { return []event.Event{mkEvt("b", typeB, "a")} }},
+			{evt: func() event.Event { return mkEvt("a", typeA, "") }},
+			{evt: func() event.Event { return mkEvt("b", typeB, "a") }},
 			{
-				batch:    func() []event.Event { return []event.Event{mkEvt("c", typeA, "b")} },
+				evt:      func() event.Event { return mkEvt("c", typeA, "b") },
 				wantCode: kerrors.ErrEventLoopDetected,
 			},
 		},
@@ -141,48 +132,48 @@ var deterministicLoopScenarios = []deterministicLoopScenario{
 type backpressureScenario struct {
 	given, when, then string
 	maxPending        int
-	batch             func() []event.Event
-	terminal          func() BatchProcessor
+	evt               func() event.Event
+	terminal          func() EventProcessor
 	wantCode          kerrors.EventErrorCode
 }
 
 var backpressureScenarios = []backpressureScenario{
 	{
-		given:      "初始 batch 未超過上限",
+		given:      "root event，handler 回傳空 children",
 		when:       "BackpressureScheduler 被呼叫",
 		then:       "不回傳錯誤",
-		maxPending: 3,
-		batch:      func() []event.Event { return []event.Event{mkEvt("a", typeA, ""), mkEvt("b", typeA, "")} },
-		terminal:   func() BatchProcessor { return noop },
-	},
-	{
-		given:      "初始 batch 超過上限",
-		when:       "BackpressureScheduler 被呼叫",
-		then:       "回傳 ErrBackpressureActive",
 		maxPending: 1,
-		batch:      func() []event.Event { return []event.Event{mkEvt("a", typeA, ""), mkEvt("b", typeA, "")} },
-		terminal:   func() BatchProcessor { return noop },
-		wantCode:   kerrors.ErrBackpressureActive,
+		evt:        func() event.Event { return mkEvt("a", typeA, "") },
+		terminal:   func() EventProcessor { return noop },
 	},
 	{
-		given:      "handler 產生的 children 在上限內",
+		given:      "root event，handler 回傳 2 children（在上限內）",
 		when:       "BackpressureScheduler 被呼叫",
-		then:       "不回傳錯誤",
+		then:       "不回傳錯誤（pending = 0 + 2 = 2 ≤ 3）",
 		maxPending: 3,
-		batch:      func() []event.Event { return []event.Event{mkEvt("a", typeA, "")} },
-		terminal: func() BatchProcessor {
+		evt:        func() event.Event { return mkEvt("a", typeA, "") },
+		terminal: func() EventProcessor {
 			return withChildren([]event.Event{mkEvt("x", typeB, ""), mkEvt("y", typeB, "")})
 		},
 	},
 	{
-		given:      "handler 產生的 children 超過上限",
+		given:      "root event，handler 回傳 3 children（超過上限）",
 		when:       "BackpressureScheduler 被呼叫",
-		then:       "回傳 ErrQueueOverflow",
+		then:       "回傳 ErrQueueOverflow（pending = 0 + 3 = 3 > 2）",
 		maxPending: 2,
-		batch:      func() []event.Event { return []event.Event{mkEvt("a", typeA, "")} },
-		terminal: func() BatchProcessor {
+		evt:        func() event.Event { return mkEvt("a", typeA, "") },
+		terminal: func() EventProcessor {
 			return withChildren([]event.Event{mkEvt("x", typeB, ""), mkEvt("y", typeB, ""), mkEvt("z", typeB, "")})
 		},
 		wantCode: kerrors.ErrQueueOverflow,
+	},
+	{
+		given:      "maxPending=0，root event 進入即觸發限制",
+		when:       "BackpressureScheduler 被呼叫",
+		then:       "回傳 ErrBackpressureActive（pending=1 > 0）",
+		maxPending: 0,
+		evt:        func() event.Event { return mkEvt("a", typeA, "") },
+		terminal:   func() EventProcessor { return noop },
+		wantCode:   kerrors.ErrBackpressureActive,
 	},
 }

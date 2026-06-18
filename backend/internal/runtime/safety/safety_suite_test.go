@@ -32,7 +32,7 @@ var _ = BeforeSuite(func() {
 
 var ctx = context.Background()
 
-var noop = BatchProcessor(func(_ context.Context, _ int, _ []event.Event) ([]event.Event, error) {
+var noop = EventProcessor(func(_ context.Context, _ int, _ event.Event) ([]event.Event, error) {
 	return nil, nil
 })
 
@@ -44,8 +44,8 @@ func mkEvt(uuid string, typ event_types.EventType, causationID string) event.Eve
 	}
 }
 
-func withChildren(children []event.Event) BatchProcessor {
-	return func(_ context.Context, _ int, _ []event.Event) ([]event.Event, error) {
+func withChildren(children []event.Event) EventProcessor {
+	return func(_ context.Context, _ int, _ event.Event) ([]event.Event, error) {
 		return children, nil
 	}
 }

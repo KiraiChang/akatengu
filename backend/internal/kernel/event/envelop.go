@@ -1,6 +1,7 @@
 package event
 
 import (
+	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
 	"time"
 
@@ -20,6 +21,7 @@ type Payload interface {
 type Event struct {
 	Uuid          string
 	AggregateUuid string
+	AggregateType enums.AggregateType
 	Version       int
 	EventType     event_types.EventType
 	Metadata      Metadata

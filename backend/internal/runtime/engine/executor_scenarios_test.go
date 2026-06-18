@@ -3,6 +3,7 @@ package engine
 import (
 	kerrors "akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/kernel/result"
 	"akatengu/internal/runtime/mediator"
 	"context"
 	"time"
@@ -24,8 +25,8 @@ var executorScenarios = []executorScenario{
 		batch: func() []event.Event { return []event.Event{makeTestEvent(typeA)} },
 		setup: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (mediator.HandlerResult, error) {
-				return mediator.HandlerResult{}, nil
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				return result.EventResult{}, nil
 			}))
 			return NewExecutor(med)
 		},
@@ -38,8 +39,8 @@ var executorScenarios = []executorScenario{
 		batch: func() []event.Event { return []event.Event{makeTestEvent(typeA)} },
 		setup: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (mediator.HandlerResult, error) {
-				return mediator.HandlerResult{Children: []event.Event{
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				return result.EventResult{Events: []event.Event{
 					{Uuid: "c1", EventType: typeB},
 					{Uuid: "c2", EventType: typeB},
 				}}, nil
@@ -49,14 +50,14 @@ var executorScenarios = []executorScenario{
 		wantUUIDs: []string{"c1", "c2"},
 	},
 	{
-		given:  "handler 回傳 EventError",
-		when:   "ExecuteBatch 被呼叫",
-		then:   "error 被傳遞，Code 為 ErrBusinessRuleFailed",
-		batch:  func() []event.Event { return []event.Event{makeTestEvent(typeA)} },
+		given: "handler 回傳 EventError",
+		when:  "ExecuteBatch 被呼叫",
+		then:  "error 被傳遞，Code 為 ErrBusinessRuleFailed",
+		batch: func() []event.Event { return []event.Event{makeTestEvent(typeA)} },
 		setup: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (mediator.HandlerResult, error) {
-				return mediator.HandlerResult{}, kerrors.NewBusinessError(kerrors.ErrBusinessRuleFailed, evt, nil)
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
+				return result.EventResult{}, kerrors.NewBusinessError(kerrors.ErrBusinessRuleFailed, evt, nil)
 			}))
 			return NewExecutor(med)
 		},
@@ -77,20 +78,20 @@ var executorScenarios = []executorScenario{
 		},
 		setup: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (mediator.HandlerResult, error) {
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
 				switch evt.Uuid {
 				case "A":
 					time.Sleep(20 * time.Millisecond) // 慢，確保 B goroutine 先完成
-					return mediator.HandlerResult{Children: []event.Event{
+					return result.EventResult{Events: []event.Event{
 						{Uuid: "C", EventType: typeB},
 						{Uuid: "D", EventType: typeB},
 					}}, nil
 				case "B":
-					return mediator.HandlerResult{Children: []event.Event{
+					return result.EventResult{Events: []event.Event{
 						{Uuid: "E", EventType: typeB},
 					}}, nil
 				}
-				return mediator.HandlerResult{}, nil
+				return result.EventResult{}, nil
 			}))
 			return NewExecutor(med)
 		},

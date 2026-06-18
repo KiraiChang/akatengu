@@ -12,15 +12,13 @@ import (
 // independent guard instance.
 func CycleDetector() Middleware {
 	seen := make(map[string]struct{})
-	return func(next BatchProcessor) BatchProcessor {
-		return func(ctx context.Context, depth int, batch []event.Event) ([]event.Event, error) {
-			for _, evt := range batch {
-				if _, ok := seen[evt.Uuid]; ok {
-					return nil, kerrors.NewRuntimeError(kerrors.ErrEventLoopDetected, evt, nil, false, true)
-				}
-				seen[evt.Uuid] = struct{}{}
+	return func(next EventProcessor) EventProcessor {
+		return func(ctx context.Context, depth int, evt event.Event) ([]event.Event, error) {
+			if _, ok := seen[evt.Uuid]; ok {
+				return nil, kerrors.NewRuntimeError(kerrors.ErrEventLoopDetected, evt, nil, false, true)
 			}
-			return next(ctx, depth, batch)
+			seen[evt.Uuid] = struct{}{}
+			return next(ctx, depth, evt)
 		}
 	}
 }
@@ -38,18 +36,16 @@ type eventNode struct {
 // of EventType A anywhere in its lineage, the cycle is detected and aborted.
 func DeterministicLoopDetector() Middleware {
 	graph := make(map[string]eventNode) // uuid → (eventType, causationID)
-	return func(next BatchProcessor) BatchProcessor {
-		return func(ctx context.Context, depth int, batch []event.Event) ([]event.Event, error) {
-			for _, evt := range batch {
-				graph[evt.Uuid] = eventNode{
-					eventType:   evt.EventType,
-					causationID: evt.Metadata.Tracing.CausationID,
-				}
-				if err := walkCausationChain(graph, evt); err != nil {
-					return nil, err
-				}
+	return func(next EventProcessor) EventProcessor {
+		return func(ctx context.Context, depth int, evt event.Event) ([]event.Event, error) {
+			graph[evt.Uuid] = eventNode{
+				eventType:   evt.EventType,
+				causationID: evt.Metadata.Tracing.CausationID,
 			}
-			return next(ctx, depth, batch)
+			if err := walkCausationChain(graph, evt); err != nil {
+				return nil, err
+			}
+			return next(ctx, depth, evt)
 		}
 	}
 }

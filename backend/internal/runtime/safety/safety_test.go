@@ -2,6 +2,7 @@ package safety
 
 import (
 	kerrors "akatengu/internal/kernel/errors"
+	"akatengu/internal/kernel/event"
 	"errors"
 	"fmt"
 
@@ -22,7 +23,7 @@ var _ = Describe("Safety Middlewares", func() {
 		for _, s := range depthGuardScenarios {
 			s := s
 			It(fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then), func() {
-				_, err := DepthGuard(s.maxDepth)(noop)(ctx, s.depth, nil)
+				_, err := DepthGuard(s.maxDepth)(noop)(ctx, s.depth, event.Event{})
 				if s.wantCode == "" {
 					Expect(err).To(BeNil())
 				} else {
@@ -42,7 +43,7 @@ var _ = Describe("Safety Middlewares", func() {
 			It(fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then), func() {
 				p := CycleDetector()(noop)
 				for i, c := range s.calls {
-					_, err := p(ctx, i, c.batch())
+					_, err := p(ctx, i, c.evt())
 					if c.wantCode == "" {
 						Expect(err).To(BeNil())
 					} else {
@@ -64,7 +65,7 @@ var _ = Describe("Safety Middlewares", func() {
 			It(fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then), func() {
 				p := DeterministicLoopDetector()(noop)
 				for i, c := range s.calls {
-					_, err := p(ctx, i, c.batch())
+					_, err := p(ctx, i, c.evt())
 					if c.wantCode == "" {
 						Expect(err).To(BeNil())
 					} else {
@@ -84,7 +85,7 @@ var _ = Describe("Safety Middlewares", func() {
 		for _, s := range backpressureScenarios {
 			s := s
 			It(fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then), func() {
-				_, err := BackpressureScheduler(s.maxPending)(s.terminal())(ctx, 0, s.batch())
+				_, err := BackpressureScheduler(s.maxPending)(s.terminal())(ctx, 0, s.evt())
 				if s.wantCode == "" {
 					Expect(err).To(BeNil())
 				} else {

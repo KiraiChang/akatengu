@@ -28,6 +28,7 @@ const (
 const (
 	ErrStoreWriteFailed   EventErrorCode = "INFRA_EVENTSTORE_WRITE_FAILED"
 	ErrStoreReadFailed    EventErrorCode = "INFRA_EVENTSTORE_READ_FAILED"
+	ErrVersionConflict    EventErrorCode = "INFRA_VERSION_CONFLICT"
 	ErrQueueOverflow      EventErrorCode = "INFRA_QUEUE_OVERFLOW"
 	ErrBackpressureActive EventErrorCode = "INFRA_BACKPRESSURE_ACTIVE"
 )

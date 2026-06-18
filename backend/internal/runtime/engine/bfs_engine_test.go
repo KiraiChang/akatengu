@@ -1,15 +1,15 @@
 package engine
 
 import (
-	kerrors "akatengu/internal/kernel/errors"
 	"akatengu/internal/enums/event_types"
+	kerrors "akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/kernel/result"
 	"akatengu/internal/runtime/mediator"
 	"akatengu/internal/runtime/safety"
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -45,7 +45,7 @@ var _ = Describe("BFSEngine Run", func() {
 		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
 		It(label, func() {
 			eng := NewBFSEngine(s.executor(), s.middlewares...)
-			err := eng.Run(ctx, s.events())
+			err := eng.Run(ctx, s.evt())
 			ee, ok := extractEventError(err)
 			Expect(ok).To(BeTrue(), fmt.Sprintf("expected EventError, got %T: %v", err, err))
 			Expect(ee.Code).To(Equal(s.wantCode))
@@ -59,12 +59,12 @@ var _ = Describe("BFSEngine Run", func() {
 			It("THEN handler 被執行且回傳 nil", func() {
 				called := false
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (mediator.HandlerResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
 					called = true
-					return mediator.HandlerResult{}, nil
+					return result.EventResult{}, nil
 				}))
 				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
-				Expect(eng.Run(ctx, []event.Event{makeTestEvent(typeA)})).To(BeNil())
+				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
 				Expect(called).To(BeTrue())
 			})
 		})
@@ -75,59 +75,52 @@ var _ = Describe("BFSEngine Run", func() {
 			It("THEN 兩個 handler 依 BFS 順序各被執行一次，回傳 nil", func() {
 				var order []string
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (mediator.HandlerResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
 					order = append(order, "A")
-					return mediator.HandlerResult{Children: []event.Event{makeTestEvent(typeB)}}, nil
+					return result.EventResult{Events: []event.Event{makeTestEvent(typeB)}}, nil
 				}))
-				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (mediator.HandlerResult, error) {
+				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
 					order = append(order, "B")
-					return mediator.HandlerResult{}, nil
+					return result.EventResult{}, nil
 				}))
 				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
-				Expect(eng.Run(ctx, []event.Event{makeTestEvent(typeA)})).To(BeNil())
+				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
 				Expect(order).To(Equal([]string{"A", "B"}))
 			})
 		})
 	})
 
-	Context("GIVEN root batch [A, B]，A 發射 [C, D]，B 發射 [E]", func() {
+	Context("GIVEN A 發射 [B, C]，B 發射 [D]，C 發射 [E]", func() {
 		When("Run 被呼叫（含 DepthGuard + CycleDetector）", func() {
-			// Async ExecuteBatch：同一 level 的 handler 並行執行，within-level 執行順序
-			// 不確定；可保證的是 level-0 全部完成後才開始 level-1（BFS Queue 結構保證）。
-			It("THEN level-0 [A, B] 全部完成後才執行 level-1 [C, D, E]（BFS 層次保證成立）", func() {
-				var mu sync.Mutex
-				var level0, level1 []string
-
-				evtC := event.Event{Uuid: "C", EventType: typeB}
+			// FIFO Queue 保證 BFS level 順序：depth=0 的 A 先完成後，
+			// depth=1 的 B、C 依插入順序依序處理，depth=2 的 D、E 最後。
+			It("THEN 執行順序為 BFS level 順序 [A, B, C, D, E]", func() {
+				var order []string
+				evtB := event.Event{Uuid: "B", EventType: typeA}
+				evtC := event.Event{Uuid: "C", EventType: typeA}
 				evtD := event.Event{Uuid: "D", EventType: typeB}
 				evtE := event.Event{Uuid: "E", EventType: typeB}
 
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (mediator.HandlerResult, error) {
-					mu.Lock()
-					level0 = append(level0, evt.Uuid)
-					mu.Unlock()
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
+					order = append(order, evt.Uuid)
 					switch evt.Uuid {
-					case "A":
-						return mediator.HandlerResult{Children: []event.Event{evtC, evtD}}, nil
 					case "B":
-						return mediator.HandlerResult{Children: []event.Event{evtE}}, nil
+						return result.EventResult{Events: []event.Event{evtD}}, nil
+					case "C":
+						return result.EventResult{Events: []event.Event{evtE}}, nil
 					}
-					return mediator.HandlerResult{}, nil
+					return result.EventResult{Events: []event.Event{evtB, evtC}}, nil
 				}))
-				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (mediator.HandlerResult, error) {
-					mu.Lock()
-					level1 = append(level1, evt.Uuid)
-					mu.Unlock()
-					return mediator.HandlerResult{}, nil
+				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
+					order = append(order, evt.Uuid)
+					return result.EventResult{}, nil
 				}))
 
 				evtA := event.Event{Uuid: "A", EventType: typeA}
-				evtB := event.Event{Uuid: "B", EventType: typeA}
 				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
-				Expect(eng.Run(ctx, []event.Event{evtA, evtB})).To(BeNil())
-				Expect(level0).To(ConsistOf("A", "B"))
-				Expect(level1).To(ConsistOf("C", "D", "E"))
+				Expect(eng.Run(ctx, evtA)).To(BeNil())
+				Expect(order).To(Equal([]string{"A", "B", "C", "D", "E"}))
 			})
 		})
 	})

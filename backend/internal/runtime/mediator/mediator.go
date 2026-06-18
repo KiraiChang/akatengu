@@ -4,20 +4,17 @@ import (
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/kernel/result"
 	"context"
 )
 
-type HandlerResult struct {
-	Children []event.Event
-}
-
 type Handler interface {
-	Handle(ctx context.Context, evt event.Event) (HandlerResult, error)
+	Handle(ctx context.Context, evt event.Event) (result.EventResult, error)
 }
 
-type HandlerFunc func(ctx context.Context, evt event.Event) (HandlerResult, error)
+type HandlerFunc func(ctx context.Context, evt event.Event) (result.EventResult, error)
 
-func (f HandlerFunc) Handle(ctx context.Context, evt event.Event) (HandlerResult, error) {
+func (f HandlerFunc) Handle(ctx context.Context, evt event.Event) (result.EventResult, error) {
 	return f(ctx, evt)
 }
 
@@ -33,10 +30,10 @@ func (m *Mediator) Register(eventType event_types.EventType, h Handler) {
 	m.handlers[eventType] = h
 }
 
-func (m *Mediator) Dispatch(ctx context.Context, evt event.Event) (HandlerResult, error) {
+func (m *Mediator) Dispatch(ctx context.Context, evt event.Event) (result.EventResult, error) {
 	h, ok := m.handlers[evt.EventType]
 	if !ok {
-		return HandlerResult{}, errors.NewRuntimeError(errors.ErrHandlerNotFound, evt, nil, false, true)
+		return result.EventResult{}, errors.NewRuntimeError(errors.ErrHandlerNotFound, evt, nil, false, true)
 	}
 	return h.Handle(ctx, evt)
 }
