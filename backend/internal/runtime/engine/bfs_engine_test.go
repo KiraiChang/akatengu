@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -85,6 +86,48 @@ var _ = Describe("BFSEngine Run", func() {
 				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
 				Expect(eng.Run(ctx, []event.Event{makeTestEvent(typeA)})).To(BeNil())
 				Expect(order).To(Equal([]string{"A", "B"}))
+			})
+		})
+	})
+
+	Context("GIVEN root batch [A, B]，A 發射 [C, D]，B 發射 [E]", func() {
+		When("Run 被呼叫（含 DepthGuard + CycleDetector）", func() {
+			// Async ExecuteBatch：同一 level 的 handler 並行執行，within-level 執行順序
+			// 不確定；可保證的是 level-0 全部完成後才開始 level-1（BFS Queue 結構保證）。
+			It("THEN level-0 [A, B] 全部完成後才執行 level-1 [C, D, E]（BFS 層次保證成立）", func() {
+				var mu sync.Mutex
+				var level0, level1 []string
+
+				evtC := event.Event{Uuid: "C", EventType: typeB}
+				evtD := event.Event{Uuid: "D", EventType: typeB}
+				evtE := event.Event{Uuid: "E", EventType: typeB}
+
+				med := mediator.NewMediator()
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (mediator.HandlerResult, error) {
+					mu.Lock()
+					level0 = append(level0, evt.Uuid)
+					mu.Unlock()
+					switch evt.Uuid {
+					case "A":
+						return mediator.HandlerResult{Children: []event.Event{evtC, evtD}}, nil
+					case "B":
+						return mediator.HandlerResult{Children: []event.Event{evtE}}, nil
+					}
+					return mediator.HandlerResult{}, nil
+				}))
+				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (mediator.HandlerResult, error) {
+					mu.Lock()
+					level1 = append(level1, evt.Uuid)
+					mu.Unlock()
+					return mediator.HandlerResult{}, nil
+				}))
+
+				evtA := event.Event{Uuid: "A", EventType: typeA}
+				evtB := event.Event{Uuid: "B", EventType: typeA}
+				eng := NewBFSEngine(NewExecutor(med), defaultMiddlewares()...)
+				Expect(eng.Run(ctx, []event.Event{evtA, evtB})).To(BeNil())
+				Expect(level0).To(ConsistOf("A", "B"))
+				Expect(level1).To(ConsistOf("C", "D", "E"))
 			})
 		})
 	})
