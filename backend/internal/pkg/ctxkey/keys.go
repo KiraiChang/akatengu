@@ -30,3 +30,11 @@ func GetUserName(ctx context.Context) string {
 	}
 	return claims.UserName
 }
+
+func GetRequestID(ctx context.Context) string {
+	requestId, ok := ctx.Value(RequestID).(string)
+	if !ok {
+		return ""
+	}
+	return requestId
+}

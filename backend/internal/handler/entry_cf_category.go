@@ -1,11 +1,11 @@
 package handler
 
 import (
+	event_payload "akatengu/internal/domain/event"
 	"akatengu/internal/enums"
-	"akatengu/internal/enums/event_types"
 	"akatengu/internal/handler/response"
-	"akatengu/internal/model/payload"
-	"akatengu/internal/model/request/cmd"
+	"akatengu/internal/kernel/event"
+	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/runtime/engine"
 	"akatengu/internal/services"
@@ -57,8 +57,8 @@ func (h *entryCFCategoryHandler) UpdateCFCategory(w http.ResponseWriter, r *http
 	txnUUID := r.PathValue("txn_uuid")
 
 	var req struct {
-		ExpectedVersion int64                            `json:"expected_version"`
-		Entries         []payload.TransactionCFEntryItem `json:"entries"`
+		ExpectedVersion int64                                  `json:"expected_version"`
+		Entries         []event_payload.TransactionCFEntryItem `json:"entries"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.l.Error(method+" decode fail", zap.Error(err))
@@ -66,42 +66,61 @@ func (h *entryCFCategoryHandler) UpdateCFCategory(w http.ResponseWriter, r *http
 		return
 	}
 
-	// validate entries cf_category values
-	for i, e := range req.Entries {
-		if !e.CFCategory.In(enums.CashFlowCategoryOperating, enums.CashFlowCategoryInvesting, enums.CashFlowCategoryFinancing) {
-			response.WriteError(w, r, http.StatusBadRequest, "Bad Request",
-				"entries["+string(rune('0'+i))+"].cf_category must be OPERATING, INVESTING, or FINANCING")
-			return
-		}
-	}
+	evt := event.NewFullEvent[event_payload.TransactionCFCategoryUpdatedPayload](
+		event.NewAggregateID(enums.AggregateTransaction.Enum()),
+		event_payload.TransactionCFCategoryUpdatedPayload{
+			TxnUUID: txnUUID,
+			Entries: req.Entries,
+		},
+		event.EventParams{
+			RequestID: ctxkey.GetRequestID(ctx),
+			Source:    "api",
+			Priority:  0,
+			Host:      r.Host,
+		})
 
-	p := payload.TransactionCFCategoryUpdatedPayload{
-		TxnUUID: txnUUID,
-		Entries: req.Entries,
-	}
-	if err := p.Validate(); err != nil {
-		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
-		return
-	}
-
-	b, err := json.Marshal(p)
-	if err != nil {
-		h.l.Error(method+" marshal fail", zap.Error(err))
-		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
-		return
-	}
-
-	result, err := h.es.Append(ctx, cmd.AppendCmd{
-		AggregateType:   enums.AggregateTransaction.Enum(),
-		AggregateID:     txnUUID,
-		ExpectedVersion: req.ExpectedVersion,
-		EventType:       event_types.EventTransactionCFCategoryUpdated.Enum(),
-		Payload:         b,
-	})
+	result, err := h.bfs.Run(ctx, evt)
 	if err != nil {
 		h.l.Error(method+" fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
-		return
 	}
+
+	//// validate entries cf_category values
+	//for i, e := range req.Entries {
+	//	if !e.CFCategory.In(enums.CashFlowCategoryOperating, enums.CashFlowCategoryInvesting, enums.CashFlowCategoryFinancing) {
+	//		response.WriteError(w, r, http.StatusBadRequest, "Bad Request",
+	//			"entries["+string(rune('0'+i))+"].cf_category must be OPERATING, INVESTING, or FINANCING")
+	//		return
+	//	}
+	//}
+	//
+	//p := payload.TransactionCFCategoryUpdatedPayload{
+	//	TxnUUID: txnUUID,
+	//	Entries: req.Entries,
+	//}
+	//if err := p.Validate(); err != nil {
+	//	response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+	//	return
+	//}
+	//
+	//b, err := json.Marshal(p)
+	//if err != nil {
+	//	h.l.Error(method+" marshal fail", zap.Error(err))
+	//	response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
+	//	return
+	//}
+	//
+	//result, err := h.es.Append(ctx, cmd.AppendCmd{
+	//	AggregateType:   enums.AggregateTransaction.Enum(),
+	//	AggregateID:     txnUUID,
+	//	ExpectedVersion: req.ExpectedVersion,
+	//	EventType:       event_types.EventTransactionCFCategoryUpdated.Enum(),
+	//	Payload:         b,
+	//})
+	//if err != nil {
+	//	h.l.Error(method+" fail", zap.Error(err))
+	//	response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+	//	return
+	//}
 	response.OK(w, result)
 }

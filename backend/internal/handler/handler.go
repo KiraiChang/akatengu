@@ -92,7 +92,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	mux.HandleFunc("POST /api/auth/login", auth.Login)
 
 	// 需要 JWT 但不需商戶 context 的路由（商戶管理）
-	api := middleware.NewGroup(mux, "/api", middleware.Jwt(jwt))
+	api := middleware.NewGroup(mux, "/api", middleware.RequestIDMiddleware, middleware.Jwt(jwt))
 	api.HandleFunc("POST /merchant/create", merchant.Create)
 	api.HandleFunc("GET /merchant/list", merchant.List)
 	api.HandleFunc("POST /merchant/select", merchant.Select)
