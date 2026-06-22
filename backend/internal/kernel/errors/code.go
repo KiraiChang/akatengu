@@ -18,11 +18,13 @@ const (
 	ErrEventLoopDetected EventErrorCode = "RUNTIME_EVENT_LOOP_DETECTED"
 	ErrProjectorNotFound EventErrorCode = "RUNTIME_PROJECTOR_NOT_FOUND"
 	ErrProjectorError    EventErrorCode = "RUNTIME_PROJECTOR_ERROR"
+	ErrCheckPointError   EventErrorCode = "RUNTIME_CHECKPOINT_ERROR"
 )
 
 // ========== BUSINESS LAYER ==========
 const (
 	ErrBusinessRuleFailed EventErrorCode = "BUSINESS_RULE_FAILED"
+	ErrPayloadInvalid     EventErrorCode = "BUSINESS_PAYLOAD_INVALID"
 	ErrInvariantViolation EventErrorCode = "BUSINESS_INVARIANT_VIOLATION"
 )
 

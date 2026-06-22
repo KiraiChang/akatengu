@@ -6,6 +6,7 @@ import (
 	"akatengu/internal/persistence/handle"
 	"akatengu/internal/persistence/repos"
 	"akatengu/internal/pkg/jwt"
+	"akatengu/internal/process"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"akatengu/internal/runtime/engine"
@@ -21,7 +22,9 @@ import (
 
 func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMux {
 	// 1. Mediator
-	mediator := mediator.NewMediator()
+	m := mediator.NewMediator().WithQuery(db)
+
+	process.Registry(m)
 
 	// 2. event store
 	store := repos.NewUnitOfWork(db)
@@ -30,7 +33,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 	projector := handle.NewRegistry()
 
 	// 4. executor
-	executor := engine.NewExecutor(mediator)
+	executor := engine.NewExecutor(m)
 
 	// 4. bfs
 	bfs := engine.NewBFSEngine(executor).

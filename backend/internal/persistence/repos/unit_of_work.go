@@ -11,7 +11,7 @@ import (
 
 type UnitOfWork interface {
 	// Do 開啟 transaction，執行 fn，自動 commit 或 rollback
-	Do(ctx context.Context, fn func(tx *Transaction) error) error
+	Do(ctx context.Context, fn func(tx *DbTransaction) error) error
 }
 
 type sqlxUnitOfWork struct {
@@ -22,7 +22,7 @@ func NewUnitOfWork(db *sqlx.DB) UnitOfWork {
 	return &sqlxUnitOfWork{db: db}
 }
 
-func (u *sqlxUnitOfWork) Do(ctx context.Context, fn func(*Transaction) error) error {
+func (u *sqlxUnitOfWork) Do(ctx context.Context, fn func(*DbTransaction) error) error {
 	tx, err := u.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -30,7 +30,7 @@ func (u *sqlxUnitOfWork) Do(ctx context.Context, fn func(*Transaction) error) er
 	defer tx.Rollback()
 
 	q := sqlcdb.New(tx)
-	repos := &Transaction{
+	repos := &DbTransaction{
 		Store:      &sqlxStore{q: q},
 		Snap:       &sqlcdbTxSnapshot{q: q},
 		Check:      &sqlcdbTxCheckpoint{q: q},

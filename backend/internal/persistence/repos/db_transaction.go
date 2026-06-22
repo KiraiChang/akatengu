@@ -8,7 +8,7 @@ import (
 	"context"
 )
 
-type Transaction struct {
+type DbTransaction struct {
 	Store      Store
 	Check      Checkpoint
 	Snap       Snapshot

@@ -6,6 +6,7 @@ import (
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/kernel/result"
 	"akatengu/internal/persistence/handle"
+	"akatengu/internal/repos/query"
 	"akatengu/internal/runtime/mediator"
 	"akatengu/internal/runtime/safety"
 	"context"
@@ -46,7 +47,7 @@ var _ = Describe("BFSEngine Run", func() {
 		label := fmt.Sprintf("GIVEN %s\n  WHEN %s\n  THEN %s", s.given, s.when, s.then)
 		It(label, func() {
 			eng := NewBFSEngine(s.executor()).WithMiddleware(s.middlewares...)
-			err := eng.Run(ctx, s.evt())
+			_, err := eng.Run(ctx, s.evt())
 			ee, ok := extractEventError(err)
 			Expect(ok).To(BeTrue(), fmt.Sprintf("expected EventError, got %T: %v", err, err))
 			Expect(ee.Code).To(Equal(s.wantCode))
@@ -60,7 +61,7 @@ var _ = Describe("BFSEngine Run", func() {
 			It("THEN handler 被執行且回傳 nil", func() {
 				called := false
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 					called = true
 					return result.EventResult{}, nil
 				}))
@@ -76,11 +77,11 @@ var _ = Describe("BFSEngine Run", func() {
 			It("THEN 兩個 handler 依 BFS 順序各被執行一次，回傳 nil", func() {
 				var order []string
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 					order = append(order, "A")
 					return result.EventResult{Events: []event.Event{makeTestEvent(typeB)}}, nil
 				}))
-				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 					order = append(order, "B")
 					return result.EventResult{}, nil
 				}))
@@ -103,7 +104,7 @@ var _ = Describe("BFSEngine Run", func() {
 				evtE := event.Event{Uuid: "E", EventType: typeB}
 
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, evt event.Event) (result.EventResult, error) {
 					order = append(order, evt.Uuid)
 					switch evt.Uuid {
 					case "B":
@@ -113,7 +114,7 @@ var _ = Describe("BFSEngine Run", func() {
 					}
 					return result.EventResult{Events: []event.Event{evtB, evtC}}, nil
 				}))
-				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
+				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, evt event.Event) (result.EventResult, error) {
 					order = append(order, evt.Uuid)
 					return result.EventResult{}, nil
 				}))
@@ -134,7 +135,7 @@ var _ = Describe("BFSEngine Run", func() {
 				store := &mockStore{}
 				uow := &mockUoW{store: store}
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 					return result.EventResult{}, nil
 				}))
 				eng := NewBFSEngine(NewExecutor(med)).
@@ -150,10 +151,10 @@ var _ = Describe("BFSEngine Run", func() {
 				store := &mockStore{}
 				uow := &mockUoW{store: store}
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 					return result.EventResult{Events: []event.Event{makeTestEvent(typeB)}}, nil
 				}))
-				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				med.Register(typeB, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 					return result.EventResult{}, nil
 				}))
 				eng := NewBFSEngine(NewExecutor(med)).
@@ -170,7 +171,7 @@ var _ = Describe("BFSEngine Run", func() {
 				store := &mockStore{err: storeErr}
 				uow := &mockUoW{store: store}
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 					return result.EventResult{}, nil
 				}))
 				eng := NewBFSEngine(NewExecutor(med)).
@@ -190,7 +191,7 @@ var _ = Describe("BFSEngine Run", func() {
 				registry := handle.NewRegistry()
 				registry.Register(proj)
 				med := mediator.NewMediator()
-				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+				med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 					return result.EventResult{}, nil
 				}))
 				eng := NewBFSEngine(NewExecutor(med)).

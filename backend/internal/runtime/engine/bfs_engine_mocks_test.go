@@ -22,11 +22,11 @@ type mockUoW struct {
 	err   error
 }
 
-func (m *mockUoW) Do(ctx context.Context, fn func(*repos.Transaction) error) error {
+func (m *mockUoW) Do(ctx context.Context, fn func(*repos.DbTransaction) error) error {
 	if m.err != nil {
 		return m.err
 	}
-	return fn(&repos.Transaction{Store: m.store})
+	return fn(&repos.DbTransaction{Store: m.store})
 }
 
 type mockProjector struct {
@@ -37,7 +37,7 @@ type mockProjector struct {
 
 func (m *mockProjector) Name() string                        { return "mock" }
 func (m *mockProjector) EventTypes() []event_types.EventType { return m.types }
-func (m *mockProjector) Apply(_ context.Context, _ *repos.Transaction, _ event.Event, _ any) error {
+func (m *mockProjector) Apply(_ context.Context, _ *repos.DbTransaction, _ event.Event, _ any) error {
 	m.applyCount++
 	return m.applyErr
 }

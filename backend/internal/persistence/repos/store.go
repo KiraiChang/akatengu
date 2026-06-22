@@ -67,7 +67,7 @@ func (s *sqlxStore) Append(ctx context.Context, evt event.Event) (int64, int64, 
 	metaRaw := json.RawMessage(meta)
 
 	// 寫入事件
-	if _, err = s.q.InsertEvent(ctx, sqlcdb.InsertEventParams{
+	if eventID, err = s.q.InsertEvent(ctx, sqlcdb.InsertEventParams{
 		MerchantID:       evt.MerchantID,
 		AggregateType:    evt.AggregateType,
 		AggregateID:      evt.AggregateUuid,

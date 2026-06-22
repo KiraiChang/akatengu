@@ -4,6 +4,7 @@ import (
 	kerrors "akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/kernel/result"
+	"akatengu/internal/repos/query"
 	"akatengu/internal/runtime/mediator"
 	"akatengu/internal/runtime/safety"
 	"context"
@@ -35,7 +36,7 @@ var bfsScenarios = []bfsScenario{
 		evt:   func() event.Event { return makeTestEvent(typeA) },
 		executor: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, evt event.Event) (result.EventResult, error) {
 				return result.EventResult{}, kerrors.NewBusinessError(kerrors.ErrBusinessRuleFailed, evt, nil)
 			}))
 			return NewExecutor(med)

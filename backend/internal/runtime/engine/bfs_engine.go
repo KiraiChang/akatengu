@@ -30,11 +30,12 @@ func NewBFSEngine(executor *Executor) *BFSEngine {
 		}
 
 		if e.uow != nil {
-			err = e.uow.Do(ctx, func(tx *repos.Transaction) error {
-				_, newVersion, err := tx.Store.Append(ctx, ev)
+			err = e.uow.Do(ctx, func(tx *repos.DbTransaction) error {
+				eventId, newVersion, err := tx.Store.Append(ctx, ev)
 				if err != nil {
 					return err
 				}
+				ev.Id = eventId
 				if e.projector != nil {
 					if err := e.projector.ApplyAll(ctx, tx, ev, r.State); err != nil {
 						return err
@@ -83,7 +84,7 @@ func (e *BFSEngine) WithProjector(r *handle.Registry) *BFSEngine {
 	return e
 }
 
-func (e *BFSEngine) Run(ctx context.Context, evt event.Event) error {
+func (e *BFSEngine) Run(ctx context.Context, evt event.Event) (event.Event, error) {
 	q := &Queue{}
 	q.Push(evt, 0)
 
@@ -95,11 +96,11 @@ func (e *BFSEngine) Run(ctx context.Context, evt event.Event) error {
 			//   Fatal=true     → unrecoverable, abort immediately.
 			//   Retryable=true → transient, eligible for retry (retry logic TBD).
 			// Currently all errors abort the run regardless of policy.
-			return err
+			return evt, err
 		}
 		for _, child := range r.Events {
 			q.Push(child, depth+1)
 		}
 	}
-	return nil
+	return evt, nil
 }

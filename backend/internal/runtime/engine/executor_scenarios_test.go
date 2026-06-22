@@ -4,6 +4,7 @@ import (
 	kerrors "akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/kernel/result"
+	"akatengu/internal/repos/query"
 	"akatengu/internal/runtime/mediator"
 	"context"
 	"time"
@@ -25,7 +26,7 @@ var executorScenarios = []executorScenario{
 		batch: func() []event.Event { return []event.Event{makeTestEvent(typeA)} },
 		setup: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 				return result.EventResult{}, nil
 			}))
 			return NewExecutor(med)
@@ -39,7 +40,7 @@ var executorScenarios = []executorScenario{
 		batch: func() []event.Event { return []event.Event{makeTestEvent(typeA)} },
 		setup: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ event.Event) (result.EventResult, error) {
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
 				return result.EventResult{Events: []event.Event{
 					{Uuid: "c1", EventType: typeB},
 					{Uuid: "c2", EventType: typeB},
@@ -56,7 +57,7 @@ var executorScenarios = []executorScenario{
 		batch: func() []event.Event { return []event.Event{makeTestEvent(typeA)} },
 		setup: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, evt event.Event) (result.EventResult, error) {
 				return result.EventResult{}, kerrors.NewBusinessError(kerrors.ErrBusinessRuleFailed, evt, nil)
 			}))
 			return NewExecutor(med)
@@ -78,7 +79,7 @@ var executorScenarios = []executorScenario{
 		},
 		setup: func() *Executor {
 			med := mediator.NewMediator()
-			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, evt event.Event) (result.EventResult, error) {
+			med.Register(typeA, mediator.HandlerFunc(func(_ context.Context, _ *query.Repo, evt event.Event) (result.EventResult, error) {
 				switch evt.Uuid {
 				case "A":
 					time.Sleep(20 * time.Millisecond) // 慢，確保 B goroutine 先完成
