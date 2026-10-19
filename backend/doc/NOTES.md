@@ -19,6 +19,13 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-10-19 [DEBUG] BFS handler 測試與低記憶體環境的驗證要點
+
+1. **in-memory SQLite 要固定單一連線**：`:memory:` 的每條新連線都是空 DB，測試需 `db.SetMaxOpenConns(1)`。目前 BFS 流程中 handler 的查詢在交易外、projector 在交易內，所以單一連線不會卡住；計畫書 R1 讓 handler 改在交易內查詢後，必須改用 R0 的交易內查詢，否則單一連線會等不到被交易占用的連線而死鎖。
+2. **BFS 的 handler 測試要另外經過正式 `NewMux`**：自行組裝 engine（參考 `internal/handler/entry_cf_category_test.go` 的 `newCFTestEngine`）適合測各種情境，但攔不到 `NewMux` 漏註冊 handler 或 projector 的回歸。每個 BFS 功能至少保留一個經正式 `NewMux` 的成功情境；token 以 `GenerateTokenWithMerchant` 產生，並寫入 `users`、`merchants`、`user_merchants`，才能通過 Jwt 與 MerchantAuth middleware。
+3. **2 GB 記憶體主機以 Docker 驗證**：使用預建的 sqlc binary（從 `sqlc/sqlc` image 取出），並設定 `GOFLAGS=-p=1`、`GOGC=20`。`go test` 附帶的 vet 分析 `modernc.org/sqlite/lib` 時會被 OOM kill，使整體 exit 1，需另以 `go test -vet=off ./...` 確認測試結果。
+4. **Ginkgo 詳細輸出**要同時加 `-v` 與 `-ginkgo.v`，只加 `-ginkgo.v` 不會印出各情境。
+
 ### [DEBUG] 2026-06-02 Category 寫入 API：EventUuid 作為 CategoryUUID 的設計要點
 
 **背景**：FixedAssetCategory / PrepaidCategory 的 HTTP 寫入 API（Create/Update/Delete）實作時，

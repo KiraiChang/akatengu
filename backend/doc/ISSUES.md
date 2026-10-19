@@ -464,7 +464,7 @@
 
 ### [ISSUE-020] BFS 路徑的現金流分類修改無法運作
 
-- **狀態**：🔴 Open
+- **狀態**：🟢 Resolved
 - **日期**：2026-10-19
 - **嚴重程度**：High
 - **位置**：`internal/handler/entry_cf_category.go:69-70`、`internal/process/cashflow.go:22`、`internal/persistence/handle/cash_flow_cateory.go:45`、`internal/handler/handler.go:33`
@@ -479,6 +479,10 @@
   前端 CF 分類審視頁（CFCategoryReview）的儲存功能；後續所有遷移到 BFS 的功能都會沿用同一套地基。
 - **解決方向**：
   見 `doc/plan/BFS_ENGINE_MIGRATION.md` F1；F1 完成後即可關閉本 issue。
+- **解決紀錄**：
+  2026-10-19 依計畫書 F1 分兩段修正（進度見 `doc/STEP.md`）：
+  1. Phase 1（commit `5f6b731`）：mediator handler 與 projector 改用 `domain/event` 的 payload 型別；在 `handler.go` 註冊現金流分類 projector；事件的 aggregate ID 改用 `txn_uuid`，並補上 `AggregateType`、`MerchantID`、`UpdatedBy`、`ExpectedVersion`。review 另外發現 BFS Store 找不到版本紀錄時未要求 `expected_version` 為 0，一併修正（`internal/persistence/repos/store.go`；舊路徑的相同問題見 ISSUE-024）。
+  2. Phase 2：新增 `internal/handler/entry_cf_category_scenarios_test.go`、`entry_cf_category_test.go`，以 in-memory DB 執行整條 BFS 路徑，8 個情境全數通過。其中 1 個經正式 `NewMux`（含 JWT 與商戶驗證）；刪除 `NewMux` 的 projector 註冊時，該情境會失敗，可攔截本 issue 第 2 點的回歸。
 
 ---
 
