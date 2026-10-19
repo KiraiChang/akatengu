@@ -2,10 +2,10 @@ package handle
 
 import (
 	"akatengu/internal/database/sqlcdb"
+	event_payload "akatengu/internal/domain/event"
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
-	"akatengu/internal/model/payload"
 	"akatengu/internal/persistence/repos"
 	"akatengu/internal/shared/utils"
 	"context"
@@ -42,7 +42,7 @@ func (c cashFlowCategoryProjector) Name() string {
 }
 
 func (s *cashFlowCategoryProjector) applyUserUpdate(ctx context.Context, tx *repos.DbTransaction, evt event.Event, state any) error {
-	p, err := checkAndGetPayload[payload.TransactionCFCategoryUpdatedPayload](&evt)
+	p, err := checkAndGetPayload[event_payload.TransactionCFCategoryUpdatedPayload](&evt)
 	if err != nil {
 		return err
 	}

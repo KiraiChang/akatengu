@@ -38,6 +38,10 @@ func (s *sqlxStore) Append(ctx context.Context, evt event.Event) (int64, int64, 
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			// 找不到符合的版本紀錄時，只有新的 aggregate（expected_version 為 0）可以建立
+			if evt.ExpectedVersion != 0 {
+				return eventID, newVersion, kerrors.NewInfrastructureError(kerrors.ErrVersionConflict, evt, fmt.Errorf("version mismatch: expected %d", evt.ExpectedVersion))
+			}
 			newVersion = evt.ExpectedVersion + 1
 			err := s.q.InsertAggregateVersion(ctx, sqlcdb.InsertAggregateVersionParams{
 				AggregateType:  evt.AggregateType,

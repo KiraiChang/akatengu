@@ -31,6 +31,7 @@ func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMu
 
 	// 3. projector
 	projector := handle.NewRegistry()
+	projector.Register(handle.NewCashFlowCategoryProjector(db))
 
 	// 4. executor
 	executor := engine.NewExecutor(m)

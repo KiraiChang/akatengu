@@ -1,11 +1,11 @@
 package process
 
 import (
+	event_payload "akatengu/internal/domain/event"
 	"akatengu/internal/enums"
 	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/kernel/result"
-	"akatengu/internal/model/payload"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/runtime/mediator"
 	"context"
@@ -19,7 +19,7 @@ import (
 func EventTransactionCFCategoryUpdatedHandle() mediator.HandlerFunc {
 	return func(ctx context.Context, repo *query.Repo, evt event.Event) (result.EventResult, error) {
 		result := result.EventResult{}
-		p, err := checkAndGetPayload[payload.TransactionCFCategoryUpdatedPayload](evt)
+		p, err := checkAndGetPayload[event_payload.TransactionCFCategoryUpdatedPayload](evt)
 		if err != nil {
 			return result, err
 		}

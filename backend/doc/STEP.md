@@ -2,13 +2,13 @@
 
 > 關聯：ISSUE-020；計畫書 `doc/plan/BFS_ENGINE_MIGRATION.md` 5.2 節 F1。
 > 依 `AGENTS.md`「變更幅度與重構」，本項是 bug fix，與 BFS 遷移的重構分開實作、分開 review。
-> 共 6 個檔案，達到 `backend/CLAUDE.md` 的大型標準，因此拆成兩段。
+> 共 7 個檔案，達到 `backend/CLAUDE.md` 的大型標準，因此拆成兩段。
 
 | Phase | 說明 | 狀態 |
 |-------|------|------|
 | 0 | 建立 STEP.md | ✅ done |
-| 1 | 程式修正（4 個檔案）：`internal/process/cashflow.go`、`internal/persistence/handle/cash_flow_cateory.go` 改用 `domain/event` 的 payload 型別；`internal/handler/handler.go` 註冊現金流分類 projector；`internal/handler/entry_cf_category.go` 補齊事件封套（`AggregateType=TRANSACTION`、aggregate ID 改用路徑的 `txn_uuid`、`ExpectedVersion` 取自請求、`MerchantID` 與 `UpdatedBy` 取自登入資訊）。驗證：`go build ./...` | ⬜ pending |
-| 2 | handler 測試（2 個檔案）：`internal/handler/entry_cf_category_scenarios_test.go`、`internal/handler/entry_cf_category_test.go`，共用既有的 Ginkgo suite；測試資料以 SQL 直接寫入一筆交易與分錄；情境：儲存成功（事件欄位正確、`entry_cf_categories` 更新為已確認）、版本號不符、分錄不屬於該交易、交易不存在。驗證：`go generate ./...`、`go build ./...`、`go test ./...` | ⬜ pending |
+| 1 | 程式修正（5 個檔案）：`internal/process/cashflow.go`、`internal/persistence/handle/cash_flow_cateory.go` 改用 `domain/event` 的 payload 型別；`internal/handler/handler.go` 註冊現金流分類 projector；`internal/handler/entry_cf_category.go` 補齊事件封套（`AggregateType=TRANSACTION`、aggregate ID 改用路徑的 `txn_uuid`、`ExpectedVersion` 取自請求、`MerchantID` 與 `UpdatedBy` 取自登入資訊）；`internal/persistence/repos/store.go` 找不到版本紀錄時，只允許 `expected_version` 為 0 建立新 aggregate（review 補充，否則新 aggregate 可繞過版本檢查）。驗證：`go build ./...` | ✅ done（2026-10-19：加入 `store.go` 修正後重新驗證，Docker 內 `go generate ./...`、`go build ./...` 皆 exit 0；`gofmt -l` 無輸出） |
+| 2 | handler 測試（2 個檔案）：`internal/handler/entry_cf_category_scenarios_test.go`、`internal/handler/entry_cf_category_test.go`，共用既有的 Ginkgo suite；測試資料以 SQL 直接寫入一筆交易與分錄；情境：儲存成功（事件欄位正確、`entry_cf_categories` 更新為已確認）、版本號不符、首次寫入時 `expected_version` 不為 0（例如 7、-1）、分錄不屬於該交易、交易不存在。驗證：`go generate ./...`、`go build ./...`、`go test ./...` | ⬜ pending |
 
 ## 範圍外
 

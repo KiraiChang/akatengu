@@ -66,8 +66,15 @@ func (h *entryCFCategoryHandler) UpdateCFCategory(w http.ResponseWriter, r *http
 		return
 	}
 
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		h.l.Error(method+" get merchant fail", zap.Error(err))
+		response.WriteError(w, r, http.StatusForbidden, "Forbidden", err.Error())
+		return
+	}
+
 	evt := event.NewFullEvent[event_payload.TransactionCFCategoryUpdatedPayload](
-		event.NewAggregateID(enums.AggregateTransaction.Enum()),
+		event.ParseAggregateID(txnUUID),
 		event_payload.TransactionCFCategoryUpdatedPayload{
 			TxnUUID: txnUUID,
 			Entries: req.Entries,
@@ -78,6 +85,10 @@ func (h *entryCFCategoryHandler) UpdateCFCategory(w http.ResponseWriter, r *http
 			Priority:  0,
 			Host:      r.Host,
 		})
+	evt.AggregateType = enums.AggregateTransaction.Enum()
+	evt.MerchantID = merchantID
+	evt.UpdatedBy = ctxkey.GetUserName(ctx)
+	evt.ExpectedVersion = req.ExpectedVersion
 
 	result, err := h.bfs.Run(ctx, evt)
 	if err != nil {

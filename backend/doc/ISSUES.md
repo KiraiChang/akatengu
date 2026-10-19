@@ -547,6 +547,22 @@
 
 ---
 
+### [ISSUE-024] 舊路徑建立新 aggregate 時未要求 expected_version 為 0
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-19
+- **嚴重程度**：Medium
+- **位置**：`internal/services/event.go:78`
+- **描述**：
+  `EventStoreService.Append` 在 `UpdateIfVersionMatch` 找不到符合的版本紀錄時，直接以 `expected_version + 1` 建立版本紀錄，沒有要求 `expected_version` 為 0。新的 aggregate 送 7 會以版本 8 寫入，送 -1 會以版本 0 寫入，繞過版本一致性檢查。
+  BFS 的 Store（`internal/persistence/repos/store.go`）原本有相同問題，已在 F1（ISSUE-020）中修正。
+- **影響範圍**：
+  所有經 `POST /api/event/append` 等舊路徑寫入的事件。前端已確認的呼叫（建立傳票、現金流分類修改）都先以 `getAggregateVersion` 取得版本再送出，正常操作下不會觸發。
+- **解決方向**：
+  加入與 BFS Store 相同的檢查。修正前需先確認前端所有建立新 aggregate 的呼叫都送 0，避免既有功能被拒絕。舊路徑將在計畫書 R10 移除，也可評估改為 Wontfix。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open
