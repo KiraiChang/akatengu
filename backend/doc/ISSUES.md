@@ -538,11 +538,11 @@
 - **影響範圍**：
   銀行對帳審查頁的核准功能無法完成；每次核准都會留下未關聯的會計交易，重按還會重複建立，直接影響帳務正確性。目前系統沒有需要保留的資料，既有資料不另行盤點。
 - **解決方向**：
-  依計畫書範圍決策 S4：先做冪等止血（F3），只改 `ApproveTxn`：
+  計畫書範圍決策 S4 已確定採 (a)：先做冪等止血（F3），只改 `ApproveTxn`：
   1. 交易 aggregate ID 改由銀行交易 UUID 衍生的固定值。
   2. 以 `Append` 回傳事件的 `event_uuid` 依 `"txn:"` 規則推導交易 UUID 後查交易，修正必定查不到的問題。
   3. 重試或並行時，先以 `query.Event.GetByAggregate` 找既有的 `transaction.created` 事件，存在就只補寫關聯，不再 append。
-  原子化在重構類 R7 完成。或者先完成 R0、R1 的最小必要部分，再直接做原子修正。
+  原子化在重構類 R7 完成。
   目前的 BFS engine 每個事件各自一個交易，`EventStoreService.Append` 也無法在外部交易內執行，兩者都不能以小幅修改直接達成原子化。見 `doc/plan/BFS_ENGINE_MIGRATION.md`。
 
 ---
