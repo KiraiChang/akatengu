@@ -45,19 +45,17 @@
 **BFS Engine 遷移與事件重建**
 
 計畫書：`doc/plan/BFS_ENGINE_MIGRATION.md`（草案，待完成 Phase 0 決策）。修正類與重構類分開進行、分開 review。
+2026-10-19 決定：目前系統沒有需要保留的資料，舊 replay 不再修正（ISSUE-021、022 改為 Wontfix），由計畫書 R3 的新重建機制取代。
 
 - [ ] [Fix] BFS 現金流分類修改無法運作 — 計畫書 F1，關聯：ISSUE-020
-- [ ] [Fix] 全量 Replay 的清空範圍 — 計畫書 F2a（前置決策 A3），關聯：ISSUE-021
-- [ ] [Fix] 全量 Replay 原子化 — 計畫書 F2b（前置決策 A4；選單一交易時需先完成 R0），關聯：ISSUE-022
 - [ ] [Fix] 銀行對帳核准必定失敗並留下未關聯的交易，重按會產生重複會計交易（冪等止血） — 計畫書 F3（前置決策 S4），關聯：ISSUE-023
-- [ ] [Fix] 盤點過去核准留下的未關聯或重複交易 — 先以 `event_store` 與銀行明細比對找出候選資料，修正方式另行確認，關聯：ISSUE-023
-- [ ] [Refactor] 重大交易全面改走 BFS engine，並建立只跑 projector 的事件重建機制 — 計畫書 R0～R11（前置決策 A1、A2、S1～S3）
+- [ ] [Refactor] 重大交易全面改走 BFS engine，並建立只跑 projector 的事件重建機制；新重建機制（R3）的驗收條件需涵蓋 ISSUE-021、ISSUE-022 的要求 — 計畫書 R0～R10（待決：A1～A4、S3）
 
 **Replay 穩定性**
 
 - [x] [Feature] 投資事件以 `creation_event_uuid` 取代 AUTOINCREMENT `investment_id` 作為跨事件引用鍵，完成日期：2026-05-28，關聯：ISSUE-018
 - [x] [Feature] 全體 event sourcing projection 資料表加入 UUID 欄位（含跨表 UUID FK），確保 replay 不因 AUTOINCREMENT 計數器改變而斷裂 FK 關聯，完成日期：2026-05-29，關聯：ADR-018
-- [ ] [Feature] `event_seed.go` bootstrapInvestmentIdUpcast — 將既有 EventInvestmentBought/Sold 等事件的 `investment_id` payload 欄位替換成對應的 `creation_event_uuid`，使舊資料亦可正確 replay（現版本「不考慮既存資料」，啟用前須先執行 upcast）
+- [ ] ❌ [Feature] `event_seed.go` bootstrapInvestmentIdUpcast — 將既有 EventInvestmentBought/Sold 等事件的 `investment_id` payload 欄位替換成對應的 `creation_event_uuid`，使舊資料亦可正確 replay（現版本「不考慮既存資料」，啟用前須先執行 upcast）— Cancelled（2026-10-19）：目前系統沒有需要保留的資料，不需為既有事件做 upcast
 
 **Running Balance 系統性缺口（AccountBalanceRealtimeProjection）**
 
