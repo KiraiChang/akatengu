@@ -126,7 +126,7 @@
 - 使用 runes 語法：`$props()`、`$state()`、`$derived()`、`$effect()`
 - Props 型別以 `interface Props` 定義，解構時加上型別註記（例：`let { value, onChange }: Props = $props()`）
 - 共用邏輯抽成 `src/lib/` 下的 `.svelte.ts` 檔
-- 超過 200 行的元件拆分為子元件
+- 新增的元件超過 200 行時拆分為子元件；既有元件的拆分屬於重構，依 `AGENTS.md` 先寫重構計畫
 
 ## 錯誤處理
 

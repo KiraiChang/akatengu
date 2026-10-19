@@ -12,7 +12,7 @@ akatengu/
 ├── backend/                 Go API、領域邏輯、資料庫與靜態檔案服務
 │   ├── cmd/                 應用程式與 code generator 入口
 │   ├── internal/            handler、service、repository、model 等內部套件
-│   └── doc/                 後端 ADR、測試規範、問題與技術筆記
+│   └── doc/                 後端 ADR、測試規範、問題、技術筆記與計畫書
 ├── frontside/               Svelte SPA
 │   ├── src/api/             API client
 │   ├── src/components/      共用元件

@@ -462,6 +462,82 @@
 
 ---
 
+### [ISSUE-020] BFS 路徑的現金流分類修改無法運作
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-19
+- **嚴重程度**：High
+- **位置**：`internal/handler/entry_cf_category.go:69-70`、`internal/process/cashflow.go:22`、`internal/persistence/handle/cash_flow_cateory.go:45`、`internal/handler/handler.go:33`
+- **描述**：
+  `PUT /api/txn/{txn_uuid}/cf-category` 是目前唯一接上 BFS engine 的功能，但有三個問題：
+  1. HTTP handler 建立 `domain/event.TransactionCFCategoryUpdatedPayload`，mediator handler 與 projector 卻斷言 `model/payload.TransactionCFCategoryUpdatedPayload`。兩者是不同型別，斷言永遠失敗，每次請求都回 400。
+  2. `handler.go` 建立空的 `handle.Registry`，`NewCashFlowCategoryProjector` 沒有呼叫點，讀模型不會更新。
+  3. 事件未填 `AggregateType`、`MerchantID`、`UpdatedBy`、`ExpectedVersion`，aggregate ID 每次隨機產生，樂觀鎖失效，事件以 `merchant_id = 0` 寫入，因此也不在 replay 的商戶範圍內。
+
+  另外，`bfs_engine.go:40` 會把 handler 回傳、未持久化的 `r.State` 傳給 projector，replay 時無法取得。目前的 CF projector 沒有使用 state，不影響此功能，因此不列入本 issue，改由計畫書重構類 R1 處理。
+- **影響範圍**：
+  前端 CF 分類審視頁（CFCategoryReview）的儲存功能；後續所有遷移到 BFS 的功能都會沿用同一套地基。
+- **解決方向**：
+  見 `doc/plan/BFS_ENGINE_MIGRATION.md` F1；F1 完成後即可關閉本 issue。
+
+---
+
+### [ISSUE-021] 全量 Replay 的清空清單漏表，存在銀行資料時重建失敗
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-19
+- **嚴重程度**：High
+- **位置**：`internal/repos/unit_of_work/event_store/truncate.go:28`
+- **描述**：
+  `TruncateProjections` 沒有清除 `bank_csv_templates`、`bank_csv_template_ledgers`、`bank_pdf_templates`、`bank_pdf_template_ledgers`、`bank_statement_imports`、`bank_statement_import_ledgers`、`bank_statement_txns`、`entry_cf_categories`。
+  銀行相關資料表的 UUID 由事件決定（`template_uuid`、`import_uuid` 取自 payload 或 `event_uuid`），且 INSERT 未處理衝突，因此只要存在任何銀行範本或匯入紀錄，全量重播時就會撞 UNIQUE 而中斷。
+  另外 `bank_statement_txns.matched_entry_id`、`created_txn_id` 只有整數 FK，重建後分錄與交易的 ID 改變，關聯會斷裂（同 ISSUE-018 的問題類型）。
+- **影響範圍**：
+  `POST /api/audit/replay` 的全量重建（`from_event_id = 0`）。
+- **解決方向**：
+  清空範圍改由各 projector 自行宣告，並為 `bank_statement_txns` 補上 UUID 關聯。
+  注意：直接清除銀行資料表會遺失 ADR-021 直接寫入的比對狀態與 `created_txn_id`，處理方式依計畫書架構決策 A3。見 `doc/plan/BFS_ENGINE_MIGRATION.md` F2a。
+
+---
+
+### [ISSUE-022] 全量 Replay 非原子，中途失敗時 DB 停在半重建狀態
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-19
+- **嚴重程度**：High
+- **位置**：`internal/services/event.go:153`
+- **描述**：
+  `EventStoreService.Replay` 先在一個交易內清空 projection 並 commit，之後每個事件各自開一個交易套用 projection。任一事件失敗時，清空已經生效，後續事件不再套用，且沒有回復機制。
+- **影響範圍**：
+  全量重建失敗時，該商戶的讀模型與報表資料不完整。
+- **解決方向**：
+  策略依計畫書架構決策 A4。注意：若改為單一交易，舊 pipeline 在重播時透過全域 DB 查詢，在 `MaxOpenConns=1` 下會等不到被交易占用的連線，也讀不到交易內尚未提交的重建結果，因此需先完成計畫書 R0（交易內查詢）。見 `doc/plan/BFS_ENGINE_MIGRATION.md` F2b。
+
+---
+
+### [ISSUE-023] 銀行對帳核准必定失敗並留下未關聯的交易，重按會產生重複交易
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-19
+- **嚴重程度**：High
+- **位置**：`internal/services/bank_statement_review.go:168`、`:174`、`:186`、`:195`；`internal/services/projection/transaction.go:265`
+- **描述**：
+  `ApproveTxn` 先以 `EventStoreService.Append` 寫入 `transaction.created`（自己的交易），接著以 aggregate ID 查詢剛建立的交易（`:186`），再以另一個 `UnitOfWork.Do` 回寫 `bank_statement_txns.created_txn_id`。
+  但 projection 寫入的交易 UUID 是 `uuidx.NewFromEvent(eventUUID, "txn:")`（`projection/transaction.go:265`，自 `1f6fc25` 起），不等於 aggregate ID，因此查詢永遠回傳 nil，核准一律以「created transaction not found after event」失敗：交易已經建立，銀行明細卻沒有標成已核准。使用者重按時，因 aggregate ID 每次以 `uuid.NewV7()` 隨機產生（`:168`），會再建立一筆交易。
+  即使修正查詢，寫入交易與回寫關聯仍分屬兩個交易，回寫失敗時同樣會留下未關聯的交易。
+  以上依程式碼推導；`ApproveTxn` 目前沒有測試覆蓋。
+- **影響範圍**：
+  銀行對帳審查頁的核准功能無法完成；過去每次核准都可能留下未關聯、甚至重複的會計交易，直接影響帳務正確性，需另行盤點既有資料。
+- **解決方向**：
+  依計畫書範圍決策 S4：先做冪等止血（F3），只改 `ApproveTxn`：
+  1. 交易 aggregate ID 改由銀行交易 UUID 衍生的固定值。
+  2. 以 `Append` 回傳事件的 `event_uuid` 依 `"txn:"` 規則推導交易 UUID 後查交易，修正必定查不到的問題。
+  3. 重試或並行時，先以 `query.Event.GetByAggregate` 找既有的 `transaction.created` 事件，存在就只補寫關聯，不再 append。
+  原子化在重構類 R5 完成。或者先完成 R0、R1 的最小必要部分，再直接做原子修正。
+  目前的 BFS engine 每個事件各自一個交易，`EventStoreService.Append` 也無法在外部交易內執行，兩者都不能以小幅修改直接達成原子化。見 `doc/plan/BFS_ENGINE_MIGRATION.md`。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open

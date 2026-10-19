@@ -19,6 +19,7 @@
 | 技術筆記 | [`backend/doc/NOTES.md`](../backend/doc/NOTES.md) | [`frontside/doc/NOTES.md`](../frontside/doc/NOTES.md) | 可重用的設計、除錯與實作知識 |
 | 待辦事項 | [`backend/doc/TODO.md`](../backend/doc/TODO.md) | [`frontside/doc/TODO.md`](../frontside/doc/TODO.md) | 尚未納入當前需求的工作 |
 | 執行進度 | [`backend/doc/STEP.md`](../backend/doc/STEP.md) | [`frontside/doc/STEP.md`](../frontside/doc/STEP.md) | 大型需求的 phase 與驗證紀錄 |
+| 計畫書 | [`backend/doc/plan/`](../backend/doc/plan/) | — | 待確認或進行中的大型計畫與重構計畫：現況、範圍、分階段計畫與待決事項 |
 | 測試策略 | [`backend/doc/TESTING.md`](../backend/doc/TESTING.md) | `frontside/CLAUDE.md` 的驗證流程 | 測試風格、結構與指令 |
 | 會計領域 | [`backend/doc/account/CASH_FLOW_GUIDE.md`](../backend/doc/account/CASH_FLOW_GUIDE.md) | 前端 ADR-003 | 現金流分類與前端呈現契約 |
 
@@ -52,5 +53,6 @@ Browser
 - 只影響單一端的內容，寫入該端 `doc/`。
 - 跨端契約若形成長期決策，backend 與 frontside 各自建立或更新 ADR，並互相連結。
 - 本頁只維護索引、全端資料流與文件歸屬，不在此複製完整 ADR 或歷史問題。
+- 大型計畫在確認前寫成該端 `doc/plan/` 下的計畫書；確認後再寫 ADR，並在 `STEP.md` 建立進度表。
 - `STEP.md` 是當前大型工作的進度檔；開始新計畫前應先確認舊內容是否已完成，再依子專案規範更新。
 - 修改文件路徑或新增文件類別時，同步更新本索引與根目錄 `README.md`。
