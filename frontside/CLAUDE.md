@@ -7,13 +7,14 @@
 - 框架：Svelte 5.55.4
 - 語言：TypeScript 6.0.2（strict mode）
 - 建置工具：Vite 8.0.9
+- 樣式：Tailwind CSS 4.2.4（經 `@tailwindcss/vite` 載入）
 - 套件管理：npm
 - Node.js：24.12.2
 
 ## 常用指令
 
 - `npm run dev`：啟動開發伺服器（port 5174）
-- `npm run build`：建置
+- `npm run build`：建置（輸出至 `../backend/internal/web/static`，會先清空該目錄；執行前後檢查該目錄差異）
 - `npm run check`：svelte-check + tsc 型別檢查（唯一型別驗證指令）
 - `npm run preview`：預覽建置結果
 
@@ -52,8 +53,8 @@
 4. **現有測試失敗時：優先完成需求，禁止立即修復**
    若修改過程中發現既有測試案例出現錯誤，**強烈禁止**立即中斷實作去修復測試；應先完成當前需求的全部修改，再統一處理測試問題。若情況複雜，**需向使用者回報並取得指示**，不得自行決定修復策略。
 
-5. **撰寫測試案例驗證需求**
-   需求實作完成後，補充對應的測試案例，執行 `go test ./...` 確認新需求正常運作，並在回報中附上測試輸出。
+5. **驗證需求**
+   需求實作完成後，若專案已有對應測試工具則補充測試案例；至少依本文件的「驗證流程」執行 `npm run lint`、`npm run check` 與 `npm run build`，並在回報中附上實際輸出。
 
 6. **開發問題與阻礙 → `doc/ISSUES.md`**
    開發過程中遇到尚未解決的問題、技術障礙、已知 Bug 或待釐清事項，**立即**記錄到 `doc/ISSUES.md`，並在解決後更新狀態，避免問題重複發生或遺忘。
@@ -92,7 +93,7 @@
 - 每個檔案在同一任務中只讀取一次；只讀取與當前任務直接相關的檔案，不掃描無關目錄
 - 修改完成後執行驗證，並**回報實際結果**（型別錯誤、lint 警告、測試失敗等），不要只回報「build 成功」
 - 建置失敗時**回報錯誤狀況**，不要盲目嘗試修復
-- 修改涉及 UI 排版或樣式的程式碼後，必須檢查「已知問題與處理慣例 > UI 設計慣例」中的預防檢查點，確認未觸發已知問題後才算完成
+- 修改涉及 UI 排版或樣式的程式碼後，必須檢查「已知問題與處理慣例 > UI 設計慣例」中的預防檢查點，並至少在 375px／768px／1280px 確認排版，確認未觸發已知問題後才算完成
 
 ## 驗證流程
 
@@ -123,21 +124,21 @@
 ## Svelte 5 元件規範
 
 - 使用 runes 語法：`$props()`、`$state()`、`$derived()`、`$effect()`
-- Props 型別以 `interface` 定義後傳入 `$props<T>()`
+- Props 型別以 `interface Props` 定義，解構時加上型別註記（例：`let { value, onChange }: Props = $props()`）
 - 共用邏輯抽成 `src/lib/` 下的 `.svelte.ts` 檔
 - 超過 200 行的元件拆分為子元件
 
 ## 錯誤處理
 
 - API 呼叫用 try-catch 包裹
-- 統一使用 `AppError` 類別
+- `src/api/` 函式在 `!response.ok` 時解析 problem JSON，並 `throw new Error(problem.detail ?? problem.title ?? '<預設訊息>')`；登入失敗使用 `src/api/auth.ts` 的 `AuthError`
 
 ## 專案結構慣例
 
 - 新頁面：`src/routes/` 或 `src/views/`（依現有結構）
-- API 串接：`src/services/`，型別定義於 `src/types/`
-- 使用 `apiClient` 封裝，不直接使用 fetch 或 axios
-- 樣式一律集中於 `src/styles/`，依類型分子目錄（`views/`、`components/` 等），並在 `src/main.ts` 統一 import；**禁止**在 `.svelte` 元件內使用 `<style>` 區塊
+- API 串接：`src/api/`（依領域分檔），型別定義於 `src/types/`
+- 一律透過 `src/api/http.ts` 的 `apiFetch` 呼叫（自動帶入 Authorization 並處理 401），不直接使用 fetch 或 axios；唯一例外是尚未取得 token 的登入請求
+- 樣式一律集中於 `src/styles/`，依類型分子目錄（`views/`、`components/` 等），並在 `src/main.ts` 統一 import；`src/app.css` 只負責 `@import "tailwindcss"`，同樣由 `src/main.ts` 引入；**禁止**在 `.svelte` 元件內使用 `<style>` 區塊
 
 ## 回應規範
 
@@ -208,14 +209,4 @@
 
 ## 進行中工作
 
-### 銀行對帳單 UI（分三 Phase）
-
-詳細計畫見 [`doc/STEP.md`](doc/STEP.md)。
-
-| Phase | 內容 | 狀態 |
-|---|---|---|
-| Phase 1 | CSV 範本管理（型別、API、BankStatementTemplate.svelte、路由） | 已完成 |
-| Phase 2 | 對帳單匯入清單 + 上傳 CSV + 交易明細 + 比對操作 | 已完成 |
-| Phase 3 | 審查頁（核准 / 忽略）+ 完成匯入 | 已完成 |
-
-> 每次開始新 Phase 前先確認 `doc/STEP.md`，實作完成後將狀態更新為「已完成」。
+大型需求的 Phase 進度只記錄在 [`doc/STEP.md`](doc/STEP.md)，本檔不再複製進度表。每次開始新 Phase 前先確認 `doc/STEP.md`，實作完成後更新狀態。

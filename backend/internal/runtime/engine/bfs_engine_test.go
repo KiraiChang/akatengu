@@ -66,7 +66,8 @@ var _ = Describe("BFSEngine Run", func() {
 					return result.EventResult{}, nil
 				}))
 				eng := NewBFSEngine(NewExecutor(med)).WithMiddleware(defaultMiddlewares()...)
-				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
+				_, err := eng.Run(ctx, makeTestEvent(typeA))
+				Expect(err).To(BeNil())
 				Expect(called).To(BeTrue())
 			})
 		})
@@ -86,7 +87,8 @@ var _ = Describe("BFSEngine Run", func() {
 					return result.EventResult{}, nil
 				}))
 				eng := NewBFSEngine(NewExecutor(med)).WithMiddleware(defaultMiddlewares()...)
-				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
+				_, err := eng.Run(ctx, makeTestEvent(typeA))
+				Expect(err).To(BeNil())
 				Expect(order).To(Equal([]string{"A", "B"}))
 			})
 		})
@@ -121,7 +123,8 @@ var _ = Describe("BFSEngine Run", func() {
 
 				evtA := event.Event{Uuid: "A", EventType: typeA}
 				eng := NewBFSEngine(NewExecutor(med)).WithMiddleware(defaultMiddlewares()...)
-				Expect(eng.Run(ctx, evtA)).To(BeNil())
+				_, err := eng.Run(ctx, evtA)
+				Expect(err).To(BeNil())
 				Expect(order).To(Equal([]string{"A", "B", "C", "D", "E"}))
 			})
 		})
@@ -141,7 +144,8 @@ var _ = Describe("BFSEngine Run", func() {
 				eng := NewBFSEngine(NewExecutor(med)).
 					WithMiddleware(defaultMiddlewares()...).
 					WithUnitOfWork(uow)
-				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
+				_, err := eng.Run(ctx, makeTestEvent(typeA))
+				Expect(err).To(BeNil())
 				Expect(store.appendCount).To(Equal(1))
 			})
 		})
@@ -160,7 +164,8 @@ var _ = Describe("BFSEngine Run", func() {
 				eng := NewBFSEngine(NewExecutor(med)).
 					WithMiddleware(defaultMiddlewares()...).
 					WithUnitOfWork(uow)
-				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
+				_, err := eng.Run(ctx, makeTestEvent(typeA))
+				Expect(err).To(BeNil())
 				Expect(store.appendCount).To(Equal(2))
 			})
 		})
@@ -177,7 +182,8 @@ var _ = Describe("BFSEngine Run", func() {
 				eng := NewBFSEngine(NewExecutor(med)).
 					WithMiddleware(defaultMiddlewares()...).
 					WithUnitOfWork(uow)
-				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(MatchError(storeErr))
+				_, err := eng.Run(ctx, makeTestEvent(typeA))
+				Expect(err).To(MatchError(storeErr))
 			})
 		})
 	})
@@ -198,7 +204,8 @@ var _ = Describe("BFSEngine Run", func() {
 					WithMiddleware(defaultMiddlewares()...).
 					WithUnitOfWork(uow).
 					WithProjector(registry)
-				Expect(eng.Run(ctx, makeTestEvent(typeA))).To(BeNil())
+				_, err := eng.Run(ctx, makeTestEvent(typeA))
+				Expect(err).To(BeNil())
 				Expect(proj.applyCount).To(Equal(1))
 			})
 		})

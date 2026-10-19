@@ -32,7 +32,7 @@
 
    **每個 Phase 執行規則**：
    - 只處理計畫書中的一個子集（例：Phase 1 完成一個模組的寫入 API，Phase 2 完成另一個模組）
-   - 實作完成後立即執行 `go build` 確認無誤
+   - 實作完成後立即執行 `go build ./...` 確認無誤
    - 將 `doc/STEP.md` 中該 Phase 的狀態更新為 `✅ done`，**再**進入下一個 Phase
 
    **所有 Phase 完成後**：統一執行 `go test ./...` 全套驗證，並在 `doc/STEP.md` 中記錄最終驗證結果。
@@ -88,7 +88,7 @@
 - 執行指令時遇到**執行環境問題**（如 `command not found`、權限不足、路徑錯誤等），立即向使用者說明錯誤狀況並請求支援，**不得自行嘗試繞過**（如切換目錄、改用 npx、修改 PATH 等），等待使用者修正後再繼續。
 - **需要瀏覽專案時，必須先向使用者說明瀏覽目的並取得確認，禁止未獲許可主動瀏覽任何檔案或目錄。**
 - 瀏覽程式碼時**不重複閱讀**同一檔案，已讀過的內容直接引用記憶。
-- **所有涉及會計帳務的寫入操作**（分錄記錄、資產變動、預付費用攤提、折舊、處分等），**必須透過 `EventStoreService.Append` 寫入**，並由 UnitOfWork 的樂觀鎖（`VersionRepository.UpdateIfVersionMatch`）保護一致性。禁止在 Repository 層或 Service 層直接對會計相關資料表執行 INSERT / UPDATE / DELETE；所有異動一律走事件溯源鏈路（Handler → EventStoreService → Pipeline → UnitOfWork → Projection）。**查詢操作**則透過 `query.Repo`（唯讀層）執行，不受樂觀鎖約束，可由 API 直接呼叫。
+- **所有涉及會計帳務的寫入操作**（分錄記錄、資產變動、預付費用攤提、折舊、處分等），**必須透過 `EventStoreService.Append` 寫入**，並由 UnitOfWork 的樂觀鎖（`VersionRepository.UpdateIfVersionMatch`）保護一致性。禁止在 Repository 層或 Service 層直接對會計相關資料表執行 INSERT / UPDATE / DELETE；所有異動一律走事件溯源鏈路（Handler → EventStoreService → Pipeline → UnitOfWork → Projection）。**查詢操作**則透過 `query.Repo`（唯讀層）執行，不受樂觀鎖約束，可由 API 直接呼叫。例外以 ADR 明載者為限，目前只有 ADR-021：銀行對帳單比對狀態（`bank_statement_txns.match_status`）透過 `UnitOfWork.Do` 直接 UPDATE、不建立事件；批准（ApproveTxn）產生的 `transaction.created` 仍走完整事件溯源鏈路。
 - **Repository 層一律使用 sqlc 產生的型別安全查詢**；嚴禁直接撰寫 `sqlx` 查詢，除非該 SQL 動態性質（如欄位清單或 `WHERE` 條件在執行期才確定）確實無法以 sqlc 靜態產生，且**須在行內以註解說明為何不得不改用 `sqlx`**。如遇此情況，應先提出說明並取得明確許可，再動手實作。
 - **API 回應（前端可見的 JSON）禁止直接使用 sqlc 生成的型別**（`sqlcdb.*`）。所有回應型別必須定義在 `internal/model/db/projection/` 下，並符合以下規範：
   1. 每個欄位同時宣告 `db:"snake_case"` 與 `json:"snake_case"` tag，JSON 命名一律採用 snake_case。
@@ -124,7 +124,7 @@ go test ./internal/handler/middleware/... -run TestMerchantSuite -v  # 指定 su
 每次修改後依序執行：
 
 1. `go generate ./...`：生成 sqlc, enums, dbmap，檢查以上生成遇到的錯誤
-2. `go build`：專案建置並檢查告警或錯誤
+2. `go build ./...`：專案建置並檢查告警或錯誤
 3. `go test ./...`：執行全部測試，確認無測試失敗
 
 回報格式：列出每個步驟的實際輸出，有錯誤則附上錯誤訊息與行號，測試失敗時須提出修正建議。
@@ -250,7 +250,7 @@ Pipeline 負責驗證領域規則，確認後事件才落地。每個 EventType 
 - **Migration**：位於 `internal/database/migrations/`，透過 `//go:embed` 嵌入，伺服器啟動時自動執行。
 - **Seeds**：位於 `internal/database/seeds/`，`accounts.sql` 每次啟動都會執行（冪等設計）。
 - SQLite 設定為 **WAL 模式**，單一連線（`MaxOpenConns=1`）。
-- **查詢撰寫原則**：新增或修改 SQL 時，先在 `internal/database/sqlcdb/` 對應的 `.sql` 檔中定義查詢，執行 `sqlc generate` 產生型別安全程式碼，再於 Repository 層呼叫產生的方法。僅在 sqlc 靜態產生確實不可行時（例如動態欄位、動態 `IN` 清單），才可退而使用 `sqlx`，並須附上理由說明。
+- **查詢撰寫原則**：新增或修改 SQL 時，先在 `internal/database/queries/` 對應的 `.sql` 檔中定義查詢，執行 `go generate ./...`（依 `sqlc.yaml` 產生至 `internal/database/sqlcdb/`）產生型別安全程式碼，再於 Repository 層呼叫產生的方法。僅在 sqlc 靜態產生確實不可行時（例如動態欄位、動態 `IN` 清單），才可退而使用 `sqlx`，並須附上理由說明。
 
 ---
 

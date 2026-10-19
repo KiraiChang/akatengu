@@ -83,6 +83,7 @@ func (h *entryCFCategoryHandler) UpdateCFCategory(w http.ResponseWriter, r *http
 	if err != nil {
 		h.l.Error(method+" fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
+		return
 	}
 
 	//// validate entries cf_category values

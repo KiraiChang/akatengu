@@ -51,6 +51,8 @@
 
 ### 技術債
 
+- [ ] ⬜ [Refactor] `src/api/journalEntry.ts` 的 `createJournalEntry`、`getJournalEntriesPaged` 直接呼叫 `fetch` 並手動帶 Authorization，未經 `apiFetch`，401 時不會清除 token 並導回登入頁；應改用 `apiFetch`
+
 ### UI
 
 ### 文件

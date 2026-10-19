@@ -121,6 +121,10 @@
 
 - [ ] [Feature] 應收 / 應付帳款變動 — 確認前端預設值規則是否與科目 `accounts.cash_flow_category` 對應正確
 
+**伺服器設定（Server Config）**
+
+- [ ] [Refactor] `cmd/main.go` 套用 `cfg.Server` — `bootstrap.LoadConfig()` 已讀取 `SERVER_ADDR`、`SERVER_READ_TIMEOUT`（預設 5s）、`SERVER_WRITE_TIMEOUT`（預設 10s），但 `http.Server` 仍寫死 `Addr: ":8080"` 且未設定 timeout。套用前須先確認預設 timeout 不會中斷 PDF 上傳、`POST /api/audit/replay` 等長請求
+
 ### 低優先（P3）
 
 > Nice-to-have，不影響現有功能，有空再做。
