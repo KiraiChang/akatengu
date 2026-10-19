@@ -153,7 +153,7 @@
 | 項目 | 內容 | 依賴 | 驗收條件 | 狀態 |
 |---|---|---|---|---|
 | F1 | ISSUE-020：修正 payload 型別、註冊 projector、補齊根事件封套欄位（aggregate 用交易 UUID、`ExpectedVersion` 取自請求） | 無 | `PUT /api/txn/{txn_uuid}/cf-category` 端到端可用；補 handler 測試；完成後關閉 ISSUE-020 | ✅ done（2026-10-19；另修正 BFS Store 的初始版本檢查） |
-| F3 | ISSUE-023 冪等止血，只改 `ApproveTxn`：(1) 交易 aggregate ID 改由銀行交易 UUID 衍生的固定值（目前是 `uuid.NewV7()` 隨機產生，`services/bank_statement_review.go:168`）。(2) 首次核准：用 `Append` 回傳事件的 `event_uuid`，依 projection 既有規則 `uuidx.NewFromEvent(eventUUID, "txn:")`（`services/projection/transaction.go:265`）推導交易 UUID 後查交易、寫入關聯；修正目前以 aggregate ID 查交易、必定查不到的問題（`bank_statement_review.go:186`）。(3) 重試或並行：先以 `query.Event.GetByAggregate` 找既有的 `transaction.created` 事件，存在就用它的 `event_uuid` 推導交易並補寫關聯，不再 append；並行時被樂觀鎖擋下的一方也走這條路徑。目前沒有需要保留的資料，既有的未關聯交易不另行處理 | S4 (a)，已確定 | 三種情境都要有測試：首次核准成功並寫入關聯；回寫失敗後重試只補關聯；並行核准只產生一筆交易 | ⬜ pending |
+| F3 | ISSUE-023 冪等止血，只改 `ApproveTxn`：(1) 交易 aggregate ID 改由銀行交易 UUID 衍生的固定值（目前是 `uuid.NewV7()` 隨機產生，`services/bank_statement_review.go:168`）。(2) 首次核准：用 `Append` 回傳事件的 `event_uuid`，依 projection 既有規則 `uuidx.NewFromEvent(eventUUID, "txn:")`（`services/projection/transaction.go:265`）推導交易 UUID 後查交易、寫入關聯；修正目前以 aggregate ID 查交易、必定查不到的問題（`bank_statement_review.go:186`）。(3) 重試或並行：先以 `query.Event.GetByAggregate` 找既有的 `transaction.created` 事件，存在就用它的 `event_uuid` 推導交易並補寫關聯，不再 append。(4) 並行：舊路徑 `Append` 遇到版本衝突時，回傳的是寫入版本紀錄的唯一鍵錯誤，沒有統一的版本衝突錯誤（`services/event.go:75`），因此 `Append` 失敗後一律重查固定 aggregate，確認已有 `transaction.created` 才走補關聯；查不到就保留原本的失敗，不得視為成功。目前沒有需要保留的資料，既有的未關聯交易不另行處理 | S4 (a)，已確定 | 測試涵蓋：首次核准成功並寫入關聯；已核准後再按回錯誤；回寫失敗後重試只補關聯；並行：強制兩個請求都先查到沒有事件（以替換事件查詢的 stub，讓對手在本次建立前完成核准），本次 `Append` 確實衝突後走恢復路徑成功，銀行明細為 `APPROVED` 且關聯到唯一的交易；`Append` 失敗且重查不到事件時回傳錯誤、不建立交易 | ⬜ pending |
 
 ### 5.3 重構類：BFS 遷移
 
