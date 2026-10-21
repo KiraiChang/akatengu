@@ -4,6 +4,7 @@ import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/model/db/projection"
 	"context"
+	"fmt"
 
 	"github.com/shopspring/decimal"
 )
@@ -90,7 +91,14 @@ func (r *sqlxInvestmentRepo) UpdatePositionFairValue(ctx context.Context, invest
 }
 
 func (r *sqlxInvestmentRepo) UpdateInvestment(ctx context.Context, p projection.Investment) error {
-	return r.q.UpdateInvestment(ctx, p.ToUpdateInvestmentParams())
+	n, err := r.q.UpdateInvestment(ctx, p.ToUpdateInvestmentParams())
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("investment %d version %d: %w", p.InvestmentId, p.Version, ErrVersionConflict)
+	}
+	return nil
 }
 
 func (r *sqlxInvestmentRepo) UpdateLotUnrealizedUnit(ctx context.Context, lotId int64, unrealizedUnitTWD decimal.Decimal, updatedBy *string) error {

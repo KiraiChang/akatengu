@@ -60,7 +60,7 @@ func (s *AccountProjectionService) applyAccountBulkImported(ctx context.Context,
 			Note:             a.Note,
 			CashFlowCategory: a.CashFlowCategory,
 			UpdatedBy:        updatedBy,
-			Version:          0,
+			Version:          1, // same initial version as CreateAccount, ledger accounts and investments
 		}); err != nil {
 			return err
 		}
@@ -74,8 +74,10 @@ func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx ev
 		return err
 	}
 
+	// INSERT with version 1: a duplicate account_id fails on the unique key
+	// instead of overwriting the account and resetting its version.
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	if err := tx.Projection.AccountRepo.UpsertAccount(ctx, projection.Account{
+	if err := tx.Projection.AccountRepo.CreateAccount(ctx, projection.Account{
 		MerchantID:       ct.MerchantID,
 		AccountId:        p.AccountId,
 		ParentId:         p.ParentId,
@@ -88,7 +90,6 @@ func (s *AccountProjectionService) applyAccountCreate(ctx context.Context, tx ev
 		Note:             p.Note,
 		CashFlowCategory: p.CashFlowCategory,
 		UpdatedBy:        updatedBy,
-		Version:          0,
 	}); err != nil {
 		return err
 	}
@@ -131,8 +132,10 @@ func (s *AccountProjectionService) applyAccountUpdated(ctx context.Context, tx e
 		return err
 	}
 
+	// Version is the one the client read; the UPDATE only matches that version
+	// and increments it, otherwise it returns ErrVersionConflict.
 	updatedBy := toUpdatedBy(ct.UpdatedBy)
-	if err := tx.Projection.AccountRepo.UpsertAccount(ctx, projection.Account{
+	if err := tx.Projection.AccountRepo.UpdateAccount(ctx, projection.Account{
 		MerchantID:       ct.MerchantID,
 		AccountId:        p.AccountId,
 		ParentId:         p.ParentId,

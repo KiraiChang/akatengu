@@ -86,7 +86,7 @@ INSERT INTO accounts
     (account_id, merchant_id, parent_id, name, type, normal_balance, currency, is_summary, is_active, note, version, cash_flow_category, updated_by)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?);
 
--- name: UpdateAccount :exec
+-- name: UpdateAccount :execrows
 UPDATE accounts
 SET parent_id          = ?,
     name               = ?,
@@ -107,7 +107,7 @@ INSERT INTO ledger_accounts
     (merchant_id, ledger_uuid, account_id, institution, name, type, account_no, currency, credit_limit, billing_day, due_day, is_active, note, version, updated_by)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);
 
--- name: UpdateLedgerAccount :exec
+-- name: UpdateLedgerAccount :execrows
 UPDATE ledger_accounts
 SET account_id   = ?,
     institution  = ?,

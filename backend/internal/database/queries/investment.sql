@@ -97,7 +97,7 @@ INSERT INTO investments
     (merchant_id, account_id, asset_type, currency, symbol, name, cost_method, ifrs_category, is_active, version, updated_by, uuid)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?);
 
--- name: UpdateInvestment :exec
+-- name: UpdateInvestment :execrows
 UPDATE investments
 SET account_id  = ?,
     asset_type  = ?,

@@ -33,7 +33,7 @@
 | F3 | ISSUE-023：銀行對帳核准冪等止血 | — | ✅ done（2026-10-19；原子化待 R7） |
 | F4 | ISSUE-025：safety middleware 的狀態改為每次 `Run` 各自獨立 | R1 之前 | ✅ done（2026-10-21） |
 | F5 | ISSUE-026：重新提供帳戶類型、資產類型設定與系統科目對應的更新 API | 建議在 R2 之前 | ✅ done（2026-10-21） |
-| F6 | ISSUE-027：科目、帳戶與投資修改的業務版本檢查 | R2、R9 之前 | ⬜ pending |
+| F6 | ISSUE-027：科目、帳戶與投資修改的業務版本檢查 | R2、R9 之前 | 🟡 in progress |
 
 ### F5 子階段
 
@@ -45,6 +45,15 @@
 | 2 | 測試：`internal/handler/setting_scenarios_test.go`、`setting_test.go`；反向檢查（移除路由後 `NewMux` 情境失敗） | ✅ done（2026-10-21） |
 
 驗證（2026-10-21，Docker `golang:1.26`）：`go generate ./...`、`go build ./...`、`go vet ./internal/handler/` 通過，修改的 5 個檔案 `gofmt -l` 無輸出；`go test -vet=off -count=1 ./internal/handler/` 34 個 spec 全數通過（新增 16 個）；`go test -vet=off ./...` 全數通過。反向檢查：移除 `handler.go` 新增的三條路由後，三個 `NewMux` 情境都回 200（SPA 的 `index.html`），並在事件筆數的斷言失敗。review 修正（路徑的類型優先於 body 中不存在的類型值）：還原為修正前的 `setting.go` 時，兩個回歸情境都回 400（enumx invalid value）。
+
+### F6 子階段
+
+計畫書：`doc/plan/BFS_PREREQ_F5_F6_R0.md` 第 3 節。
+
+| 段 | 說明 | 狀態 |
+|----|------|------|
+| 1 | 程式：`queries/account.sql`、`queries/investment.sql`、`projection_repo/account.go`、`projection_repo/investment.go`、`services/projection/account.go`，新增 migration `20261021001_account_initial_version.sql` | ✅ done（2026-10-21） |
+| 2 | 測試：`internal/services/update_version_test.go`；反向檢查（還原段 1 的程式後，版本衝突與重複新增的情境失敗） | ⬜ pending |
 
 ## 最終驗證結果
 

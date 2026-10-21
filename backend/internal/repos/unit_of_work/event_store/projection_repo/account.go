@@ -6,7 +6,14 @@ import (
 	"akatengu/internal/model/db/projection"
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 )
+
+// ErrVersionConflict is returned when a versioned UPDATE affects no row: the
+// data does not exist, or it was changed after the client read its version.
+// Projections run in the event's transaction, so the event is rolled back too.
+var ErrVersionConflict = errors.New("data not found or modified by someone else, please reload and try again")
 
 type sqlxAccountRepo struct {
 	q *sqlcdb.Queries
@@ -29,8 +36,14 @@ func (r *sqlxAccountRepo) CreateAccount(ctx context.Context, p projection.Accoun
 }
 
 func (r *sqlxAccountRepo) UpdateAccount(ctx context.Context, p projection.Account) error {
-	err := r.q.UpdateAccount(ctx, p.ToUpdateAccountParams())
-	return err
+	n, err := r.q.UpdateAccount(ctx, p.ToUpdateAccountParams())
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("account %s version %d: %w", p.AccountId, p.Version, ErrVersionConflict)
+	}
+	return nil
 }
 
 func (r *sqlxAccountRepo) CreateLedgerAccount(ctx context.Context, p projection.LedgerAccount) error {
@@ -39,8 +52,14 @@ func (r *sqlxAccountRepo) CreateLedgerAccount(ctx context.Context, p projection.
 }
 
 func (r *sqlxAccountRepo) UpdateLedgerAccount(ctx context.Context, p projection.LedgerAccount) error {
-	err := r.q.UpdateLedgerAccount(ctx, p.ToUpdateLedgerAccountParams())
-	return err
+	n, err := r.q.UpdateLedgerAccount(ctx, p.ToUpdateLedgerAccountParams())
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("ledger account %d version %d: %w", p.LedgerId, p.Version, ErrVersionConflict)
+	}
+	return nil
 }
 
 func (r *sqlxAccountRepo) GetAccountCFCategory(ctx context.Context, accountId string, merchantID int64) (enums.CashFlowCategory, error) {
