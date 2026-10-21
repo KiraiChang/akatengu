@@ -575,6 +575,38 @@
 
 ---
 
+### [ISSUE-025] BFS safety middleware 的狀態由所有請求共用，並行請求可能讓後端程式終止
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-21
+- **嚴重程度**：High
+- **位置**：`internal/handler/handler.go:41`、`internal/runtime/safety/cycle_detector.go:16`、`internal/runtime/safety/backpressure.go:19`
+- **描述**：
+  `NewMux` 只建立一個 BFS engine，middleware 的狀態在建立時就產生，之後由所有請求共用：`CycleDetector` 的 `seen` map 與 `BackpressureScheduler` 的 `pending` 計數。`CycleDetector` 的註解說每次呼叫會產生獨立的實例，但實際上每個 engine 只呼叫一次。
+  1. 兩個請求同時寫入 `seen` 時，Go runtime 會以 `fatal error: concurrent map read and map write` 終止整個程式，這種錯誤無法 recover。
+  2. `pending` 有 data race，不同請求的計數互相干擾，可能誤判為超量（`ErrQueueOverflow`）或漏判。
+  3. `seen` 只增不減，會記住所有處理過的事件 UUID，記憶體持續成長。
+
+  重現（2026-10-21，暫時測試只放在容器副本，未加入 repo）：依 `NewMux` 的組態建立一條 middleware chain，由 8 個 goroutine 共用，各送 2000 個根事件。一般執行時程式以上述 fatal error 終止（`cycle_detector.go:19`）；`-race` 回報 `backpressure.go:24`、`:25`、`:37` 與 `cycle_detector.go:19`、`:23` 的 data race。
+- **影響範圍**：
+  目前唯一接上 BFS 的 `PUT /api/txn/{txn_uuid}/cf-category`：兩個請求同時進入 BFS 時，可能讓整個後端程式終止。計畫書 R1 起，遷移後的寫入都會經過 BFS，影響範圍會跟著擴大。`DeterministicLoopDetector` 也是相同寫法，但目前沒有使用。
+- **解決方向**：
+  middleware 的狀態改為每次 `Run` 各自獨立（計畫書 F4，需在 R1 之前完成）。注意事項：
+  1. 只在每次 `Run` 重建 chain 還不夠：`CycleDetector()` 在被呼叫時就建立 map，重用同一個 middleware 值時狀態仍然共用。必須讓狀態在每次 `Run` 時重新建立，或明確傳入只屬於這次 `Run` 的狀態。
+  2. 新的 chain 放在 `Run` 的區域變數，不能覆寫共用的 engine 欄位。
+  3. 目前未使用的 `DeterministicLoopDetector` 依相同原則修正。
+  4. 測試除了以 `-race` 確認，還要驗證各 middleware 的功能：
+     - 並行測試共用同一個 engine，以同步屏障強制各次 `Run` 重疊。
+     - 跨 `Run` 不互相干擾，同一次 `Run` 仍能擋下重複的 UUID。
+     - `BackpressureScheduler`：兩個重疊的 `Run` 各自未超量時都成功；其中一個超量時，另一個不受影響。
+     - `DeterministicLoopDetector`：同一次 `Run` 的事件類型循環仍被擋下，跨 `Run` 不殘留 graph。
+     - `Run` 失敗後，下一次 `Run` 不殘留狀態。
+  5. 狀態在 middleware 包裝 processor 時配置，每次 `Run` 一份，不是每個事件重建；middleware 的順序與錯誤 policy 不變。
+
+  屬於 bug fix，依 `AGENTS.md` 以小幅修改另行實作與 review。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open

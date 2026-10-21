@@ -2,11 +2,11 @@
 
 | 項目 | 內容 |
 |---|---|
-| 狀態 | ✅ 計畫書 review 通過（2026-10-19）；Phase 0 尚有架構決策 A1～A5 與範圍決策 S3 待決 |
+| 狀態 | ✅ 計畫書 review 通過（2026-10-19）；Phase 0 尚有架構決策 A1～A7 與範圍決策 S3 待決 |
 | 建立日期 | 2026-10-19 |
-| 最後修訂 | 2026-10-19：依「目前沒有需要保留的資料」的前提改版。舊 replay 不再修正（ISSUE-021、022 改為 Wontfix，原 F2a／F2b 取消）；不轉換歷史事件（S2 採 (c)，原 R10 歷史事件轉換取消）；主檔與設定提前遷移，取消新舊事件共用的統一 replay runner；重構類重新排序為 R0～R10。後續 review：期間開帳事件提前到 R2；R10 補上事件匯入的切換與格式檢查。review 通過後：新增 A5（交易的 aggregate 身分），S4 確定採 (a)；補上 A2／A5 的身分映射規則與 R4、R5 驗收條件，修正 2.4 的現況描述 |
+| 最後修訂 | 2026-10-19：依「目前沒有需要保留的資料」的前提改版。舊 replay 不再修正（ISSUE-021、022 改為 Wontfix，原 F2a／F2b 取消）；不轉換歷史事件（S2 採 (c)，原 R10 歷史事件轉換取消）；主檔與設定提前遷移，取消新舊事件共用的統一 replay runner；重構類重新排序為 R0～R10。後續 review：期間開帳事件提前到 R2；R10 補上事件匯入的切換與格式檢查。review 通過後：新增 A5（交易的 aggregate 身分），S4 確定採 (a)；補上 A2／A5 的身分映射規則與 R4、R5 驗收條件，修正 2.4 的現況描述。2026-10-21：依 review 補上 A1～A5 細則（根事件版本、Run-local 查詢、批次事件語義、單商戶重建範圍），更正 A3 理由；新增 A6（全域資料）、A7（交易以外的 aggregate 身分）、F4（ISSUE-025）；2.4 補上交易以外的共用 aggregate |
 | 分支 | `refactor`（基準 commit `82e8990`） |
-| 關聯 | ISSUE-020～023；ADR-001、ADR-014、ADR-017、ADR-018、ADR-020、ADR-021 |
+| 關聯 | ISSUE-013、ISSUE-020～023、ISSUE-025；ADR-001、ADR-014、ADR-017、ADR-018、ADR-020、ADR-021 |
 
 > 本文件是計畫書。Phase 0 的決策確認後，依 `backend/CLAUDE.md` 的需求處理流程寫成 ADR，並在 `doc/STEP.md` 建立進度表。
 > 文中行號以基準 commit 加上 2026-10-19 的工作區狀態為準。
@@ -59,7 +59,7 @@
 | 4 | BFS 事件不在重建範圍 | BFS 事件的 `merchant_id` 為 0，被 replay 查詢的商戶過濾排除；BFS projector 也未接入 replay | ISSUE-020 |
 | 5 | 事件匯入（`POST /api/audit/event/import`，`services/event.go:317`）只檢查匯出檔版本是否為 `"1"`，接著在一個交易內清除並寫入事件、commit，之後才呼叫舊 replay | replay 失敗時原有事件已被取代，無法回到匯入前的狀態；含銀行資料的匯出檔會因缺口 1 必定失敗 | ISSUE-021、022（Wontfix）；要求改列為 R10 驗收條件 |
 
-### 2.4 交易的 aggregate 身分不一致
+### 2.4 aggregate 身分不一致
 
 同一筆交易的事件分散在不同 aggregate，樂觀鎖保護的範圍也不一致（架構決策 A5）：
 
@@ -74,6 +74,15 @@
 - 同一筆交易的建立與後續修改記錄在不同的 aggregate，無法從單一 aggregate 看到完整歷史。
 - 所有前端建立的傳票共用一個 aggregate，同時建立兩筆傳票時，其中一筆會被樂觀鎖拒絕。
 - 前端目前沒有送出 `transaction.corrected`／`voided`，因此尚未出現更正、作廢的 aggregate 用法。
+
+交易以外的資料也有相同問題（架構決策 A7）：
+
+| 寫入來源 | 使用的 aggregate | 位置 |
+|---|---|---|
+| 預付費用、固定資產、分期、投資、匯率 | `('TRANSACTION', '')`，與前端建立傳票共用同一個 aggregate | `frontside/src/api/prepaid.ts:31-69`、`fixedAsset.ts:31-69`、`installment.ts:40-54`、`investment.ts:23-127`、`exchangeRate.ts:10-12` |
+| 期間開帳、結帳、重開 | `('ACCOUNT', '')` | `frontside/src/api/period.ts:40-104` |
+
+`enums.AggregateType` 沒有預付、固定資產、分期、投資、期間、匯率的類型（`internal/enums/aggregate_type.go:14-22`），`event_store` 與 `aggregate_versions` 也以 `chk_aggregate_type` 限制可用的值。因此建立傳票、預付、固定資產、分期、投資與匯率時，全部在同一個 aggregate 上競爭版本，任兩筆同時送出就會有一筆被樂觀鎖拒絕。
 
 ---
 
@@ -154,6 +163,7 @@
 |---|---|---|---|---|
 | F1 | ISSUE-020：修正 payload 型別、註冊 projector、補齊根事件封套欄位（aggregate 用交易 UUID、`ExpectedVersion` 取自請求） | 無 | `PUT /api/txn/{txn_uuid}/cf-category` 端到端可用；補 handler 測試；完成後關閉 ISSUE-020 | ✅ done（2026-10-19；另修正 BFS Store 的初始版本檢查） |
 | F3 | ISSUE-023 冪等止血，只改 `ApproveTxn`：(1) 交易 aggregate ID 改由銀行交易 UUID 衍生的固定值（目前是 `uuid.NewV7()` 隨機產生，`services/bank_statement_review.go:168`）。(2) 首次核准：用 `Append` 回傳事件的 `event_uuid`，依 projection 既有規則 `uuidx.NewFromEvent(eventUUID, "txn:")`（`services/projection/transaction.go:265`）推導交易 UUID 後查交易、寫入關聯；修正目前以 aggregate ID 查交易、必定查不到的問題（`bank_statement_review.go:186`）。(3) 重試或並行：先以 `query.Event.GetByAggregate` 找既有的 `transaction.created` 事件，存在就用它的 `event_uuid` 推導交易並補寫關聯，不再 append。(4) 並行：舊路徑 `Append` 遇到版本衝突時，回傳的是寫入版本紀錄的唯一鍵錯誤，沒有統一的版本衝突錯誤（`services/event.go:75`），因此 `Append` 失敗後一律重查固定 aggregate，確認已有 `transaction.created` 才走補關聯；查不到就保留原本的失敗，不得視為成功。目前沒有需要保留的資料，既有的未關聯交易不另行處理 | S4 (a)，已確定 | 測試涵蓋：首次核准成功並寫入關聯；已核准後再按回錯誤；回寫失敗後重試只補關聯；並行：強制兩個請求都先查到沒有事件（以替換事件查詢的 stub，讓對手在本次建立前完成核准），本次 `Append` 確實衝突後走恢復路徑成功，銀行明細為 `APPROVED` 且關聯到唯一的交易；`Append` 失敗且重查不到事件時回傳錯誤、不建立交易 | ✅ done（2026-10-19；ISSUE-023 維持 In Progress，原子化待 R7） |
+| F4 | ISSUE-025：safety middleware 的狀態改為每次 `Run` 各自獨立，涵蓋 `CycleDetector`、`BackpressureScheduler`，以及目前未使用的 `DeterministicLoopDetector`。狀態改在 middleware 包裝 processor 時配置，`Run` 開頭建立一次 chain，放在區域變數，不覆寫共用的 engine 欄位（每次 `Run` 一份，不是每個事件重建）；middleware 的順序與錯誤 policy 不變 | 無；需在 R1 之前完成 | 並行：多個 goroutine 共用同一個 engine（不接 DB，避免被單一連線序列化），以同步屏障強制各次 `Run` 重疊，程式不會終止，`-race` 沒有 data race。`CycleDetector`：跨 `Run` 不互相干擾（同一事件再次送出不會被誤判為迴圈），同一次 `Run` 仍能擋下重複的 UUID。`BackpressureScheduler`：兩個重疊的 `Run` 各自未超量時都成功；其中一個超量時，另一個不受影響。`DeterministicLoopDetector`：同一次 `Run` 的因果鏈出現事件類型循環時仍被擋下，跨 `Run` 不殘留 graph。`Run` 失敗後，下一次 `Run` 不殘留狀態 | ⬜ pending |
 
 ### 5.3 重構類：BFS 遷移
 
@@ -163,14 +173,14 @@
 |---|---|---|---|---|
 | R0 | 交易內查詢：讓 `query.Repo` 可綁定 `sqlx.Tx`。目前 `query.NewQueryRepository` 只接受 `*sqlx.DB`，account、investment、report 等 repo 也直接使用它（`repos/query/base.go:37`） | 無 | 既有測試全數通過；新增在交易內查詢的測試 | ⬜ pending |
 | R1 | engine 基礎：事件圖交易邊界、子事件封套與版本規則、handler 改用 R0 的交易內查詢、移除 projector 的 `state` 參數 | 事件圖的提交方式依 A1 改變 | engine 測試涵蓋子事件失敗回復、同 aggregate 連續版本、跨 aggregate 子事件 | ⬜ pending |
-| R2 | 主檔與設定（B 類），含 `BootstrapEventSeeds` 改走 BFS；以及期間開帳 `period.month_started`、`period.annual_started` | 無（事件內容不變） | 啟動時的種子事件與開帳事件經 BFS 寫入且封套欄位完整；主檔、設定與期間 API 回應不變；既有測試全數通過 | ⬜ pending |
-| R3 | BFS 重建機制：只跑 projector；各 projector 以 `Reset()` 宣告清空範圍；依 A4 可回復；重建 `aggregate_versions` 與 checkpoint。承接 ISSUE-021、022 的要求。`POST /api/audit/replay` 維持舊機制，到 R10 才切換 | 無（新機制先以 engine 方法與測試提供，尚不對外） | 以 R2 的事件通過第 8 節的 canonical 比較；重建中途失敗時資料回到重建前的狀態；清空範圍涵蓋所有 BFS projector 的資料表 | ⬜ pending |
+| R2 | 主檔與設定（B 類），含 `BootstrapEventSeeds` 改走 BFS；以及期間開帳 `period.month_started`、`period.annual_started` | 依 A7 調整 aggregate 的類型與 ID（例如期間改用專屬類型）；payload 不變 | 啟動時的種子事件與開帳事件經 BFS 寫入且封套欄位完整；主檔、設定與期間 API 回應不變；既有測試全數通過 | ⬜ pending |
+| R3 | BFS 重建機制：只跑 projector；各 projector 以 `Reset()` 宣告清空範圍；依 A4 可回復；重建 `aggregate_versions` 與 checkpoint。承接 ISSUE-021、022 的要求。`POST /api/audit/replay` 維持舊機制，到 R10 才切換 | 無（新機制先以 engine 方法與測試提供，尚不對外） | 以 R2 的事件通過第 8 節的 canonical 比較；重建中途失敗時資料回到重建前的狀態；清空範圍涵蓋所有 BFS projector 的資料表；重建商戶 A 後，商戶 B 的資料與範圍外的全域資料不變（A4） | ⬜ pending |
 | R4 | 傳票 `transaction.*`，產生 `journal.posted` 子事件；依 A5 統一交易的 aggregate 身分；接手處理傳票事件的舊 projection（以 `transaction.created` 為例：`transaction`、`entry_cf_category`、`account_balance_realtime`） | `event_store` 新增 `journal.posted`；傳票改為每筆交易各自一個 aggregate（A5） | API 回應不變；canonical 比較通過；並行建立不同交易都成功；以過期版本修改同一筆交易必定失敗 | ⬜ pending |
 | R5 | 期間結帳與重開（月結、年結） | 年結分錄改由子事件產生 | canonical 比較通過；年結產生的結帳、開帳兩筆交易 UUID 不同，且重建後保持相同 | ⬜ pending |
 | R6 | 銀行範本（CSV／PDF）、`bank_statement.imported`／`completed` 改走 BFS；依 A3 處理對帳比對狀態 | 依 A3（選 a 時比對狀態改為事件） | 同上；銀行資料可由事件重建，或依 A3 明確排除 | ⬜ pending |
-| R7 | 銀行對帳核准原子化：核准事件產生 `transaction.created` 子事件，與關聯回寫在同一交易完成（ISSUE-023 的根本修正，取代 F3 的止血做法） | 核准改為事件產生子事件 | 同上；中途失敗時不留下沒有關聯的交易 | ⬜ pending |
-| R8 | 預付費用、固定資產、分期 | 分錄改由子事件產生 | 同上 | ⬜ pending |
-| R9 | 投資（含 `investment.created`／`updated`、`investment.fx_rate_updated`） | 分錄改由子事件產生 | 同上 | ⬜ pending |
+| R7 | 銀行對帳核准原子化：核准事件產生 `transaction.created` 子事件，與關聯回寫在同一交易完成（ISSUE-023 的根本修正，取代 F3 的止血做法） | 核准改為事件產生子事件 | 同上；中途失敗時不留下沒有關聯的交易；同一筆銀行明細重複或並行核准時，不會重複建立交易 | ⬜ pending |
+| R8 | 預付費用、固定資產、分期 | 分錄改由子事件產生；依 A7 改用各自的 aggregate | 同上 | ⬜ pending |
+| R9 | 投資（含 `investment.created`／`updated`、`investment.fx_rate_updated`） | 分錄改由子事件產生；依 A7 改用各自的 aggregate；依 A6，`exchange_rates` 改為商戶資料，`GET /api/exchange-rate` 只回傳所屬商戶的匯率 | 同上 | ⬜ pending |
 | R10 | 移除舊 pipeline、projection 與舊 replay；`POST /api/audit/replay` 切換到 R3 的新機制；`POST /api/audit/event/import` 改用新機制：提升匯出檔版本（目前 `Import` 只接受 `"1"`，`services/event.go:318`），不支援的版本或事件格式在清除資料前拒絕，清除、寫入與重建在同一交易完成（依 A4）；經使用者確認後清空開發 DB 重新開始 | replay 與匯入改用新機制；匯入只接受新版匯出檔；不再支援舊路徑寫入的事件 | 門檻：R0～R9 全部完成。舊寫入入口無呼叫點；全套測試與 canonical 比較通過；新版匯出 → 匯入 → 重建的 canonical 比較一致；不相容的匯入失敗後原資料不變；清空 DB 前先以 `VACUUM INTO` 備份 | ⬜ pending |
 
 ---
@@ -204,19 +214,69 @@
 
 | # | 問題 | 選項 | 建議 |
 |---|---|---|---|
-| A1 | BFS 事件圖的交易邊界 | (a) 整棵事件圖一個交易，任一事件失敗全部回復；handler 改用交易內的查詢　(b) 維持每個事件一個交易，失敗時以補償事件處理 | (a)：符合帳務原子性，也是在 BFS 上解決 ISSUE-023 的前提 |
-| A2 | 子事件的 aggregate、版本與欄位繼承 | aggregate：(a) 沿用父事件　(b) 建立自己的 aggregate，ID 由父事件 UUID 衍生。版本：(c) engine 在事件圖內追蹤各 aggregate 的最新版本，依每次 append 的回傳值配置下一個　(d) engine 預先配置整批版本 | 同一 aggregate 的後續變化用 (a)，跨 aggregate 的衍生事實（如 `journal.posted`）用 (b)；版本用 (c)；`MerchantID`、`UpdatedBy`、`CorrelationID` 一律繼承父事件，`CausationID` 指向父事件；與 A5 的身分映射見本表下方 |
-| A3 | ADR-021 直接寫入的銀行對帳狀態在重建中如何處理 | (a) 將比對、忽略、核准關聯事件化，並修訂 ADR-021　(b) 重建前保存直接寫入的欄位，重建後依 UUID 恢復　(c) 明確排除銀行對帳資料，不宣稱可由事件完整重建；重建時不清除也不重播銀行資料，但 `bank_statement_txns` 仍需改用 UUID 關聯 | (a)：相關事件類型已定義且已註冊 pipeline，成本較低，也最符合「可由事件重建」的目標；目前沒有需要保留的資料，不需 backfill |
-| A5 | 交易的 aggregate 身分（見 2.4） | (a) 每筆交易各自一個 aggregate，aggregate ID 就是 `txn_uuid`：建立時先決定交易 UUID（由 handler 產生，或依 A2 由父事件 UUID 推導），寫入事件的 aggregate ID，projection 直接使用它，不再由事件 UUID 另行推導；之後的更正、作廢、現金流分類修改都使用同一個 aggregate　(b) 維持現狀：建立時共用一個 aggregate，後續修改以 `txn_uuid` 為 aggregate | (a)：同一筆交易的歷史集中在一個 aggregate，樂觀鎖保護的是單筆交易，同時建立多筆傳票也不會互相衝突。R4 實作時需處理前端建立傳票仍送 aggregate `""` 與其版本號的問題：依 S3 (a)，由後端在建立時產生交易 UUID 並以版本 0 寫入，前端不必修改；與 A2 的身分映射見本表下方 |
-| A4 | 新重建機制的原子化策略 | (a) 在單一交易內完成全量重建，projector 只透過交易內的 repository 讀寫　(b) 重建到影子表後再切換　(c) 重建前以 `VACUUM INTO` 備份，失敗時還原；重建期間必須停止所有寫入，還原會影響整個 DB 而非單一商戶 | (a)：新機制只跑 projector，不會遇到舊 pipeline 在交易外查詢的問題，實作最簡單；代價是重建期間 DB 被鎖住 |
+| A1 | BFS 事件圖的交易邊界 | (a) 整棵事件圖一個交易，任一事件失敗全部回復；handler 改用交易內的查詢　(b) 維持每個事件一個交易，失敗時以補償事件處理 | (a)：符合帳務原子性，也是在 BFS 上解決 ISSUE-023 的前提。(b) 需要為每種子事件設計補償事件，失敗到補償完成之間會留下半套帳務。細則見本表下方 |
+| A2 | 子事件的 aggregate、版本與欄位繼承 | aggregate：(a) 沿用父事件　(b) 建立自己的 aggregate，ID 由父事件 UUID 衍生。版本：(c) engine 在事件圖內追蹤各 aggregate 的最新版本，依每次 append 的回傳值配置下一個　(d) engine 預先配置整批版本 | 同一 aggregate 的後續變化用 (a)，跨 aggregate 的衍生事實用 (b)；版本用 (c)，但根事件仍使用呼叫端提供的版本。版本規則、欄位繼承與身分映射見本表下方 |
+| A3 | ADR-021 直接寫入的銀行對帳狀態在重建中如何處理 | (a) 將比對、忽略、核准關聯事件化，並修訂 ADR-021　(b) 重建前保存直接寫入的欄位，重建後依 UUID 恢復　(c) 明確排除銀行對帳資料，不宣稱可由事件完整重建；重建時不清除也不重播銀行資料，但 `bank_statement_txns` 仍需改用 UUID 關聯 | (a)，並以新 ADR 取代 ADR-021：最符合「可由事件重建」的目標；目前沒有需要保留的資料，不需 backfill。現有事件 payload 以整數 ID 建立關聯，必須改寫，成本並不低（2026-10-21 更正）。(b) 要在事件以外另存資料，並在重建時特殊處理，違反目標 2；(c) 放棄銀行資料的可重建性，仍需改用 UUID 關聯。也不採用「只事件化使用者決定、重建後重跑自動比對」：重建時重跑比對邏輯違反原則 1。批次事件語義見本表下方 |
+| A4 | 新重建機制的原子化策略 | (a) 在單一交易內完成全量重建，projector 只透過交易內的 repository 讀寫　(b) 重建到影子表後再切換　(c) 重建前以 `VACUUM INTO` 備份，失敗時還原；重建期間必須停止所有寫入，還原會影響整個 DB 而非單一商戶 | (a)，以單一商戶為重建單位：新機制只跑 projector，不會遇到舊 pipeline 在交易外查詢的問題，實作最簡單；代價是重建期間 DB 被鎖住，所有請求都要等待。範圍限制見本表下方；全域資料依 A6 |
+| A5 | 交易的 aggregate 身分（見 2.4） | (a) 每筆交易各自一個 aggregate，aggregate ID 就是 `txn_uuid`：建立時先決定交易 UUID（由 handler 產生，或依 A2 由父事件 UUID 推導），寫入事件的 aggregate ID，projection 直接使用它，不再由事件 UUID 另行推導；之後的更正、作廢、現金流分類修改都使用同一個 aggregate　(b) 維持現狀：建立時共用一個 aggregate，後續修改以 `txn_uuid` 為 aggregate | (a)：同一筆交易的歷史集中在一個 aggregate，樂觀鎖保護的是單筆交易，同時建立多筆傳票也不會互相衝突。R4 實作時需處理前端建立傳票仍送 aggregate `""` 與其版本號的問題：依 S3 (a)，由後端在建立時產生交易 UUID 並以版本 0 寫入，前端不必修改；S3 只影響 API 的遷移方式，不改變本規則。F3 的固定 aggregate（`uuidx.NewFromEvent(bankTxnUUID, "bank_approve")`）不符合身分映射規則 2，R7 依規則改寫時，仍須保證同一筆銀行明細不會重複核准建帳。身分映射見本表下方 |
+| A6 | 沒有 `merchant_id` 的全域資料在單商戶重建中如何處理 | (a) 改為商戶資料：`exchange_rates` 加上 `merchant_id`，匯率事件只影響所屬商戶　(b) 維持全域：匯率改用不屬於任何商戶的獨立事件與重建範圍，單商戶重建不得寫入 | (a)：匯率由商戶的使用者輸入、以商戶事件寫入，查詢 API 也在商戶範圍內；投資分錄使用 payload 內的匯率，改為商戶資料不影響帳務金額；目前沒有需要保留的資料，加欄位不需轉換。在 R9 實作，列為預期行為變更。現況見本表下方 |
+| A7 | 交易以外的 aggregate 身分（見 2.4） | (a) 依一致性邊界為每種業務資料定義專屬的 `AggregateType` 與 aggregate ID　(b) 維持現狀，沿用前端送來的共用 aggregate | (a)：aggregate 的範圍等於需要樂觀鎖保護的一致性邊界。預付、固定資產、分期、投資各以實體 UUID 為 aggregate；期間的開帳、結帳、重開彼此有順序依賴（例如年結要求各月都已結帳，`services/pipelines/factory/period.go:163`），維持每個商戶一個期間 aggregate，但改用專屬類型；匯率依 A6。各 Phase 的計畫列出新增的 `AggregateType`、aggregate ID 規則與 `chk_aggregate_type` 的 migration；期間在 R2 處理 |
 
-**A2 與 A5 的身分映射規則**（建議，與 A2、A5 一併確認）
+**A1 細則**
+
+1. `Run` 開啟一個交易，佇列中每個事件的 handler、append、projector 與 safety middleware 的檢查都在這個交易內執行；任一步驟失敗，整次 `Run` 在 commit 前回復。
+2. 交易內的查詢 repository 由 `Run` 建立後傳給 handler（Run-local），不得以修改共用的 `Mediator.repo`（`runtime/mediator/mediator.go:30`）的方式切換交易。
+3. middleware 的狀態也屬於單次 `Run`（ISSUE-025，由 F4 修正）。
+4. 目前連線池只有一條連線，事件圖執行期間，其他請求的 DB 操作都要等待。因此保留深度與佇列上限（`DepthGuard`、`BackpressureScheduler`），並在處理每個事件前檢查 `ctx` 是否已取消。
+
+**A2 版本規則與欄位繼承**
+
+版本：
+
+1. **根事件**：使用並驗證呼叫端提供的 `ExpectedVersion`（例如 `handler/entry_cf_category.go:91`）。engine 不得以最新版本取代，否則過期的請求會被接受，樂觀鎖失去意義。
+2. **同一次 `Run` 已寫入過的 aggregate**：使用前一次 append 回傳的版本。
+3. **新衍生的 aggregate**：以版本 0 建立；版本紀錄已存在時視為衝突，不得當成更新。
+4. **第一次碰到的其他既有 aggregate**：可以在交易內讀取目前版本，handler 的業務驗證也必須依據交易內的狀態；命令若帶有版本前提，仍須檢查該版本，不得以最新版本取代。
+5. 版本追蹤以 `(MerchantID, AggregateType, AggregateID)` 為 key。
+6. 根事件以外的 `ExpectedVersion` 由 engine 依第 2～4 點配置，handler 不自行設定。
+
+欄位：
+
+- `MerchantID`、`UpdatedBy`、`CorrelationID`、`RequestID` 繼承父事件，`CausationID` 指向父事件（目前 `NewNextEvent` 只帶 `CorrelationID` 與 `CausationID`，`kernel/event/envelop.go:133`）。
+- `AggregateType`：沿用父事件的 aggregate 時一併沿用；建立自己的 aggregate 時由 handler 指定。值必須是 `enums.AggregateType` 已定義、且符合 `event_store`／`aggregate_versions` 的 `chk_aggregate_type` 限制；需要新類型時，在該 Phase 一併新增 enum 與 migration。
+
+**A2、A5 與 A7 的身分映射規則**
 
 區分「事件所屬的 aggregate」與「事件影響的交易」：
 
 1. **直接建立的交易**（例如前端建立傳票）：handler 產生交易 UUID，作為該事件的 aggregate ID，也就是交易的 `txn_uuid`。
 2. **由其他事件衍生的交易**（例如年結、銀行核准、預付建立時產生的交易）：`txn_uuid` 由父事件 UUID 加上用途識別推導，沿用目前 `uuidx.NewFromEvent(eventUUID, "txn:"+用途)` 的做法（`services/projection/transaction.go:265`）。年結會從同一個事件產生結帳與開帳兩筆交易（`:134`、`:139`），用途識別 `closing`、`opening` 確保兩者的 UUID 不同且可重建。衍生交易的 aggregate ID 與它的 `txn_uuid` 相同。
-3. **不屬於交易 aggregate 的事件**（例如依 A2 使用自己 aggregate 的 `journal.posted`）：payload 必須帶上目標交易的 `txn_uuid`；projector 依 payload 判斷分錄屬於哪筆交易，不得把事件自己的 aggregate ID 當成交易 ID。
+3. **分錄事件 `journal.posted`**：`journal.posted` 是事件類型，不是 aggregate 類型。它屬於所過帳交易的 aggregate（`TRANSACTION`，aggregate ID 為 `txn_uuid`），不另設 aggregate 類型：直接建立的交易沿用 `transaction.created` 的 aggregate（A2 (a)）；衍生交易使用第 2 點衍生的交易 aggregate。
+4. **不屬於交易 aggregate、但會影響交易的事件**（例如屬於銀行對帳 aggregate 的核准事件）：payload 必須帶上目標交易的 `txn_uuid`；projector 依 payload 判斷影響哪筆交易，不得把事件自己的 aggregate ID 當成交易 ID。
+
+**A3 批次事件語義**
+
+1. 事件 payload 以 UUID 建立關聯（`bank_txn_uuid`、`entry_uuid`、`txn_uuid`）。現有 payload 使用整數 ID（`model/payload/bank_statement.go:137`、`:156`、`:169`），重建後會改變，需要改寫；這些事件目前沒有呼叫點與資料，不需相容。
+2. AutoMatch／ReMatch 每次執行最多產生一個批次事件，記錄本次的處理範圍（匯入 UUID 與處理的明細）以及每筆明細的最終狀態，包含改回 `UNMATCHED` 的明細；否則 ReMatch 後失去比對的明細無法正確重建。沒有任何狀態變更時不產生事件。
+3. ManualMatch、忽略、核准各產生一個事件。
+4. 保留 ADR-021 的保護：自動比對不得重置 `MANUAL`／`CONFIRMED`（`ResetNonConfirmedMatches` 只處理 `EXACT`／`FUZZY`，`database/queries/bank_statement.sql:163`），也不得改動 `IGNORED`／`APPROVED`（`:142`）。
+5. 重置與套用比對結果在同一個事件圖交易內完成（A1）。比對結果由 handler 依交易內的狀態計算後寫入事件，不得以交易外預先算好的結果覆蓋較新的人工決定；重建時只套用事件記錄的結果，不重跑比對演算法（原則 1）。
+6. 比對、忽略在 R6 實作，核准在 R7 實作；Phase 0 的 ADR 取代 ADR-021。
+
+**A4 範圍限制**
+
+1. 重建單位是單一商戶：每個 projector 的 `Reset()` 只清除該商戶的資料，沒有 `merchant_id` 的關聯表（各 `*_ledgers`）經由上層資料表的 `merchant_id` 判斷；`aggregate_versions`、checkpoint 也只重建該商戶。
+2. 重建不得寫入其他商戶的資料或範圍外的全域資料；全域資料依 A6 處理。
+3. 驗收：重建商戶 A 後，商戶 B 的資料與範圍外的全域資料保持不變（R3 驗收條件、第 8 節）。
+
+**A6 現況**
+
+盤點 migration 後，由事件寫入、且沒有 `merchant_id` 的資料表只有 `exchange_rates`（`database/migrations/20260310001_init_table.sql:347`；各 `*_ledgers` 關聯表經由上層資料表區分商戶）。它由商戶事件 `investment.fx_rate_updated` 以 UPSERT 寫入（`database/queries/investment.sql:201`、`services/projection/investment.go:121`），是 ISSUE-013 修正時刻意保留的全域設計（`repos/unit_of_work/event_store/truncate.go:27`）。後果：
+
+- 任一商戶的匯率事件都會覆寫所有商戶看到的匯率，`GET /api/exchange-rate` 也會回傳所有商戶寫入的匯率。
+- 單商戶重建重播舊的匯率事件時，會覆寫其他商戶正在使用的匯率。
+
+投資分錄使用 payload 內的匯率計算（`services/pipelines/factory/investment.go`），不讀這張表，所以帳務金額不受影響。
 
 ### 7.3 範圍決策：待決
 
@@ -236,5 +296,6 @@
    - 金額、狀態、UUID 關聯與筆數必須一致。
    - 執行 `PRAGMA foreign_key_check`，不得有 orphan FK。
    - 不在重建範圍內的資料（D 類中維持直接寫入的資料，以及依 A3 排除的資料）另列清單，驗證重建前後沒有被改動。
+   - 準備至少兩個商戶的資料；重建商戶 A 後，商戶 B 的資料與範圍外的全域資料必須保持不變（A4）。
 3. **匯入驗證**（R10）：新版匯出 → 匯入 → 重建，canonical 比較一致；匯入不相容版本或事件格式時，在清除前拒絕，原資料不變。
 4. 若 API 契約變動，另依 `frontside/CLAUDE.md` 執行 `npm run lint`、`npm run check`、`npm run build`。
