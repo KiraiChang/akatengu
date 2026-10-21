@@ -33,7 +33,7 @@
 | F3 | ISSUE-023：銀行對帳核准冪等止血 | — | ✅ done（2026-10-19；原子化待 R7） |
 | F4 | ISSUE-025：safety middleware 的狀態改為每次 `Run` 各自獨立 | R1 之前 | ✅ done（2026-10-21） |
 | F5 | ISSUE-026：重新提供帳戶類型、資產類型設定與系統科目對應的更新 API | 建議在 R2 之前 | ✅ done（2026-10-21） |
-| F6 | ISSUE-027：科目、帳戶與投資修改的業務版本檢查 | R2、R9 之前 | 🟡 in progress |
+| F6 | ISSUE-027：科目、帳戶與投資修改的業務版本檢查 | R2、R9 之前 | ✅ done（2026-10-21） |
 
 ### F5 子階段
 
@@ -53,7 +53,9 @@
 | 段 | 說明 | 狀態 |
 |----|------|------|
 | 1 | 程式：`queries/account.sql`、`queries/investment.sql`、`projection_repo/account.go`、`projection_repo/investment.go`、`services/projection/account.go`，新增 migration `20261021001_account_initial_version.sql` | ✅ done（2026-10-21） |
-| 2 | 測試：`internal/services/update_version_test.go`；反向檢查（還原段 1 的程式後，版本衝突與重複新增的情境失敗） | ⬜ pending |
+| 2 | 測試：`internal/services/update_version_test.go`；反向檢查（還原段 1 的程式後，版本衝突與重複新增的情境失敗） | ✅ done（2026-10-21） |
+
+驗證（2026-10-21，Docker `golang:1.26`）：`go generate ./...`、`go build ./...`、`go vet ./internal/services/` 通過，測試檔 `gofmt -l` 無輸出；新增的 11 個情境全數通過；`go test -vet=off ./...` 全數通過。反向檢查：段 1 的 5 個程式檔還原為修正前（只保留 `ErrVersionConflict` 宣告）後，11 個情境中 9 個失敗，只有實體帳戶與投資以正確版本修改的 2 個情境通過（修正前本來就正常）。失敗原因：科目修改後 version 不遞增；過期版本、重複新增、修改不存在的科目或 ledger_id 都沒有回傳錯誤。
 
 ## 最終驗證結果
 

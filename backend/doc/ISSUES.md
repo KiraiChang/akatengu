@@ -639,7 +639,7 @@
 
 ### [ISSUE-027] 科目、帳戶與投資修改的畫面版本檢查沒有作用
 
-- **狀態**：🔴 Open
+- **狀態**：🟢 Resolved（2026-10-21，計畫書 F6）
 - **日期**：2026-10-21
 - **嚴重程度**：Medium
 - **位置**：`internal/database/queries/account.sql:89`、`:110`、`:128`；`internal/database/queries/investment.sql:100`；`internal/services/projection/account.go:135`、`:163`；`internal/services/projection/investment.go:91`
@@ -648,11 +648,21 @@
   1. `account.updated`：projection 呼叫 `UpsertAccount`（`account.sql:128`），衝突時直接以 `version = excluded.version` 覆寫，沒有版本條件。依過期畫面送出的修改會覆蓋較新的資料，且版本被寫回畫面上的舊值，不會遞增。
   2. `ledger_account.updated`、`investment.updated`：`UPDATE ... WHERE ... AND version = ?`（`account.sql:110`、`investment.sql:100`）是 `:exec`，projection repository 也沒有檢查影響筆數。版本不符時更新 0 筆，但事件照樣寫入、API 回應成功，畫面上的修改沒有生效，使用者也不會收到錯誤。
 
-  以上依程式碼推導，尚未實際操作確認。
+  F6 計畫時另外發現（計畫書 `doc/plan/BFS_PREREQ_F5_F6_R0.md` 3.1）：
+  3. **科目的初始版本是 0**：`account.created`、`account.bulk_imported` 的 projection 以 `Version: 0` 寫入，啟動時的種子事件也會把種子 SQL 的 version 1 覆寫成 0；而 `AccountUpdatedPayload.Validate` 要求 version 大於 0，所以前端送出畫面上的 version 時，由事件建立的科目都無法修改。
+  4. **重複新增會覆寫既有科目**：`account.created` 的 projection 也是 `UpsertAccount`，pipeline 不檢查科目是否已存在。用同一個編號重複新增時，會覆寫既有科目並重設版本，讓過期畫面的修改又能通過版本檢查。
+
+  以上原本依程式碼推導；F6 的反向檢查（程式還原為修正前）已確認第 1、2、4 點，以及修改不存在的科目會新增一筆、修改不存在的實體帳戶不會回傳錯誤。第 3 點的測試直接送 version 1，修正前的結果是修改後 version 仍為 1、不會遞增。
 - **影響範圍**：
   科目、實體帳戶與投資的修改。多個分頁或多人同時修改時，會發生覆蓋或修改無聲消失；`event_store` 留下內容沒有反映到讀模型的事件。
 - **解決方向**：
   在寫入事件前於同一交易內比對 payload 的 `version` 與目前資料的版本，不符時回傳版本衝突、不寫入事件；projection 更新時遞增版本，並在影響 0 筆時回傳錯誤。屬於 bug fix，依 `AGENTS.md` 以小幅修改另行實作與 review（計畫書 F6），需在計畫書 R2（科目、帳戶）與 R9（投資）之前完成，遷移時保留修正後的行為。修正後，原本會被無聲忽略或覆蓋的過期修改會改為回傳錯誤，需確認前端的錯誤提示。
+- **解決方式**（2026-10-21，計畫書 `doc/plan/BFS_PREREQ_F5_F6_R0.md` 第 3 節）：
+  1. 比對放在 projection 的 `UPDATE ... WHERE version = ?`，與事件寫入在同一個交易內。`UpdateAccount`、`UpdateLedgerAccount`、`UpdateInvestment` 改為 `:execrows`，影響 0 筆時 projection repository 回傳 `projection_repo.ErrVersionConflict`（以 `%w` 包上資料識別與送出的版本），整個交易回滾，事件、版本紀錄與讀模型都不變。不在 pipeline 比對，因為 pipeline 在交易外查詢。
+  2. `account.updated` 改用 `UpdateAccount`（帶版本條件並遞增版本）；`account.created` 改用 INSERT 的 `CreateAccount`，固定寫入 version 1，重複的編號由唯一鍵擋下；`account.bulk_imported` 仍為 UPSERT（只有種子事件會送出），初始版本改為 1。
+  3. migration `20261021001_account_initial_version.sql` 把既有 version 0 的科目改為 1；Down 不還原。
+  4. 錯誤經 `POST /api/event/append` 回 500 與 problem 格式，前端把 `detail` 顯示在 `saveError`；前端不修改，畫面上的錯誤提示尚未實際操作確認。
+  5. 測試：`internal/services/update_version_test.go`，11 個情境，一律經 `EventStoreService.Append`、沿用前端的 aggregate 封套。
 
 ---
 
