@@ -15,9 +15,12 @@ import (
 //   - ErrQueueOverflow       – the children returned by a handler would push the
 //     pending count past the limit.
 //     Policy: zero (not retryable, not fatal — caller decides).
+//
+// The pending counter is allocated when the middleware wraps a processor, so
+// each chain (built once per Run) counts only its own events.
 func BackpressureScheduler(maxPending int) Middleware {
-	pending := 0
 	return func(next EventProcessor) EventProcessor {
+		pending := 0
 		return func(ctx context.Context, depth int, evt event.Event) (result.EventResult, error) {
 			if depth == 0 {
 				// New root event: reset pending counter to 1.

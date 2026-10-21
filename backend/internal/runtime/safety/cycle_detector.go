@@ -9,12 +9,12 @@ import (
 )
 
 // CycleDetector returns a Middleware that detects duplicate event UUIDs within
-// a single Run. The seen set is created at call time, so each call produces an
-// independent guard instance.
+// a single Run. The seen set is allocated when the middleware wraps a processor,
+// so each chain (built once per Run) gets an independent guard instance.
 // Error policy: Fatal=true (a UUID cycle is a programming error, not transient).
 func CycleDetector() Middleware {
-	seen := make(map[string]struct{})
 	return func(next EventProcessor) EventProcessor {
+		seen := make(map[string]struct{})
 		return func(ctx context.Context, depth int, evt event.Event) (result.EventResult, error) {
 			if _, ok := seen[evt.Uuid]; ok {
 				return result.EventResult{Policy: result.Policy{Fatal: true}},
@@ -37,10 +37,12 @@ type eventNode struct {
 // Unlike CycleDetector (UUID dedup) or DepthGuard (depth counter), this guard
 // uses the actual causal graph: if processing EventType A produces a descendant
 // of EventType A anywhere in its lineage, the cycle is detected and aborted.
+// The graph is allocated when the middleware wraps a processor, so each chain
+// (built once per Run) keeps its own causal graph.
 // Error policy: Fatal=true (a causal loop is a programming error).
 func DeterministicLoopDetector() Middleware {
-	graph := make(map[string]eventNode) // uuid → (eventType, causationID)
 	return func(next EventProcessor) EventProcessor {
+		graph := make(map[string]eventNode) // uuid → (eventType, causationID)
 		return func(ctx context.Context, depth int, evt event.Event) (result.EventResult, error) {
 			graph[evt.Uuid] = eventNode{
 				eventType:   evt.EventType,

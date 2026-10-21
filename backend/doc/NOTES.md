@@ -19,6 +19,13 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-10-21 [DEBUG] 有狀態 middleware 的配置方式與共用狀態的回歸測試
+
+1. **有狀態的 middleware 要在包裝 processor 時配置狀態**：`safety.Middleware` 的值可以重用，狀態放在 `func(next EventProcessor) EventProcessor` 裡，每次組 chain 時才建立；engine 在每次 `Run` 開頭組一次 chain（ISSUE-025）。若狀態放在 `CycleDetector()` 這類建構函式裡，重用同一個 middleware 值時，即使每次 `Run` 都重組 chain，狀態仍然共用。
+2. **共用狀態的回歸測試要固定執行順序**：兩個 goroutine 通過屏障後同時讀寫共用計數，常因 lost update（兩邊都從同一個舊值計算）讓舊程式碰巧通過。改用 channel 固定順序：先以屏障確保兩邊都完成重置，再讓第二個 `Run` 等第一個 `Run` 計算完才計算；參考 `internal/runtime/engine/bfs_engine_test.go` 的 Backpressure 情境。
+3. **並行冒煙測試要搭配 `-race`**：沒有 `-race` 時，Go 只會盡力偵測 map 的並行寫入，F4 的舊程式在一般執行下並行情境仍會通過，加上 `-race` 才會穩定失敗。確定性的回歸檢查由依序執行的跨 `Run` 情境負責。
+4. **用修改前的整個檔案確認測試攔得住問題**：以 `git show HEAD:<path>` 取出修改前的檔案，放進容器副本取代新版，比用 `sed` 改單行更能確認測試攔得住整個修正；修正分散在多個檔案時，再逐一只換回其中一部分，確認每一部分都有測試覆蓋。
+
 ### 2026-10-19 [DEBUG] BFS handler 測試與低記憶體環境的驗證要點
 
 1. **in-memory SQLite 要固定單一連線**：`:memory:` 的每條新連線都是空 DB，測試需 `db.SetMaxOpenConns(1)`。目前 BFS 流程中 handler 的查詢在交易外、projector 在交易內，所以單一連線不會卡住；計畫書 R1 讓 handler 改在交易內查詢後，必須改用 R0 的交易內查詢，否則單一連線會等不到被交易占用的連線而死鎖。

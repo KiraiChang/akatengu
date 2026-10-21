@@ -577,7 +577,7 @@
 
 ### [ISSUE-025] BFS safety middleware 的狀態由所有請求共用，並行請求可能讓後端程式終止
 
-- **狀態**：🔴 Open
+- **狀態**：🟢 Resolved（2026-10-21，計畫書 F4）
 - **日期**：2026-10-21
 - **嚴重程度**：High
 - **位置**：`internal/handler/handler.go:41`、`internal/runtime/safety/cycle_detector.go:16`、`internal/runtime/safety/backpressure.go:19`
@@ -604,6 +604,13 @@
   5. 狀態在 middleware 包裝 processor 時配置，每次 `Run` 一份，不是每個事件重建；middleware 的順序與錯誤 policy 不變。
 
   屬於 bug fix，依 `AGENTS.md` 以小幅修改另行實作與 review。
+- **解決紀錄**：
+  2026-10-21 完成計畫書 F4：
+  1. `internal/runtime/safety/cycle_detector.go`、`backpressure.go`：`CycleDetector`、`DeterministicLoopDetector`、`BackpressureScheduler` 的狀態改在包裝 processor 時配置，重用同一個 middleware 值也不會共用狀態。
+  2. `internal/runtime/engine/bfs_engine.go`：engine 保存最內層的 processor 與 middleware 清單，`Run` 開頭組一次 chain 放在區域變數；多次呼叫 `WithMiddleware` 時維持原本的順序（越晚加入的越外層）。`handler.go` 不需修改。
+  3. `internal/runtime/engine/bfs_engine_test.go` 新增 8 個情境：同一事件再次 `Run`、同一次 `Run` 的重複 UUID、失敗後重試、8 個 goroutine 以屏障重疊執行、Backpressure 兩個 `Run` 都未超量、一個超量另一個不受影響、`DeterministicLoopDetector` 同一次 `Run` 的類型循環、跨 `Run` 不殘留因果圖。
+
+  驗證（Docker）：engine 21 個情境全數通過，`go test -vet=off ./...` 全數 `ok`，`internal/runtime/...` 的 `-race` 沒有 data race。在容器副本換回修改前的檔案時，跨 `Run` 與 Backpressure 的 5 個情境都會失敗（只換回 engine、只換回 safety，結果相同）；並行情境在一般執行下仍會通過，加上 `-race` 才會回報 data race。
 
 ---
 

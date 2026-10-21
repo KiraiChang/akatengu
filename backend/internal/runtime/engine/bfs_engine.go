@@ -14,15 +14,16 @@ import (
 )
 
 type BFSEngine struct {
-	executor  *Executor
-	process   safety.EventProcessor
-	uow       repos.UnitOfWork
-	projector *handle.Registry
+	executor    *Executor
+	terminal    safety.EventProcessor
+	middlewares []safety.Middleware
+	uow         repos.UnitOfWork
+	projector   *handle.Registry
 }
 
 func NewBFSEngine(executor *Executor) *BFSEngine {
 	e := &BFSEngine{executor: executor}
-	e.process = func(ctx context.Context, _ int, ev event.Event) (result.EventResult, error) {
+	e.terminal = func(ctx context.Context, _ int, ev event.Event) (result.EventResult, error) {
 		r, err := e.executor.Dispatch(ctx, ev)
 		if err != nil {
 			// Pass through the result so callers can inspect r.Policy.
@@ -70,7 +71,8 @@ func NewBFSEngine(executor *Executor) *BFSEngine {
 }
 
 func (e *BFSEngine) WithMiddleware(middlewares ...safety.Middleware) *BFSEngine {
-	e.process = safety.Chain(e.process, middlewares...)
+	// Later calls wrap earlier ones, so their middlewares go first (outermost).
+	e.middlewares = append(append([]safety.Middleware{}, middlewares...), e.middlewares...)
 	return e
 }
 
@@ -85,12 +87,15 @@ func (e *BFSEngine) WithProjector(r *handle.Registry) *BFSEngine {
 }
 
 func (e *BFSEngine) Run(ctx context.Context, evt event.Event) (event.Event, error) {
+	// Stateful middlewares allocate their state when wrapping, so building the
+	// chain once per Run keeps concurrent and successive Runs isolated.
+	process := safety.Chain(e.terminal, e.middlewares...)
 	q := &Queue{}
 	q.Push(evt, 0)
 
 	for !q.Empty() {
 		current, depth := q.Pop()
-		r, err := e.process(ctx, depth, current)
+		r, err := process(ctx, depth, current)
 		if err != nil {
 			// r.Policy describes the error-handling strategy:
 			//   Fatal=true     → unrecoverable, abort immediately.
