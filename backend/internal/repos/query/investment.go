@@ -29,7 +29,7 @@ type InvestmentRepo interface {
 
 type sqlcdbInvestmentRepository struct {
 	q  *sqlcdb.Queries
-	db *sqlx.DB
+	db sqlxQuerier
 }
 
 func (r *sqlcdbInvestmentRepository) GetMovementPaged(ctx context.Context, req model.PaginationParams, id int64) ([]projection.InvestmentMovement, int64, error) {
@@ -131,7 +131,7 @@ func (r *sqlcdbInvestmentRepository) GetInvestmentPaged(ctx context.Context, req
 	return result, total, nil
 }
 
-func newInvestmentRepo(q *sqlcdb.Queries, db *sqlx.DB) InvestmentRepo {
+func newInvestmentRepo(q *sqlcdb.Queries, db sqlxQuerier) InvestmentRepo {
 	return &sqlcdbInvestmentRepository{q: q, db: db}
 }
 

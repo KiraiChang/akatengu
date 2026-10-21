@@ -34,7 +34,7 @@
 4. **Ginkgo 詳細輸出**要同時加 `-v` 與 `-ginkgo.v`，只加 `-ginkgo.v` 不會印出各情境。
 5. **可重現的競態測試**：同時啟動兩個 goroutine，在單一連線的 in-memory DB 下多半只會依序執行。改用 stub 替換 `query.Repo` 的公開欄位（例如 `Event`），在第一次查詢時先讓對手完成整個流程再回傳空結果，就能強制本次走衝突與恢復路徑；參考 `internal/services/bank_statement_review_test.go` 的 `raceEventRepo`。
 6. **確認測試真的攔得住問題**：在容器內的副本用 `sed` 移除關鍵程式（例如 projector 註冊、恢復路徑），預期對應情境失敗。改動後的程式必須仍能編譯；直接改條件可能留下未使用的變數而 build 失敗，改成在條件後加 `|| true` 較安全。
-7. **`gofmt -l` 一律回傳 exit 0**，需要檢查輸出是否為空。另外全專案目前有 52 個 Go 檔未通過 `gofmt`（見 `TODO.md`），檢查時要區分既有問題與本次修改。
+7. **`gofmt -l` 一律回傳 exit 0**，需要檢查輸出是否為空。另外全專案目前有 52 個 Go 檔未通過 `gofmt`（見 `TODO.md`），檢查時要區分既有問題與本次修改。修改到其中的檔案時，對該檔執行 `gofmt`（2026-10-21 R0 review 決定）：其中有些是 CRLF 檔案（例如 `internal/repos/query/base.go`），保留 CRLF 時新增的每一行都會被 `git diff --check` 報為 trailing whitespace。review 時可用 `git diff -w --ignore-cr-at-eol` 只看實際修改。主機沒有 Go 時，以 `docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/q -w /q golang:1.26 gofmt -w <檔案>` 執行，避免檔案變成 root 擁有。
 
 ### [DEBUG] 2026-06-02 Category 寫入 API：EventUuid 作為 CategoryUUID 的設計要點
 

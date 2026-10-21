@@ -20,10 +20,10 @@ type DashboardRepo interface {
 
 type sqlxDashboardRepo struct {
 	q  *sqlcdb.Queries
-	db *sqlx.DB
+	db sqlxQuerier
 }
 
-func newDashboardRepo(q *sqlcdb.Queries, db *sqlx.DB) DashboardRepo {
+func newDashboardRepo(q *sqlcdb.Queries, db sqlxQuerier) DashboardRepo {
 	return &sqlxDashboardRepo{q: q, db: db}
 }
 

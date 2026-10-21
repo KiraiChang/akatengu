@@ -23,7 +23,7 @@ type AccountRepo interface {
 
 type sqlxAccountRepo struct {
 	q  *sqlcdb.Queries
-	db *sqlx.DB
+	db sqlxQuerier
 }
 
 func (r *sqlxAccountRepo) GetLedgerPaged(ctx context.Context, params model.PaginationParams) ([]projection.LedgerAccount, int64, error) {
@@ -96,7 +96,7 @@ func (r *sqlxAccountRepo) GetAccountPaged(ctx context.Context, params model.Pagi
 	return result, total, nil
 }
 
-func newAccountRepo(q *sqlcdb.Queries, db *sqlx.DB) AccountRepo {
+func newAccountRepo(q *sqlcdb.Queries, db sqlxQuerier) AccountRepo {
 	return &sqlxAccountRepo{q: q, db: db}
 }
 

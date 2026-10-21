@@ -25,10 +25,10 @@ type ConfigRepo interface {
 
 type sqlxConfigRepo struct {
 	q  *sqlcdb.Queries
-	db *sqlx.DB
+	db sqlxQuerier
 }
 
-func newConfigRepo(q *sqlcdb.Queries, db *sqlx.DB) ConfigRepo {
+func newConfigRepo(q *sqlcdb.Queries, db sqlxQuerier) ConfigRepo {
 	return &sqlxConfigRepo{q: q, db: db}
 }
 

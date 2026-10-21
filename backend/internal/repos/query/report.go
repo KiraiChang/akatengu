@@ -24,10 +24,10 @@ type ReportRepo interface {
 
 type sqlcReportRepo struct {
 	q  *sqlcdb.Queries
-	db *sqlx.DB
+	db sqlxQuerier
 }
 
-func newReportRepo(q *sqlcdb.Queries, db *sqlx.DB) ReportRepo {
+func newReportRepo(q *sqlcdb.Queries, db sqlxQuerier) ReportRepo {
 	return &sqlcReportRepo{q: q, db: db}
 }
 
