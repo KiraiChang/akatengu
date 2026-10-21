@@ -32,6 +32,7 @@
 | ADR-010 | 帳本建立科目限制透過 `filteredAccounts` prop 傳遞而非在子元件內載入 | Accepted | 2026-05-20 |
 | ADR-011 | 跨頁面科目導航使用 URL hash query param 傳遞預選科目 | Accepted | 2026-05-26 |
 | ADR-012 | 登入後以 pendingToken 暫存 user token，選商戶後換 merchant token | Accepted | 2026-06-03 |
+| ADR-013 | 後端 BFS 遷移期間，寫入 API 的契約維持不變 | Accepted | 2026-10-21 |
 
 ---
 
@@ -355,6 +356,29 @@
 - **後果**：
   - 正面：職責分離清晰（Login 負責驗證、MerchantSelect 負責商戶選擇）；sessionStorage 自然限制 pendingToken 生命週期；重新整理停留在 `#/merchant-select` 仍可正常運作。
   - 負面：`authStore` 同時持有兩種語意的 token，需透過欄位命名（`token` vs `pendingToken`）區分；新增路由守衛需要維護。
+
+---
+
+## ADR-013 後端 BFS 遷移期間，寫入 API 的契約維持不變
+
+- **狀態**：Accepted
+- **日期**：2026-10-21
+- **背景**：
+  後端正把重大交易改走 BFS engine（`backend/doc/ARCHITECTURE.md` ADR-023），aggregate 改由後端依一致性邊界決定（ADR-024），前端目前送出的共用 aggregate（`('TRANSACTION', '')`、`('ACCOUNT', '')`）將不再是事件真正的 aggregate。後端 ADR-027 決定遷移期間維持 `POST /api/event/append`，並由後端依事件類型決定版本策略。本 ADR 記錄前端需要遵守的部分，補充 ADR-001。
+
+- **決策**：
+  1. 前端繼續依 ADR-001 呼叫 `src/api/aggregate.ts` 的 `appendEvent()`，遷移期間不需修改。
+  2. 每種事件送出的 `aggregate_type`、`aggregate_id` 必須維持目前的值：後端會比對該事件類型明列的舊映射，不符就拒絕請求。新增或修改寫入功能時，不得自行更改這兩個欄位，需先對照後端 ADR-027 與事件註冊表。
+  3. 送往共用 aggregate 的 `expected_version`，後端會改以交易內的目前版本寫入，前端送出的值沒有作用；ADR-001 第 3 步「後端驗證版本號」對這些事件不再成立。
+  4. 仍會檢查的畫面版本：payload 的 `version`（科目、實體帳戶、投資的修改；後端 ISSUE-027 修正後生效），以及科目類別、銀行範本專屬 API 的 `expected_version`。版本不符時後端回傳錯誤，沿用現有的錯誤提示。
+  5. 成功回應與錯誤格式不變：前端只判斷 `response.ok` 與錯誤的 `detail`／`title`。
+
+- **替代方案**：
+  - 改為各功能專屬的寫入 API（後端 ADR-027 的選項 (b)）：前端要改寫 `src/api/` 的 9 個檔案、共 26 種寫入，並與後端遷移同步進行。不採用。
+
+- **後果**：
+  - 正面：後端遷移期間，前端不需修改。
+  - 負面：送往共用 aggregate 的寫入仍會先呼叫 `getAggregateVersion`，但取得的版本已經沒有作用；這個呼叫與讓其他寫入也帶畫面版本的改善，在後端 R10 之後另行規劃（後端 ADR-027 規則第 8 點）。
 
 ---
 

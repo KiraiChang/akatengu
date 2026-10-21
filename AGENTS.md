@@ -70,6 +70,7 @@ Handler -> EventStoreService.Append -> Pipeline -> UnitOfWork -> Projection
 ```
 
 - 所有會計帳務異動預設必須走上述事件溯源鏈路，並由 UnitOfWork 的樂觀鎖保護；只有既有 ADR 明載的例外可以直接更新。
+- BFS 遷移期間（backend ADR-023，到計畫書 R10 為止），已遷移到 BFS 的事件類型改經 `BFSEngine.Run` 寫入，未遷移的維持上述鏈路；同一種事件類型只能有一條寫入路徑。細則見 `backend/CLAUDE.md` 的 BFS 遷移過渡規則。
 - 查詢使用 `internal/repos/query/` 的唯讀 repository。
 
 ### Backend 驗證

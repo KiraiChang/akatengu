@@ -89,6 +89,12 @@
 - **需要瀏覽專案時，必須先向使用者說明瀏覽目的並取得確認，禁止未獲許可主動瀏覽任何檔案或目錄。**
 - 瀏覽程式碼時**不重複閱讀**同一檔案，已讀過的內容直接引用記憶。
 - **所有涉及會計帳務的寫入操作**（分錄記錄、資產變動、預付費用攤提、折舊、處分等），**必須透過 `EventStoreService.Append` 寫入**，並由 UnitOfWork 的樂觀鎖（`VersionRepository.UpdateIfVersionMatch`）保護一致性。禁止在 Repository 層或 Service 層直接對會計相關資料表執行 INSERT / UPDATE / DELETE；所有異動一律走事件溯源鏈路（Handler → EventStoreService → Pipeline → UnitOfWork → Projection）。**查詢操作**則透過 `query.Repo`（唯讀層）執行，不受樂觀鎖約束，可由 API 直接呼叫。例外以 ADR 明載者為限，目前只有 ADR-021：銀行對帳單比對狀態（`bank_statement_txns.match_status`）透過 `UnitOfWork.Do` 直接 UPDATE、不建立事件；批准（ApproveTxn）產生的 `transaction.created` 仍走完整事件溯源鏈路。
+- **BFS 遷移過渡規則**（ADR-023、ADR-027；適用到計畫書 `doc/plan/BFS_ENGINE_MIGRATION.md` 的 R10 為止）：
+  - 已遷移到 BFS 的事件類型（以 ADR-027 的事件註冊表為準；R1 建立註冊表前只有 `transaction.cf_category_updated`），寫入一律經 `BFSEngine.Run`（Handler → BFSEngine → mediator handler → `persistence` UnitOfWork → projector），由 BFS Store 的樂觀鎖保護，不得再經 `EventStoreService.Append` 寫入。
+  - 尚未遷移的事件類型，維持上一點的舊鏈路。
+  - 同一種事件類型只能有一條寫入路徑；BFS 執行失敗時直接回傳錯誤，不得改走舊路徑。
+  - ADR-021 由 ADR-026 分階段取代：R6 完成後，比對與忽略改依 ADR-026 以事件寫入；核准在 R7 完成前仍依 ADR-021 與 F3 的做法，R7 完成後也改依 ADR-026。
+  - R10 移除舊路徑時，改寫本節與「系統架構」的寫入流程，並移除這條過渡規則。
 - **Repository 層一律使用 sqlc 產生的型別安全查詢**；嚴禁直接撰寫 `sqlx` 查詢，除非該 SQL 動態性質（如欄位清單或 `WHERE` 條件在執行期才確定）確實無法以 sqlc 靜態產生，且**須在行內以註解說明為何不得不改用 `sqlx`**。如遇此情況，應先提出說明並取得明確許可，再動手實作。
 - **API 回應（前端可見的 JSON）禁止直接使用 sqlc 生成的型別**（`sqlcdb.*`）。所有回應型別必須定義在 `internal/model/db/projection/` 下，並符合以下規範：
   1. 每個欄位同時宣告 `db:"snake_case"` 與 `json:"snake_case"` tag，JSON 命名一律採用 snake_case。
@@ -175,7 +181,7 @@ go run ./cmd/enumx-gen
 
 ### 核心寫入流程（Event Flow）
 
-每一筆寫入操作都必須經過以下完整鏈路：
+每一筆寫入操作都必須經過以下完整鏈路（BFS 遷移期間，已遷移到 BFS 的事件類型依「限制事項」的 BFS 遷移過渡規則）：
 
 ```
 HTTP 請求
