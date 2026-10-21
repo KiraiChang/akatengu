@@ -12,7 +12,7 @@
 |-------|------|------|
 | 0 | 決策：寫成 ADR-023～027 與前端 ADR-013（ADR-021 由 ADR-026 分階段取代）；`AGENTS.md`、`backend/CLAUDE.md` 加入 BFS 遷移過渡規則；建立 STEP.md | ✅ done（2026-10-21） |
 | R0 | 交易內查詢：讓 `query.Repo` 可綁定 `sqlx.Tx` | ✅ done（2026-10-21） |
-| R1 | engine 基礎：事件圖一個交易（A1）、子事件封套與版本規則（A2）、handler 改用 `Run` 建立的交易內查詢、移除 projector 的 `state` 參數、建立事件註冊表 | ⬜ pending |
+| R1 | engine 基礎：事件圖一個交易（A1）、子事件封套與版本規則（A2）、handler 改用 `Run` 建立的交易內查詢、移除 projector 的 `state` 參數、建立事件註冊表 | 🟡 in progress |
 | R2 | 主檔與設定（含 `BootstrapEventSeeds`）、期間開帳改走 BFS；`POST /api/event/append` 依註冊表派送 | ⬜ pending |
 | R3 | BFS 重建機制：只跑 projector、以 `Reset()` 宣告清空範圍、單商戶原子重建（A4）；尚不對外 | ⬜ pending |
 | R4 | 傳票 `transaction.*` 與 `journal.posted` 子事件；每筆交易各自一個 aggregate（A5） | ⬜ pending |
@@ -68,6 +68,16 @@
 | 2 | 測試：`internal/repos/query/tx_test.go` | ✅ done（2026-10-21） |
 
 驗證（2026-10-21，Docker `golang:1.26`）：`go generate ./...`、`go build ./...`、`go vet ./internal/repos/query/` 通過，`tx_test.go`、`tx.go`、`base.go` 的 `gofmt -l` 無輸出；新增的 3 個測試（18 個子測試）全數通過；`go test -vet=off ./...` 全數通過。本項沒有修正既有行為，不做反向檢查；另以變異確認寫入清單的效果：刪除 `tx.go` 的 `Merchant.Deactivate`、`Config.UpsertLedgerAccountTypeConfig` 兩個覆寫後，只有這兩個子測試失敗。
+
+### R1 子階段
+
+計畫書：`doc/plan/BFS_R1_ENGINE_FOUNDATION.md`。各段連同自己的測試完成，依 1 → 2 → 3 各自 review、commit。
+
+| 段 | 說明 | 狀態 |
+|----|------|------|
+| 1 | 移除 projector 的 `state` 參數（計畫書第 3 節） | ✅ done（2026-10-21） |
+| 2 | 事件圖交易邊界、Run-local 交易內查詢、子事件封套與版本（A1、A2，計畫書第 4 節） | ⬜ pending |
+| 3 | 事件註冊表（計畫書第 5 節） | ⬜ pending |
 
 ## 最終驗證結果
 

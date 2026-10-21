@@ -12,6 +12,5 @@ type Policy struct {
 
 type EventResult struct {
 	Events []event.Event
-	State  any    // optional aggregate state produced by the handler, consumed by projectors
 	Policy Policy // error-handling policy; zero value = not retryable, not fatal
 }

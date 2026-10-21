@@ -29,19 +29,19 @@ func (c cashFlowCategoryProjector) EventTypes() []event_types.EventType {
 	return utils.Keys(c.handles)
 }
 
-func (c cashFlowCategoryProjector) Apply(ctx context.Context, tx *repos.DbTransaction, evt event.Event, state any) error {
+func (c cashFlowCategoryProjector) Apply(ctx context.Context, tx *repos.DbTransaction, evt event.Event) error {
 	h, ok := c.handles[evt.EventType]
 	if !ok {
 		return errors.NewRuntimeError(errors.ErrProjectorNotFound, evt)
 	}
-	return h(ctx, tx, evt, state)
+	return h(ctx, tx, evt)
 }
 
 func (c cashFlowCategoryProjector) Name() string {
 	return "cashFlowCategoryProjector"
 }
 
-func (s *cashFlowCategoryProjector) applyUserUpdate(ctx context.Context, tx *repos.DbTransaction, evt event.Event, state any) error {
+func (s *cashFlowCategoryProjector) applyUserUpdate(ctx context.Context, tx *repos.DbTransaction, evt event.Event) error {
 	p, err := checkAndGetPayload[event_payload.TransactionCFCategoryUpdatedPayload](&evt)
 	if err != nil {
 		return err

@@ -38,7 +38,7 @@ func NewBFSEngine(executor *Executor) *BFSEngine {
 				}
 				ev.Id = eventId
 				if e.projector != nil {
-					if err := e.projector.ApplyAll(ctx, tx, ev, r.State); err != nil {
+					if err := e.projector.ApplyAll(ctx, tx, ev); err != nil {
 						return err
 					}
 				}

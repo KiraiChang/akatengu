@@ -10,15 +10,17 @@ import (
 	"akatengu/internal/kernel/event"
 )
 
-type handle func(ctx context.Context, tx *repos.DbTransaction, evt event.Event, state any) error
+type handle func(ctx context.Context, tx *repos.DbTransaction, evt event.Event) error
 
 // Projector updates a single read model in response to an event.
 // EventTypes returns the set of event types this projector handles;
 // Apply is only called when evt.EventType is in that set.
+// Apply depends only on the event and its own read model, so the same
+// projector can rebuild the read model from event_store.
 type Projector interface {
 	Name() string
 	EventTypes() []event_types.EventType
-	Apply(ctx context.Context, tx *repos.DbTransaction, evt event.Event, state any) error
+	Apply(ctx context.Context, tx *repos.DbTransaction, evt event.Event) error
 }
 
 // Registry holds all registered projectors and dispatches events to matching ones.
@@ -35,10 +37,10 @@ func (r *Registry) Register(p Projector) {
 }
 
 // ApplyAll dispatches evt to every projector whose EventTypes includes evt.EventType.
-func (r *Registry) ApplyAll(ctx context.Context, tx *repos.DbTransaction, evt event.Event, state any) error {
+func (r *Registry) ApplyAll(ctx context.Context, tx *repos.DbTransaction, evt event.Event) error {
 	for _, p := range r.projectors {
 		if evt.EventType.InValues(p.EventTypes()...) {
-			if err := p.Apply(ctx, tx, evt, state); err != nil {
+			if err := p.Apply(ctx, tx, evt); err != nil {
 				return errors.NewRuntimeError(errors.ErrProjectorError, evt, fmt.Errorf("projector %s: %w", p.Name(), err))
 			}
 			if tx.Check != nil {

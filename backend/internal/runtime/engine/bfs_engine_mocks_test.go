@@ -37,7 +37,7 @@ type mockProjector struct {
 
 func (m *mockProjector) Name() string                        { return "mock" }
 func (m *mockProjector) EventTypes() []event_types.EventType { return m.types }
-func (m *mockProjector) Apply(_ context.Context, _ *repos.DbTransaction, _ event.Event, _ any) error {
+func (m *mockProjector) Apply(_ context.Context, _ *repos.DbTransaction, _ event.Event) error {
 	m.applyCount++
 	return m.applyErr
 }

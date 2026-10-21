@@ -2,7 +2,6 @@ package handle
 
 import (
 	"akatengu/internal/kernel/event"
-	"akatengu/internal/services/pipelines"
 	"fmt"
 )
 
@@ -19,12 +18,4 @@ func checkAndGetPayload[T any](ct *event.Event) (*T, error) {
 		return nil, fmt.Errorf("payload type error")
 	}
 	return &p, nil
-}
-
-func checkAndGetState[T any](ct *pipelines.Result) (*T, error) {
-	p, ok := ct.State.(*T)
-	if !ok {
-		return nil, fmt.Errorf("state type error")
-	}
-	return p, nil
 }

@@ -16,7 +16,7 @@ func NewExecutor(m *mediator.Mediator) *Executor {
 	return &Executor{m}
 }
 
-// Dispatch dispatches a single event and returns the full HandlerResult (including State).
+// Dispatch dispatches a single event and returns the handler's EventResult.
 // Used by BFSEngine as the terminal EventProcessor.
 func (e *Executor) Dispatch(ctx context.Context, evt event.Event) (result.EventResult, error) {
 	return e.mediator.Dispatch(ctx, evt)
