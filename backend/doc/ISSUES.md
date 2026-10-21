@@ -616,18 +616,24 @@
 
 ### [ISSUE-026] 前端更新帳戶類型與資產類型設定時，呼叫已移除的 API
 
-- **狀態**：🔴 Open
+- **狀態**：🟢 Resolved（2026-10-21，計畫書 F5）
 - **日期**：2026-10-21
 - **嚴重程度**：Medium
-- **位置**：`internal/handler/handler.go:160`、`:161`；`frontside/src/api/setting.ts:19`、`:43`
+- **位置**：`internal/handler/handler.go:160`、`:161`；`frontside/src/api/setting.ts:19`、`:43`；`frontside/src/api/sys.ts:14`
 - **描述**：
-  commit `9e3fcfc`（2026-05-28）把帳戶類型與資產類型的科目設定改為事件溯源（`account_config.ledger_type_updated`、`account_config.asset_type_updated`），同時移除了 `PUT /api/setting/ledger-account-type/{type}`、`PUT /api/setting/asset-type/{type}` 的路由與 handler。
-  前端仍呼叫這兩個 API（`frontside/src/components/LedgerTypeConfig.svelte:62`、`AssetTypeConfig.svelte:116`），也沒有任何地方改送上述事件，因此設定頁的更新一定失敗。目前只有啟動時的種子事件（`internal/bootstrap/event_seed.go`）會寫入這兩種設定。
-  以上依程式碼與 git 紀錄推導，尚未實際操作確認。
+  commit `9e3fcfc`（2026-05-28）把帳戶類型與資產類型的科目設定、系統科目對應改為事件溯源（`account_config.ledger_type_updated`、`account_config.asset_type_updated`、`sys_config.sys_account_updated`），同時移除了 `PUT /api/setting/ledger-account-type/{type}`、`PUT /api/setting/asset-type/{type}`、`POST /api/sys/account` 的路由與 handler（最初只列出前兩個，`POST /api/sys/account` 於 F5 計畫時補上）。
+  前端仍呼叫這三個 API（`frontside/src/components/LedgerTypeConfig.svelte:62`、`AssetTypeConfig.svelte:116`、`SysAccountConfig.svelte:52`），也沒有任何地方改送上述事件。目前只有啟動時的種子事件（`internal/bootstrap/event_seed.go`）會寫入這些設定。
+  原本記為「更新一定失敗」，實際上是**回 200 但沒有寫入**：沒有對應路由時，請求會落到 `mux.Handle("/", web.SPAHandler(...))`，SPA handler 對沒有副檔名的路徑一律回 `index.html`，前端收到 200、當作儲存成功。`POST /api/sys/account` 雖然同一路徑已有 `GET` 路由，也不會回 405，因為 `/` 接受所有方法。F5 的反向檢查已確認：移除三條路由後，經 `NewMux` 的三個請求都回 200，`event_store` 沒有任何事件。
 - **影響範圍**：
-  帳戶管理頁的帳戶類型科目設定、投資頁的資產類型科目設定無法修改。這些設定決定分錄使用的科目（計畫書 B 類資料）。
+  帳戶管理頁的帳戶類型科目設定、投資頁的資產類型科目設定、系統科目對應無法修改，畫面卻顯示儲存成功。這些設定決定分錄使用的科目（計畫書 B 類資料）。
 - **解決方向**：
-  後端重新提供這兩個 `PUT` API，改為組成對應事件後經 `EventStoreService.Append` 寫入，沿用 `fixed_asset_category.go` 等既有專屬 API 的做法；前端不需修改。屬於 bug fix，依 `AGENTS.md` 以小幅修改另行實作與 review，與計畫書 S3 的決定無關；計畫書 R2 再把這兩種事件改走 BFS。修正前需確認前端送出的欄位（`account_id`；資產類型的各科目欄位）與事件 payload 一致。
+  後端重新提供這三個 API，改為組成對應事件後經 `EventStoreService.Append` 寫入，沿用 `fixed_asset_category.go` 等既有專屬 API 的做法；前端不需修改。屬於 bug fix，依 `AGENTS.md` 以小幅修改另行實作與 review，與計畫書 S3 的決定無關；計畫書 R2 再把這些事件改走 BFS。修正前需確認前端送出的欄位（`account_id`；資產類型的各科目欄位；系統科目的 `sys_code`、`description`、`account_id`）與事件 payload 一致。
+- **解決方式**（2026-10-21，計畫書 `doc/plan/BFS_PREREQ_F5_F6_R0.md` 第 2 節）：
+  1. `internal/handler/setting.go`、`sys.go` 新增 `UpdateLedgerAccountTypeConfig`、`UpdateAssetTypeAccountConfig`、`UpdateSysAccount`，`handler.go` 在既有 GET 路由旁註冊三條路由。
+  2. 事件寫入種子事件使用的 aggregate：`('ACCOUNT_CONFIG', "1")`、`('SYS_CONFIG', "1")`，每個商戶各一個；R2 依 ADR-024 重新定義。`ExpectedVersion` 由後端在 Append 前讀取目前版本，沒有版本紀錄時視為 0。
+  3. 路徑的 `type`／`asset_type` 優先於 body：解碼時以外層同名的 `json.RawMessage` 欄位接住 body 的這兩個欄位並忽略，避免 body 帶不存在的值時，enum 解碼先回 400（review 時發現）。請求解析、驗證、讀取版本或 Append 失敗時回 400；科目是否存在仍由既有 pipeline 檢查，讀模型仍由 `ConfigProjectionService` 寫入。
+  4. 測試：`internal/handler/setting_scenarios_test.go`、`setting_test.go`，直接呼叫 handler 13 個情境，經正式 `NewMux` 3 個情境；`NewMux` 情境以事件與讀模型斷言，不只看狀態碼。
+  5. 範圍外：`sys_config.sys_account_updated` 的 pipeline 不檢查 `sys_code` 是否存在，記入 `TODO.md`。
 
 ---
 

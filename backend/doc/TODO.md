@@ -50,7 +50,7 @@
 - [x] [Fix] BFS 現金流分類修改無法運作 — 計畫書 F1，完成日期：2026-10-19，關聯：ISSUE-020
 - [x] [Fix] 銀行對帳核准必定失敗並留下未關聯的交易，重按會產生重複會計交易（冪等止血） — 計畫書 F3（S4 已確定採 a），完成日期：2026-10-19，關聯：ISSUE-023（原子化待 R7）
 - [x] [Fix] BFS safety middleware 的狀態由所有請求共用，並行請求可能讓後端程式終止 — 計畫書 F4，完成日期：2026-10-21，關聯：ISSUE-025
-- [ ] [Fix] 前端更新帳戶類型與資產類型設定時，呼叫已移除的 API — 計畫書 F5（建議在 R2 之前完成），關聯：ISSUE-026
+- [x] [Fix] 前端更新帳戶類型、資產類型設定與系統科目對應時，呼叫已移除的 API — 計畫書 F5，完成日期：2026-10-21，關聯：ISSUE-026
 - [ ] [Fix] 科目、帳戶與投資修改的畫面版本檢查沒有作用 — 計畫書 F6（需在 R2、R9 之前完成），關聯：ISSUE-027
 - [ ] [Refactor] 重大交易全面改走 BFS engine，並建立只跑 projector 的事件重建機制；新重建機制（R3）的驗收條件需涵蓋 ISSUE-021、ISSUE-022 的要求 — 計畫書 R0～R10，關聯：ADR-023～027
 
@@ -153,6 +153,10 @@
 **寫入版本檢查（BFS 遷移後）**
 
 - [ ] [Feature] 經 `POST /api/event/append` 的寫入改帶畫面版本，或改為專屬 API — 目前前端在送出前才以 `getAggregateVersion` 取得最新版本，只擋得下「取得版本到送出」之間的並行寫入；BFS 遷移期間採「交易內」版本策略的事件連這段衝突也不再偵測（ADR-027 規則第 4 點）。做法：讀取 API 回傳版本、前端保存後送回，或改為各功能的專屬 API；同時移除共用 aggregate 已無作用的 `getAggregateVersion` 呼叫。屬於跨端新需求，在計畫書 R10 之後另行規劃，關聯：ADR-027 規則第 8 點、前端 ADR-013
+
+**系統科目對應（Sys Account）**
+
+- [ ] [Fix] `sys_config.sys_account_updated` 的 pipeline（`internal/services/pipelines/factory/sysconfig.go`）不檢查 `sys_code` 是否存在，送出不存在的代碼時，projection 的 UPSERT 會新增一筆系統科目；`9e3fcfc` 移除的舊 API 是 UPDATE，不會新增。前端只會送既有的代碼，F5 不修改（2026-10-21，計畫書 `doc/plan/BFS_PREREQ_F5_F6_R0.md` 2.8 第 1 點），關聯：ISSUE-026
 
 **銀行對帳單（Bank Statement Reconciliation）**
 
