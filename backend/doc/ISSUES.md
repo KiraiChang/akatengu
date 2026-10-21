@@ -614,6 +614,42 @@
 
 ---
 
+### [ISSUE-026] 前端更新帳戶類型與資產類型設定時，呼叫已移除的 API
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-21
+- **嚴重程度**：Medium
+- **位置**：`internal/handler/handler.go:160`、`:161`；`frontside/src/api/setting.ts:19`、`:43`
+- **描述**：
+  commit `9e3fcfc`（2026-05-28）把帳戶類型與資產類型的科目設定改為事件溯源（`account_config.ledger_type_updated`、`account_config.asset_type_updated`），同時移除了 `PUT /api/setting/ledger-account-type/{type}`、`PUT /api/setting/asset-type/{type}` 的路由與 handler。
+  前端仍呼叫這兩個 API（`frontside/src/components/LedgerTypeConfig.svelte:62`、`AssetTypeConfig.svelte:116`），也沒有任何地方改送上述事件，因此設定頁的更新一定失敗。目前只有啟動時的種子事件（`internal/bootstrap/event_seed.go`）會寫入這兩種設定。
+  以上依程式碼與 git 紀錄推導，尚未實際操作確認。
+- **影響範圍**：
+  帳戶管理頁的帳戶類型科目設定、投資頁的資產類型科目設定無法修改。這些設定決定分錄使用的科目（計畫書 B 類資料）。
+- **解決方向**：
+  後端重新提供這兩個 `PUT` API，改為組成對應事件後經 `EventStoreService.Append` 寫入，沿用 `fixed_asset_category.go` 等既有專屬 API 的做法；前端不需修改。屬於 bug fix，依 `AGENTS.md` 以小幅修改另行實作與 review，與計畫書 S3 的決定無關；計畫書 R2 再把這兩種事件改走 BFS。修正前需確認前端送出的欄位（`account_id`；資產類型的各科目欄位）與事件 payload 一致。
+
+---
+
+### [ISSUE-027] 科目、帳戶與投資修改的畫面版本檢查沒有作用
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-21
+- **嚴重程度**：Medium
+- **位置**：`internal/database/queries/account.sql:89`、`:110`、`:128`；`internal/database/queries/investment.sql:100`；`internal/services/projection/account.go:135`、`:163`；`internal/services/projection/investment.go:91`
+- **描述**：
+  `account.updated`、`ledger_account.updated`、`investment.updated` 的 payload 帶有前端畫面上的資料版本 `version`（`frontside/src/views/Accounts.svelte:145`、`Ledger.svelte:211`、`Investment.svelte:573`），但後端沒有一處真正檢查它，pipeline 也沒有比對：
+  1. `account.updated`：projection 呼叫 `UpsertAccount`（`account.sql:128`），衝突時直接以 `version = excluded.version` 覆寫，沒有版本條件。依過期畫面送出的修改會覆蓋較新的資料，且版本被寫回畫面上的舊值，不會遞增。
+  2. `ledger_account.updated`、`investment.updated`：`UPDATE ... WHERE ... AND version = ?`（`account.sql:110`、`investment.sql:100`）是 `:exec`，projection repository 也沒有檢查影響筆數。版本不符時更新 0 筆，但事件照樣寫入、API 回應成功，畫面上的修改沒有生效，使用者也不會收到錯誤。
+
+  以上依程式碼推導，尚未實際操作確認。
+- **影響範圍**：
+  科目、實體帳戶與投資的修改。多個分頁或多人同時修改時，會發生覆蓋或修改無聲消失；`event_store` 留下內容沒有反映到讀模型的事件。
+- **解決方向**：
+  在寫入事件前於同一交易內比對 payload 的 `version` 與目前資料的版本，不符時回傳版本衝突、不寫入事件；projection 更新時遞增版本，並在影響 0 筆時回傳錯誤。屬於 bug fix，依 `AGENTS.md` 以小幅修改另行實作與 review（計畫書 F6），需在計畫書 R2（科目、帳戶）與 R9（投資）之前完成，遷移時保留修正後的行為。修正後，原本會被無聲忽略或覆蓋的過期修改會改為回傳錯誤，需確認前端的錯誤提示。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open
