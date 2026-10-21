@@ -44,7 +44,7 @@
 
 **BFS Engine 遷移與事件重建**
 
-計畫書：`doc/plan/BFS_ENGINE_MIGRATION.md`（2026-10-19 review 通過，待完成 Phase 0 決策）。修正類與重構類分開進行、分開 review。
+計畫書：`doc/plan/BFS_ENGINE_MIGRATION.md`（2026-10-19 review 通過；2026-10-21 Phase 0 完成，決策見 ADR-023～027，進度見 `doc/STEP.md`）。修正類與重構類分開進行、分開 review。
 2026-10-19 決定：目前系統沒有需要保留的資料，舊 replay 不再修正（ISSUE-021、022 改為 Wontfix），由計畫書 R3 的新重建機制取代。
 
 - [x] [Fix] BFS 現金流分類修改無法運作 — 計畫書 F1，完成日期：2026-10-19，關聯：ISSUE-020
@@ -52,7 +52,7 @@
 - [x] [Fix] BFS safety middleware 的狀態由所有請求共用，並行請求可能讓後端程式終止 — 計畫書 F4，完成日期：2026-10-21，關聯：ISSUE-025
 - [ ] [Fix] 前端更新帳戶類型與資產類型設定時，呼叫已移除的 API — 計畫書 F5（建議在 R2 之前完成），關聯：ISSUE-026
 - [ ] [Fix] 科目、帳戶與投資修改的畫面版本檢查沒有作用 — 計畫書 F6（需在 R2、R9 之前完成），關聯：ISSUE-027
-- [ ] [Refactor] 重大交易全面改走 BFS engine，並建立只跑 projector 的事件重建機制；新重建機制（R3）的驗收條件需涵蓋 ISSUE-021、ISSUE-022 的要求 — 計畫書 R0～R10（待決：A1～A7、S3）
+- [ ] [Refactor] 重大交易全面改走 BFS engine，並建立只跑 projector 的事件重建機制；新重建機制（R3）的驗收條件需涵蓋 ISSUE-021、ISSUE-022 的要求 — 計畫書 R0～R10，關聯：ADR-023～027
 
 **Replay 穩定性**
 
@@ -149,6 +149,10 @@
 **測試規範一致性**
 
 - [ ] [Test] `internal/services/**` 既有測試使用 Ginkgo，與 ADR-019／`doc/TESTING.md`（Services 層用標準 Go testing、table-driven）不一致：`services/journal_entry_suite_test.go`（含同 suite 的 `journal_entry_test.go`、`category_test.go`）、`services/pipelines/factory/asset_*_test.go`、`services/projection/asset_*_test.go`（2026-10-21 於 F3 review 時發現；F3 新增的 `bank_statement_review_test.go` 已改用標準 testing）。需先決定改寫既有測試或修訂規範，再以獨立修改處理
+
+**寫入版本檢查（BFS 遷移後）**
+
+- [ ] [Feature] 經 `POST /api/event/append` 的寫入改帶畫面版本，或改為專屬 API — 目前前端在送出前才以 `getAggregateVersion` 取得最新版本，只擋得下「取得版本到送出」之間的並行寫入；BFS 遷移期間採「交易內」版本策略的事件連這段衝突也不再偵測（ADR-027 規則第 4 點）。做法：讀取 API 回傳版本、前端保存後送回，或改為各功能的專屬 API；同時移除共用 aggregate 已無作用的 `getAggregateVersion` 呼叫。屬於跨端新需求，在計畫書 R10 之後另行規劃，關聯：ADR-027 規則第 8 點、前端 ADR-013
 
 **銀行對帳單（Bank Statement Reconciliation）**
 
