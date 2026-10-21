@@ -3,9 +3,9 @@ package engine
 import (
 	"testing"
 
-	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/kernel/event"
+	"akatengu/internal/shared/utils/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,7 +22,8 @@ func TestBFSEngineSuite(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	enums.InitEnums()
+	// Shared with the test DB helpers, which also initialize enums (bfs_engine_tx_test.go).
+	test.InitEnums()
 	typeA = event_types.EventTransactionCreated.Enum()
 	typeB = event_types.EventTransactionCorrected.Enum()
 })

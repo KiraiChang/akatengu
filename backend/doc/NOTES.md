@@ -28,13 +28,15 @@
 
 ### 2026-10-19 [DEBUG] BFS handler 測試與低記憶體環境的驗證要點
 
-1. **in-memory SQLite 要固定單一連線**：`:memory:` 的每條新連線都是空 DB，測試需 `db.SetMaxOpenConns(1)`。目前 BFS 流程中 handler 的查詢在交易外、projector 在交易內，所以單一連線不會卡住；計畫書 R1 讓 handler 改在交易內查詢後，必須改用 R0 的交易內查詢，否則單一連線會等不到被交易占用的連線而死鎖。
+1. **in-memory SQLite 要固定單一連線**：`:memory:` 的每條新連線都是空 DB，測試需 `db.SetMaxOpenConns(1)`。R1 起整棵事件圖在一個交易內執行，handler 必須使用 `Run` 傳入的交易內查詢（`DbTransaction.Query`），若改用全域 DB 會等不到被交易占用的連線而卡住；`internal/runtime/engine/bfs_engine_tx_test.go` 的「查詢根事件」情境以 1 秒逾時攔下這種回歸。
 2. **BFS 的 handler 測試要另外經過正式 `NewMux`**：自行組裝 engine（參考 `internal/handler/entry_cf_category_test.go` 的 `newCFTestEngine`）適合測各種情境，但攔不到 `NewMux` 漏註冊 handler 或 projector 的回歸。每個 BFS 功能至少保留一個經正式 `NewMux` 的成功情境；token 以 `GenerateTokenWithMerchant` 產生，並寫入 `users`、`merchants`、`user_merchants`，才能通過 Jwt 與 MerchantAuth middleware。
 3. **2 GB 記憶體主機以 Docker 驗證**：使用預建的 sqlc binary（從 `sqlc/sqlc` image 取出），並設定 `GOFLAGS=-p=1`、`GOGC=20`。`go test` 附帶的 vet 分析 `modernc.org/sqlite/lib` 時會被 OOM kill，使整體 exit 1，需另以 `go test -vet=off ./...` 確認測試結果。
 4. **Ginkgo 詳細輸出**要同時加 `-v` 與 `-ginkgo.v`，只加 `-ginkgo.v` 不會印出各情境。
 5. **可重現的競態測試**：同時啟動兩個 goroutine，在單一連線的 in-memory DB 下多半只會依序執行。改用 stub 替換 `query.Repo` 的公開欄位（例如 `Event`），在第一次查詢時先讓對手完成整個流程再回傳空結果，就能強制本次走衝突與恢復路徑；參考 `internal/services/bank_statement_review_test.go` 的 `raceEventRepo`。
 6. **確認測試真的攔得住問題**：在容器內的副本用 `sed` 移除關鍵程式（例如 projector 註冊、恢復路徑），預期對應情境失敗。改動後的程式必須仍能編譯；直接改條件可能留下未使用的變數而 build 失敗，改成在條件後加 `|| true` 較安全。
 7. **`gofmt -l` 一律回傳 exit 0**，需要檢查輸出是否為空。另外全專案目前有 52 個 Go 檔未通過 `gofmt`（見 `TODO.md`），檢查時要區分既有問題與本次修改。修改到其中的檔案時，對該檔執行 `gofmt`（2026-10-21 R0 review 決定）：其中有些是 CRLF 檔案（例如 `internal/repos/query/base.go`），保留 CRLF 時新增的每一行都會被 `git diff --check` 報為 trailing whitespace。review 時可用 `git diff -w --ignore-cr-at-eol` 只看實際修改。主機沒有 Go 時，以 `docker run --rm --user "$(id -u):$(id -g)" -v "$PWD":/q -w /q golang:1.26 gofmt -w <檔案>` 執行，避免檔案變成 root 擁有。
+8. **測試不可重複呼叫 `enums.InitEnums()`**：重複註冊會 panic，而 `test.NewTestDB`／`NewTestDBGinkgo` 內部已以 `sync.Once` 初始化。suite 需要在開 DB 前先用 enum 時，改呼叫 `test.InitEnums()`（共用同一個 `sync.Once`，R1 段 2 新增）。
+9. **依賴 sqlite 的測試套件無法以 `-race` 編譯**：`-race` 要重新編譯 `modernc.org/sqlite/lib`，在 900 MB 的容器上限內會被 OOM kill（`signal: killed`）。R1 段 2 起 `runtime/engine` 的測試接了 DB，`-race` 改在容器副本移除 `bfs_engine_tx_test.go`、`bfs_engine_tx_scenarios_test.go`，並把 suite 的 `test.InitEnums()` 換回 `enums.InitEnums()` 後執行；並行相關的 F4 情境不需要 DB，仍在 `-race` 範圍內。可用 `go list -deps -test <pkg> | grep -c 'modernc.org/sqlite$'` 確認已不依賴 sqlite。
 
 ### [DEBUG] 2026-06-02 Category 寫入 API：EventUuid 作為 CategoryUUID 的設計要點
 

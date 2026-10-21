@@ -99,3 +99,37 @@ var executorScenarios = []executorScenario{
 		wantUUIDs: []string{"C", "D", "E"},
 	},
 }
+
+// executorRepoScenarios check that the Repo given to the Executor reaches every
+// handler unchanged, so a signature change cannot silently drop it.
+type executorRepoScenario struct {
+	given, when, then string
+	dispatch          func(e *Executor, repo *query.Repo) error
+	wantCalls         int
+}
+
+var executorRepoScenarios = []executorRepoScenario{
+	{
+		given: "一個 typeA event",
+		when:  "Dispatch 帶非 nil 的 Repo",
+		then:  "handler 收到同一個 Repo",
+		dispatch: func(e *Executor, repo *query.Repo) error {
+			_, err := e.Dispatch(context.Background(), repo, makeTestEvent(typeA))
+			return err
+		},
+		wantCalls: 1,
+	},
+	{
+		given: "batch [A, B]，兩個都是 typeA",
+		when:  "ExecuteBatch 帶非 nil 的 Repo",
+		then:  "兩個 handler 都收到同一個 Repo",
+		dispatch: func(e *Executor, repo *query.Repo) error {
+			_, err := e.ExecuteBatch(context.Background(), repo, []event.Event{
+				{Uuid: "A", EventType: typeA},
+				{Uuid: "B", EventType: typeA},
+			})
+			return err
+		},
+		wantCalls: 2,
+	},
+}

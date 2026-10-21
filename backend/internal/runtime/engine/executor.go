@@ -3,6 +3,7 @@ package engine
 import (
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/kernel/result"
+	"akatengu/internal/repos/query"
 	"akatengu/internal/runtime/mediator"
 	"context"
 	"sync"
@@ -16,10 +17,10 @@ func NewExecutor(m *mediator.Mediator) *Executor {
 	return &Executor{m}
 }
 
-// Dispatch dispatches a single event and returns the handler's EventResult.
-// Used by BFSEngine as the terminal EventProcessor.
-func (e *Executor) Dispatch(ctx context.Context, evt event.Event) (result.EventResult, error) {
-	return e.mediator.Dispatch(ctx, evt)
+// Dispatch dispatches a single event with repo and returns the handler's
+// EventResult. Used by BFSEngine as the terminal EventProcessor.
+func (e *Executor) Dispatch(ctx context.Context, repo *query.Repo, evt event.Event) (result.EventResult, error) {
+	return e.mediator.Dispatch(ctx, repo, evt)
 }
 
 // ExecuteBatch dispatches all events in the batch concurrently and returns their
@@ -33,7 +34,11 @@ func (e *Executor) Dispatch(ctx context.Context, evt event.Event) (result.EventR
 // Error handling: all goroutines always run to completion (wg.Wait). The first
 // error encountered by index order is returned; remaining errors are discarded.
 // Context cancellation is forwarded to each Dispatch call for cooperative abort.
-func (e *Executor) ExecuteBatch(ctx context.Context, batch []event.Event) ([]event.Event, error) {
+//
+// ExecuteBatch is not on BFSEngine.Run's path: Run dispatches one event at a
+// time inside its transaction. Its handlers run concurrently, so repo must not
+// be the transaction-bound Repo of a Run.
+func (e *Executor) ExecuteBatch(ctx context.Context, repo *query.Repo, batch []event.Event) ([]event.Event, error) {
 	type slot struct {
 		children []event.Event
 		err      error
@@ -46,7 +51,7 @@ func (e *Executor) ExecuteBatch(ctx context.Context, batch []event.Event) ([]eve
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			r, err := e.mediator.Dispatch(ctx, evt)
+			r, err := e.mediator.Dispatch(ctx, repo, evt)
 			slots[i] = slot{r.Events, err}
 		}()
 	}

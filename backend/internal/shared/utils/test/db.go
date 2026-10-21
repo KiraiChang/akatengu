@@ -17,6 +17,13 @@ import (
 
 var initEnumsOnce sync.Once
 
+// InitEnums registers the enum types once per test binary. A suite that needs
+// enums before it opens a test DB calls this instead of enums.InitEnums, which
+// panics when called twice (the test DB helpers also initialize them).
+func InitEnums() {
+	initEnumsOnce.Do(enums.InitEnums)
+}
+
 // NewTestDB opens an in-memory SQLite DB, runs all migrations, and seeds accounts.
 // The DB is closed automatically when the test ends.
 func NewTestDB(t *testing.T) *sqlx.DB {

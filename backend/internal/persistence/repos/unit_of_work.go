@@ -3,6 +3,7 @@ package repos
 import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/persistence/repos/projection"
+	"akatengu/internal/repos/query"
 	"context"
 	"fmt"
 
@@ -35,6 +36,7 @@ func (u *sqlxUnitOfWork) Do(ctx context.Context, fn func(*DbTransaction) error) 
 		Snap:       &sqlcdbTxSnapshot{q: q},
 		Check:      &sqlcdbTxCheckpoint{q: q},
 		Projection: projection.NewProjection(q),
+		Query:      query.NewQueryRepositoryTx(tx),
 	}
 
 	if err := fn(repos); err != nil {

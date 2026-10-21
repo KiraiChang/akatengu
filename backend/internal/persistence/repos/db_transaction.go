@@ -5,6 +5,7 @@ import (
 	"akatengu/internal/model/db"
 	"akatengu/internal/persistence/repos/projection"
 	"akatengu/internal/pkg/ctxkey"
+	"akatengu/internal/repos/query"
 	"context"
 )
 
@@ -13,6 +14,9 @@ type DbTransaction struct {
 	Check      Checkpoint
 	Snap       Snapshot
 	Projection projection.Projection
+	// Query reads inside this transaction for the handlers of a Run; its
+	// write methods return query.ErrTxBoundWrite.
+	Query *query.Repo
 }
 
 type Checkpoint interface {

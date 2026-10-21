@@ -52,7 +52,7 @@ func newCFTestDB(existingVersion int64, txnUUID string) *sqlx.DB {
 
 // newCFTestEngine wires the BFS engine the same way as NewMux.
 func newCFTestEngine(db *sqlx.DB) *engine.BFSEngine {
-	m := mediator.NewMediator().WithQuery(db)
+	m := mediator.NewMediator()
 	process.Registry(m)
 
 	projector := handle.NewRegistry()

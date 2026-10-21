@@ -91,6 +91,7 @@
 - **所有涉及會計帳務的寫入操作**（分錄記錄、資產變動、預付費用攤提、折舊、處分等），**必須透過 `EventStoreService.Append` 寫入**，並由 UnitOfWork 的樂觀鎖（`VersionRepository.UpdateIfVersionMatch`）保護一致性。禁止在 Repository 層或 Service 層直接對會計相關資料表執行 INSERT / UPDATE / DELETE；所有異動一律走事件溯源鏈路（Handler → EventStoreService → Pipeline → UnitOfWork → Projection）。**查詢操作**則透過 `query.Repo`（唯讀層）執行，不受樂觀鎖約束，可由 API 直接呼叫。例外以 ADR 明載者為限，目前只有 ADR-021：銀行對帳單比對狀態（`bank_statement_txns.match_status`）透過 `UnitOfWork.Do` 直接 UPDATE、不建立事件；批准（ApproveTxn）產生的 `transaction.created` 仍走完整事件溯源鏈路。
 - **BFS 遷移過渡規則**（ADR-023、ADR-027；適用到計畫書 `doc/plan/BFS_ENGINE_MIGRATION.md` 的 R10 為止）：
   - 已遷移到 BFS 的事件類型（以 ADR-027 的事件註冊表為準；R1 建立註冊表前只有 `transaction.cf_category_updated`），寫入一律經 `BFSEngine.Run`（Handler → BFSEngine → mediator handler → `persistence` UnitOfWork → projector），由 BFS Store 的樂觀鎖保護，不得再經 `EventStoreService.Append` 寫入。
+  - BFS 的寫入規則（R1 起，ADR-023 A1、A2）：`BFSEngine.Run` 以一個交易執行整棵事件圖，任一事件的 handler、middleware、寫入或 projector 失敗，整次 `Run` 回復。mediator handler 只能使用 `Run` 傳入的交易內查詢（`query.NewQueryRepositoryTx`，寫入方法回傳 `query.ErrTxBoundWrite`），寫入一律以子事件表達；projector 也只能使用交易，不得改用全域 DB（單一連線下會卡住）。子事件以 `event.NewNextEvent`（沿用父事件的 aggregate）或 `event.NewDerivedEvent`（衍生新的 aggregate，以 `Store.Create` 新建）建立；`MerchantID`、`UpdatedBy`、追蹤欄位與版本由 engine 配置，handler 不自行設定。
   - 尚未遷移的事件類型，維持上一點的舊鏈路。
   - 同一種事件類型只能有一條寫入路徑；BFS 執行失敗時直接回傳錯誤，不得改走舊路徑。
   - ADR-021 由 ADR-026 分階段取代：R6 完成後，比對與忽略改依 ADR-026 以事件寫入；核准在 R7 完成前仍依 ADR-021 與 F3 的做法，R7 完成後也改依 ADR-026。

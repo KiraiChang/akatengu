@@ -3,6 +3,7 @@ package event
 import (
 	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
+	"akatengu/internal/pkg/uuidx"
 	"fmt"
 	"time"
 
@@ -38,6 +39,19 @@ type Payload interface {
 	EventType() event_types.EventType
 }
 
+// ChildAggregate tells BFSEngine which aggregate a child event belongs to
+// (ADR-023 A2, ADR-024). It has no meaning for a root event.
+type ChildAggregate int
+
+const (
+	// ChildAggregateParent continues the parent's aggregate. It is the zero
+	// value, so a child built without a constructor defaults to it.
+	ChildAggregateParent ChildAggregate = iota
+	// ChildAggregateDerived creates a new aggregate derived from the parent
+	// event (NewDerivedEvent); it fails if the aggregate already exists.
+	ChildAggregateDerived
+)
+
 // Event 事件的封套
 type Event struct {
 	Uuid            string                `json:"uuid"`
@@ -51,6 +65,7 @@ type Event struct {
 	MerchantID      int64                 `json:"merchant_id"`
 	ExpectedVersion int64                 `json:"expected_version"`
 	Id              int64                 `json:"id"`
+	ChildAggregate  ChildAggregate        `json:"-"`
 }
 
 // EventParams 建立完整 Event 所需的外部輸入；Timestamp 自動填入，空值欄位套用預設值
@@ -130,6 +145,8 @@ func NewFullEvent[T Payload](aggID AggregateID, payload T, params EventParams) E
 	}
 }
 
+// NewNextEvent creates a child event in the parent's aggregate. BFSEngine
+// fills the envelope fields inherited from the parent and its version.
 func NewNextEvent[T Payload](parent Event, payload T) Event {
 	return Event{
 		Uuid:          NewUUIDv7(),
@@ -152,4 +169,16 @@ func NewNextEvent[T Payload](parent Event, payload T) Event {
 			},
 		},
 	}
+}
+
+// NewDerivedEvent creates a child event in a new aggregate of aggType. The
+// aggregate ID is derived from the parent event's UUID and purpose, so a
+// rebuild reproduces it (ADR-024 rule 2). BFSEngine creates the aggregate and
+// fails if it already exists.
+func NewDerivedEvent[T Payload](parent Event, aggType enums.AggregateType, purpose string, payload T) Event {
+	evt := NewNextEvent(parent, payload)
+	evt.AggregateType = aggType
+	evt.AggregateUuid = uuidx.NewFromEvent(parent.Uuid, purpose)
+	evt.ChildAggregate = ChildAggregateDerived
+	return evt
 }

@@ -21,6 +21,10 @@ const (
 	ErrCheckPointError   EventErrorCode = "RUNTIME_CHECKPOINT_ERROR"
 )
 
+// ErrChildEnvelopeInvalid: a child event's aggregate cannot be accepted by
+// BFSEngine (ADR-023 A2).
+const ErrChildEnvelopeInvalid EventErrorCode = "RUNTIME_CHILD_ENVELOPE_INVALID"
+
 // ========== BUSINESS LAYER ==========
 const (
 	ErrBusinessRuleFailed EventErrorCode = "BUSINESS_RULE_FAILED"

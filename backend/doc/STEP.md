@@ -76,7 +76,9 @@
 | 段 | 說明 | 狀態 |
 |----|------|------|
 | 1 | 移除 projector 的 `state` 參數（計畫書第 3 節） | ✅ done（2026-10-21） |
-| 2 | 事件圖交易邊界、Run-local 交易內查詢、子事件封套與版本（A1、A2，計畫書第 4 節） | ⬜ pending |
+| 2 | 事件圖交易邊界、Run-local 交易內查詢、子事件封套與版本（A1、A2，計畫書第 4 節） | ✅ done（2026-10-21） |
+
+段 2 驗證（2026-10-21，Docker `golang:1.26`）：`go generate ./...`、`go build ./...` 通過，修改與新增的檔案 `gofmt -l` 無輸出；`go vet` 只回報既有的 `db_transaction.go` 未具名欄位（HEAD 已存在，記入 `TODO.md`）；`runtime/engine` 42 個 spec、`kernel/event` 測試全數通過；`go test -vet=off ./...` 全數通過。`-race`：接 DB 後 sqlite 無法在記憶體上限內以 `-race` 編譯，改在容器副本移除兩個接 DB 的測試檔後執行 `./internal/runtime/...`，通過（`doc/NOTES.md` 測試第 9 點）。反向檢查（計畫書 4.4）：每事件各自提交 → 9～12 與 7a、7b、8、16 失敗；移除 ctx 檢查 → 13a；全域 Repo → 14；移除版本紀錄 → 2～4、6；衍生改用 Append → 7a；移除封套覆寫 → 15。計畫外的修改：`shared/utils/test/db.go` 新增 `InitEnums()`、engine suite 改呼叫它，避免與測試 DB 重複初始化 enum 而 panic（`doc/NOTES.md` 測試第 8 點）。
 | 3 | 事件註冊表（計畫書第 5 節） | ⬜ pending |
 
 ## 最終驗證結果

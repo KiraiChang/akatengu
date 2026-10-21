@@ -846,8 +846,8 @@
 
   1. **根事件**：使用並驗證呼叫端提供的 `ExpectedVersion`（例如 `handler/entry_cf_category.go:91`）。engine 不得以最新版本取代，否則過期的請求會被接受，樂觀鎖失去意義。經 `POST /api/event/append` 進入的例外見 S3 規則第 4 點。
   2. **同一次 `Run` 已寫入過的 aggregate**：使用前一次 append 回傳的版本。
-  3. **新衍生的 aggregate**：以版本 0 建立；版本紀錄已存在時視為衝突，不得當成更新。
-  4. **第一次碰到的其他既有 aggregate**：可以在交易內讀取目前版本，handler 的業務驗證也必須依據交易內的狀態；命令若帶有版本前提，仍須檢查該版本，不得以最新版本取代。
+  3. **新衍生的 aggregate**：以版本 0 建立；版本紀錄已存在時視為衝突，不得當成更新。R1 以 `Store.Create` 實作：在交易內確認版本紀錄不存在後才新增，已存在時（含版本 0 的紀錄）回傳 `ErrVersionConflict`。`ExpectedVersion` 為 0 的 `Store.Append` 會把版本 0 的紀錄更新成 1，不能用於新建。
+  4. **第一次碰到的其他既有 aggregate**：可以在交易內讀取目前版本，handler 的業務驗證也必須依據交易內的狀態；命令若帶有版本前提，仍須檢查該版本，不得以最新版本取代。R1 不實作，延到第一個需要寫入其他既有 aggregate 的 Phase（`doc/plan/BFS_R1_ENGINE_FOUNDATION.md` 的 D1）；在那之前，engine 拒絕 aggregate 與父事件不同、又不是以 `NewDerivedEvent` 建立的子事件（`ErrChildEnvelopeInvalid`）。
   5. 版本追蹤以 `(MerchantID, AggregateType, AggregateID)` 為 key。
   6. 根事件以外的 `ExpectedVersion` 由 engine 依第 2～4 點配置，handler 不自行設定。
 

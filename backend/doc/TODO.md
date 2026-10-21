@@ -145,6 +145,7 @@
 
 **程式碼格式**
 
+- [ ] [DX] `internal/persistence/repos/db_transaction.go` 的 `sqlcdb.UpsertCheckpointParams` 以未具名欄位建立，`go vet ./internal/persistence/repos/` 回報 composites（`struct literal uses unkeyed fields`）。2026-10-21 於 R1 段 2 驗證時發現，HEAD 已存在，非 R1 引入；以具名欄位改寫即可，另以小幅修改處理
 - [ ] [DX] 全專案 52 個已追蹤的 Go 檔案未通過 `gofmt`（2026-10-19 於 F3 驗證時發現，例如 `internal/services/bank_statement_review.go` 的 struct 欄位未對齊）。建議以只調整格式的獨立 commit 執行 `gofmt -w`，不混入功能修改，方便 review
 
 **測試規範一致性**

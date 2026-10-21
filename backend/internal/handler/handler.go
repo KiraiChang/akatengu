@@ -22,7 +22,7 @@ import (
 
 func NewMux(db *sqlx.DB, cfg bootstrap.Config, logger *zap.Logger) *http.ServeMux {
 	// 1. Mediator
-	m := mediator.NewMediator().WithQuery(db)
+	m := mediator.NewMediator()
 
 	process.Registry(m)
 
