@@ -666,6 +666,23 @@
 
 ---
 
+### [ISSUE-028] 通用寫入 API 仍可經舊路徑寫入已遷移到 BFS 的現金流分類事件
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-21
+- **嚴重程度**：Medium
+- **位置**：`internal/handler/event.go:100`、`internal/services/pipelines/factory/base.go:57`、`internal/services/projection/entry_cf_category.go:147`
+- **描述**：
+  `transaction.cf_category_updated` 已在 F1 改走 BFS（`PUT /api/txn/{txn_uuid}/cf-category`），但舊 pipeline 仍登錄這個事件類型，舊 projection 也會處理它。因此 `POST /api/event/append` 送出這個事件時，會經 `EventStoreService.Append` 以舊路徑寫入，違反 BFS 遷移過渡規則「同一種事件類型只能有一條寫入路徑」。
+  通用 API 接受呼叫端指定的 `aggregate_type`、`aggregate_id`，所以同一筆交易的分類修改可以寫到交易 UUID 以外的 aggregate，避開專屬 API 以交易 UUID 為 aggregate 的版本檢查。
+  前端只經專屬 API 寫入，目前沒有實際的呼叫；以上依程式碼推導，尚未實際操作確認。R1 計畫書 review 時發現（`doc/plan/BFS_R1_ENGINE_FOUNDATION.md` 的 D2）。
+- **影響範圍**：
+  現金流分類（`entry_cf_categories`）的寫入與版本檢查。之後每遷移一種事件類型都會有相同的問題，R2 建立依註冊表的派送之前，需要逐一處理。
+- **解決方向**：
+  另開小型 bug fix（計畫書 F7），不併入 R1 的重構：在舊入口拒絕寫入已遷移到 BFS 的事件類型（目前只有 `transaction.cf_category_updated`），回傳錯誤、不寫入事件；專屬 API 不受影響。舊 pipeline 的登錄暫不移除，因為舊 replay（`services/event.go:192`，Wontfix，R10 移除）仍以它重播既有的事件。F7 的計畫另行確認。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open
