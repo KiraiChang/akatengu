@@ -173,7 +173,7 @@
 
 | Phase | 內容 | 預期的行為變更 | 驗收條件 | 狀態 |
 |---|---|---|---|---|
-| R0 | 交易內查詢：讓 `query.Repo` 可綁定 `sqlx.Tx`。目前 `query.NewQueryRepository` 只接受 `*sqlx.DB`，account、investment、report 等 repo 也直接使用它（`repos/query/base.go:37`） | 無 | 既有測試全數通過；新增在交易內查詢的測試 | ⬜ pending |
+| R0 | 交易內查詢：讓 `query.Repo` 可綁定 `sqlx.Tx`。目前 `query.NewQueryRepository` 只接受 `*sqlx.DB`，account、investment、report 等 repo 也直接使用它（`repos/query/base.go:37`）。細節見 `doc/plan/BFS_PREREQ_F5_F6_R0.md` 第 4 節 | 無 | 既有測試全數通過；新增在交易內查詢的測試 | ✅ done（2026-10-21：`NewQueryRepositoryTx`，綁定的 Repo 只供讀取） |
 | R1 | engine 基礎：事件圖交易邊界、子事件封套與版本規則、handler 改用 R0 的交易內查詢、移除 projector 的 `state` 參數；建立事件註冊表（ADR-027 規則第 1 點），先登錄既有的 `transaction.cf_category_updated` | 事件圖的提交方式依 A1 改變 | engine 測試涵蓋子事件失敗回復、同 aggregate 連續版本、跨 aggregate 子事件；從 `event_store` 讀出的 JSON 經註冊表解碼後，projector 可以套用 | ⬜ pending |
 | R2 | 主檔與設定（B 類），含 `BootstrapEventSeeds` 改走 BFS；以及期間開帳 `period.month_started`、`period.annual_started` | 依 A7 調整 aggregate 的類型與 ID（例如期間改用專屬類型）；payload 不變；`POST /api/event/append` 依 ADR-027 規則改派 | 啟動時的種子事件與開帳事件經 BFS 寫入且封套欄位完整；主檔、設定與期間 API 回應不變；`POST /api/event/append` 的派送：已遷移的事件走 BFS、未遷移的事件走舊路徑，BFS 失敗時回傳錯誤、不改走舊路徑，前端送出的 aggregate 不符合明列的舊映射時拒絕；版本策略與業務版本檢查依 ADR-027 規則第 4、5 點；既有測試全數通過 | ⬜ pending |
 | R3 | BFS 重建機制：只跑 projector，以 R1 的事件註冊表解碼 payload；各 projector 以 `Reset()` 宣告清空範圍；依 A4 可回復；重建 `aggregate_versions` 與 checkpoint。承接 ISSUE-021、022 的要求。`POST /api/audit/replay` 維持舊機制，到 R10 才切換 | 無（新機制先以 engine 方法與測試提供，尚不對外） | 以 R2 的事件通過第 8 節的 canonical 比較；重建中途失敗時資料回到重建前的狀態；清空範圍涵蓋所有 BFS projector 的資料表；重建商戶 A 後，商戶 B 的資料與範圍外的全域資料不變（A4） | ⬜ pending |

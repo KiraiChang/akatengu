@@ -236,6 +236,8 @@ Pipeline 負責驗證領域規則，確認後事件才落地。每個 EventType 
 
 **唯讀**查詢層，用於交易外的狀態查詢，例如 Pipeline 的狀態讀取與報表查詢。
 
+需要在交易內查詢時（R1 起的 BFS handler），以 `query.NewQueryRepositoryTx(tx)` 綁定 `*sqlx.Tx`：SQLite 只有一條連線，交易進行中無法再用一般的 Repo 查詢。綁定的 Repo 只在交易有效期間可用；Config、Merchant、User、Template 的寫入方法一律回傳 `query.ErrTxBoundWrite`。在這 4 個 repo 新增寫入方法時，必須同步加入 `internal/repos/query/tx.go` 的包裝型別與 `tx_test.go` 的清單。
+
 ---
 
 ### 設定（Configuration）
