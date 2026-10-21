@@ -48,7 +48,7 @@
 2026-10-19 決定：目前系統沒有需要保留的資料，舊 replay 不再修正（ISSUE-021、022 改為 Wontfix），由計畫書 R3 的新重建機制取代。
 
 - [x] [Fix] BFS 現金流分類修改無法運作 — 計畫書 F1，完成日期：2026-10-19，關聯：ISSUE-020
-- [ ] [Fix] 銀行對帳核准必定失敗並留下未關聯的交易，重按會產生重複會計交易（冪等止血） — 計畫書 F3（S4 已確定採 a），關聯：ISSUE-023
+- [x] [Fix] 銀行對帳核准必定失敗並留下未關聯的交易，重按會產生重複會計交易（冪等止血） — 計畫書 F3（S4 已確定採 a），完成日期：2026-10-19，關聯：ISSUE-023（原子化待 R7）
 - [ ] [Refactor] 重大交易全面改走 BFS engine，並建立只跑 projector 的事件重建機制；新重建機制（R3）的驗收條件需涵蓋 ISSUE-021、ISSUE-022 的要求 — 計畫書 R0～R10（待決：A1～A5、S3）
 
 **Replay 穩定性**
@@ -138,6 +138,14 @@
 ### 低優先（P3）
 
 > Nice-to-have，不影響現有功能，有空再做。
+
+**程式碼格式**
+
+- [ ] [DX] 全專案 52 個已追蹤的 Go 檔案未通過 `gofmt`（2026-10-19 於 F3 驗證時發現，例如 `internal/services/bank_statement_review.go` 的 struct 欄位未對齊）。建議以只調整格式的獨立 commit 執行 `gofmt -w`，不混入功能修改，方便 review
+
+**測試規範一致性**
+
+- [ ] [Test] `internal/services/**` 既有測試使用 Ginkgo，與 ADR-019／`doc/TESTING.md`（Services 層用標準 Go testing、table-driven）不一致：`services/journal_entry_suite_test.go`（含同 suite 的 `journal_entry_test.go`、`category_test.go`）、`services/pipelines/factory/asset_*_test.go`、`services/projection/asset_*_test.go`（2026-10-21 於 F3 review 時發現；F3 新增的 `bank_statement_review_test.go` 已改用標準 testing）。需先決定改寫既有測試或修訂規範，再以獨立修改處理
 
 **銀行對帳單（Bank Statement Reconciliation）**
 

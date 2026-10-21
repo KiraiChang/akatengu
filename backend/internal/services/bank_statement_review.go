@@ -4,15 +4,16 @@ import (
 	"akatengu/internal/database/sqlcdb"
 	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
+	"akatengu/internal/model/db"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
+	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
 	"context"
 	"encoding/json"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -165,25 +166,36 @@ func (s *bankStatementReviewService) ApproveTxn(ctx context.Context, req Approve
 		return fmt.Errorf("marshal transaction payload: %w", err)
 	}
 
-	txnAggID, err := uuid.NewV7()
+	// The aggregate ID is derived from the bank txn, so a retry or a concurrent
+	// approval targets the same aggregate instead of creating a second transaction.
+	txnAggID := uuidx.NewFromEvent(txn.BankTxnUUID, "bank_approve")
+
+	createdEvt, err := s.findTxnCreatedEvent(ctx, txnAggID)
 	if err != nil {
-		return fmt.Errorf("generate transaction uuid: %w", err)
+		return err
+	}
+	if createdEvt == nil {
+		createdEvt, err = s.es.Append(ctx, cmd.AppendCmd{
+			AggregateType:   enums.AggregateTransaction.Enum(),
+			AggregateID:     txnAggID,
+			ExpectedVersion: 0,
+			EventType:       event_types.EventTransactionCreated.Enum(),
+			Payload:         b,
+		})
+		if err != nil {
+			// A version conflict surfaces as a unique constraint error, so reuse the
+			// event only when a concurrent approval has actually created it.
+			existing, findErr := s.findTxnCreatedEvent(ctx, txnAggID)
+			if findErr != nil || existing == nil {
+				return fmt.Errorf("create transaction: %w", err)
+			}
+			createdEvt = existing
+		}
 	}
 
-	// Append transaction.created event
-	_, err = s.es.Append(ctx, cmd.AppendCmd{
-		AggregateType:   enums.AggregateTransaction.Enum(),
-		AggregateID:     txnAggID.String(),
-		ExpectedVersion: 0,
-		EventType:       event_types.EventTransactionCreated.Enum(),
-		Payload:         b,
-	})
-	if err != nil {
-		return fmt.Errorf("create transaction: %w", err)
-	}
-
-	// Lookup the created transaction by its aggregate UUID (txnAggID == txn_uuid in transactions table)
-	createdTxn, err := s.q.Transaction.GetByUUID(ctx, txnAggID.String())
+	// The transaction projection derives txn_uuid from the event UUID
+	// (uuidx.NewFromEvent(eventUUID, "txn:") in services/projection/transaction.go).
+	createdTxn, err := s.q.Transaction.GetByUUID(ctx, uuidx.NewFromEvent(createdEvt.EventUuid, "txn:"))
 	if err != nil {
 		return fmt.Errorf("get created transaction: %w", err)
 	}
@@ -200,6 +212,20 @@ func (s *bankStatementReviewService) ApproveTxn(ctx context.Context, req Approve
 			CreatedTxnID: &createdTxnID,
 		})
 	})
+}
+
+// findTxnCreatedEvent returns the transaction.created event of the aggregate, or nil if none exists.
+func (s *bankStatementReviewService) findTxnCreatedEvent(ctx context.Context, aggregateID string) (*db.EventStore, error) {
+	events, err := s.q.Event.GetByAggregate(ctx, enums.AggregateTransaction.Enum(), aggregateID)
+	if err != nil {
+		return nil, fmt.Errorf("get transaction events: %w", err)
+	}
+	for i := range events {
+		if events[i].EventType.Is(event_types.EventTransactionCreated) {
+			return &events[i], nil
+		}
+	}
+	return nil, nil
 }
 
 func (s *bankStatementReviewService) IgnoreTxn(ctx context.Context, bankTxnID int64) error {

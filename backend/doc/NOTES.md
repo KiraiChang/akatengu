@@ -25,6 +25,9 @@
 2. **BFS 的 handler 測試要另外經過正式 `NewMux`**：自行組裝 engine（參考 `internal/handler/entry_cf_category_test.go` 的 `newCFTestEngine`）適合測各種情境，但攔不到 `NewMux` 漏註冊 handler 或 projector 的回歸。每個 BFS 功能至少保留一個經正式 `NewMux` 的成功情境；token 以 `GenerateTokenWithMerchant` 產生，並寫入 `users`、`merchants`、`user_merchants`，才能通過 Jwt 與 MerchantAuth middleware。
 3. **2 GB 記憶體主機以 Docker 驗證**：使用預建的 sqlc binary（從 `sqlc/sqlc` image 取出），並設定 `GOFLAGS=-p=1`、`GOGC=20`。`go test` 附帶的 vet 分析 `modernc.org/sqlite/lib` 時會被 OOM kill，使整體 exit 1，需另以 `go test -vet=off ./...` 確認測試結果。
 4. **Ginkgo 詳細輸出**要同時加 `-v` 與 `-ginkgo.v`，只加 `-ginkgo.v` 不會印出各情境。
+5. **可重現的競態測試**：同時啟動兩個 goroutine，在單一連線的 in-memory DB 下多半只會依序執行。改用 stub 替換 `query.Repo` 的公開欄位（例如 `Event`），在第一次查詢時先讓對手完成整個流程再回傳空結果，就能強制本次走衝突與恢復路徑；參考 `internal/services/bank_statement_review_test.go` 的 `raceEventRepo`。
+6. **確認測試真的攔得住問題**：在容器內的副本用 `sed` 移除關鍵程式（例如 projector 註冊、恢復路徑），預期對應情境失敗。改動後的程式必須仍能編譯；直接改條件可能留下未使用的變數而 build 失敗，改成在條件後加 `|| true` 較安全。
+7. **`gofmt -l` 一律回傳 exit 0**，需要檢查輸出是否為空。另外全專案目前有 52 個 Go 檔未通過 `gofmt`（見 `TODO.md`），檢查時要區分既有問題與本次修改。
 
 ### [DEBUG] 2026-06-02 Category 寫入 API：EventUuid 作為 CategoryUUID 的設計要點
 

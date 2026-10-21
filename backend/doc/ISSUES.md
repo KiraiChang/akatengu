@@ -530,7 +530,7 @@
 
 ### [ISSUE-023] 銀行對帳核准必定失敗並留下未關聯的交易，重按會產生重複交易
 
-- **狀態**：🔴 Open
+- **狀態**：🟡 In Progress（F3 止血完成；原子化待計畫書 R7）
 - **日期**：2026-10-19
 - **嚴重程度**：High
 - **位置**：`internal/services/bank_statement_review.go:168`、`:174`、`:186`、`:195`；`internal/services/projection/transaction.go:265`
@@ -548,6 +548,14 @@
   3. 重試或並行時，先以 `query.Event.GetByAggregate` 找既有的 `transaction.created` 事件，存在就只補寫關聯，不再 append。
   原子化在重構類 R7 完成。
   目前的 BFS engine 每個事件各自一個交易，`EventStoreService.Append` 也無法在外部交易內執行，兩者都不能以小幅修改直接達成原子化。見 `doc/plan/BFS_ENGINE_MIGRATION.md`。
+- **解決紀錄**：
+  2026-10-19 完成 F3 冪等止血（`internal/services/bank_statement_review.go`）：
+  1. 交易 aggregate ID 改為 `uuidx.NewFromEvent(銀行明細 UUID, "bank_approve")`。
+  2. 建立前以 `query.Event.GetByAggregate` 查既有的 `transaction.created`，有就沿用；沒有才 `Append`。`Append` 失敗後一律重查，查到才走補關聯，查不到就回傳原本的錯誤。
+  3. 交易 UUID 改以事件 UUID 依 `"txn:"` 規則推導，修正必定查不到交易的問題。
+
+  測試 `internal/services/bank_statement_review_test.go` 5 個情境全數通過：首次核准、已核准再按、回寫失敗後重試、並行（以 stub 強制雙方都先查到沒有事件，本次 `Append` 衝突後走恢復路徑）、`Append` 失敗且查不到事件。在容器副本停用恢復路徑時，並行情境會失敗，確認測試確實經過恢復路徑。
+  仍待處理：寫入交易與回寫關聯仍分屬兩個交易，回寫失敗時會暫時留下未關聯的交易（重試可補上）；原子化在計畫書 R7 完成後才關閉本 issue。
 
 ---
 
