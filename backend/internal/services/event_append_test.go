@@ -20,7 +20,7 @@ const (
 	migratedTxnUUID      = "0192f3f2-0000-7000-8000-000000000001"
 	migratedDebitEntry   = "0192f3f2-0000-7000-8000-000000000011"
 	migratedCreditEntry  = "0192f3f2-0000-7000-8000-000000000012"
-	migratedNewAccountID = "1101-92" // written by account.created
+	migratedNewAccountID = "1101-92" // sent with account.created
 )
 
 func newMigratedTestDB(t *testing.T) *sqlx.DB {
@@ -108,9 +108,15 @@ func TestAppend_MigratedEventType(t *testing.T) {
 			wantErr: services.ErrEventTypeMigrated,
 		},
 		{
-			name: "對照：未遷移的事件照常寫入",
+			name: "R2 段 2 起已遷移的 account.created",
 			cmd: cmd.AppendCmd{AggregateType: enums.AggregateAccount.Enum(), AggregateID: migratedNewAccountID,
 				EventType: event_types.EventAccountCreated.Enum(), Payload: accountPayload},
+			wantErr: services.ErrEventTypeMigrated,
+		},
+		{
+			name: "對照：未遷移的事件照常寫入",
+			cmd: cmd.AppendCmd{AggregateType: enums.AggregateTransaction.Enum(), AggregateID: "",
+				EventType: event_types.EventInvestmentCreated.Enum(), Payload: mustMarshal(t, versionInvestmentCreate("F7 對照投資"))},
 		},
 		{
 			name: "已遷移的事件搭配舊 pipeline 會拒絕的 payload",

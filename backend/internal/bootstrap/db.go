@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"akatengu/internal/application/command"
 	"akatengu/internal/database"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/repos/unit_of_work/event_store"
@@ -56,7 +57,8 @@ func InitDB(cfg DBConfig, logger *zap.Logger) (*sqlx.DB, error) {
 	uow := event_store.NewUnitOfWork(sqlxdb)
 	queryRepo := query.NewQueryRepository(sqlxdb)
 	es := services.NewEventStoreService(uow, queryRepo)
-	if err := BootstrapEventSeeds(ctx, sqlxdb, es, logger); err != nil {
+	w := command.NewWriter(sqlxdb, command.NewEngine(sqlxdb))
+	if err := BootstrapEventSeeds(ctx, sqlxdb, es, w, logger); err != nil {
 		return nil, fmt.Errorf("event seed: %w", err)
 	}
 

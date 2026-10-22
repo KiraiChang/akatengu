@@ -1,8 +1,12 @@
 package services_test
 
 import (
+	"akatengu/internal/application/command"
+	domainevent "akatengu/internal/domain/event"
 	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
+	kerrors "akatengu/internal/kernel/errors"
+	kevent "akatengu/internal/kernel/event"
 	dbmodel "akatengu/internal/model/db"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
@@ -31,19 +35,26 @@ const (
 
 const versionMissingLedgerID int64 = 999
 
+// versionConflictText matches a conflict by the F6 message: BFS returns a
+// kerrors.EventError, which does not unwrap, and keeps the message (BFS R2 D9).
+var versionConflictText = projection_repo.ErrVersionConflict.Error()
+
 // ─────────────────────────────────────────
 // Fixture
 // ─────────────────────────────────────────
 
 // versionFixture is a migrated DB with two accounts, one ledger account and one
-// investment, all written through EventStoreService.Append.
+// investment, written the way POST /api/event/append writes them: through BFS
+// for the event types migrated to it, otherwise EventStoreService.Append.
 type versionFixture struct {
-	t              *testing.T
-	db             *sqlx.DB
-	svc            *services.EventStoreService
-	versions       query.AggerateRepo
-	ledgerID       int64
-	investmentUUID string
+	t               *testing.T
+	db              *sqlx.DB
+	svc             *services.EventStoreService
+	writer          *command.Writer
+	versions        query.AggerateRepo
+	ledgerID        int64
+	ledgerEventUUID string // the ledger account's creation event
+	investmentUUID  string
 }
 
 func newVersionFixture(t *testing.T) *versionFixture {
@@ -51,12 +62,14 @@ func newVersionFixture(t *testing.T) *versionFixture {
 	db := test.NewTestDB(t)
 	// Every new connection to ":memory:" is an empty database; keep a single one.
 	db.SetMaxOpenConns(1)
-	f := &versionFixture{t: t, db: db, svc: newSvc(db), versions: query.NewAggerateRepo(db)}
+	f := &versionFixture{t: t, db: db, svc: newSvc(db), writer: command.NewWriter(db, command.NewEngine(db)),
+		versions: query.NewAggerateRepo(db)}
 
 	f.mustAppend(enums.AggregateAccount.Enum(), versionCreatedAccountID, event_types.EventAccountCreated.Enum(),
 		versionAccountCreate(versionCreatedAccountID, "版本測試科目"))
-	// Same envelope as the bootstrap seed event (bootstrap/event_seed.go).
-	f.mustAppend(enums.AggregateAccount.Enum(), "1", event_types.EventAccountBulkImported.Enum(),
+	// The generic API does not accept the bulk import; write it as the bootstrap
+	// seed does (bootstrap/event_seed.go).
+	f.mustSeed(event_types.EventAccountBulkImported.Enum(),
 		payload.AccountBulkImportedPayload{Accounts: []payload.AccountCreatePayload{
 			versionAccountCreate(versionImportedAccountID, "版本測試匯入科目"),
 		}})
@@ -70,6 +83,7 @@ func newVersionFixture(t *testing.T) *versionFixture {
 			IsActive:    true,
 			Type:        enums.LedgerAccountTypeBankAccount.Enum(),
 		})
+	f.ledgerEventUUID = evt.EventUuid
 	err := db.Get(&f.ledgerID, `SELECT ledger_id FROM ledger_accounts WHERE ledger_uuid = ? AND merchant_id = ?`,
 		evt.EventUuid, testMID)
 	if err != nil {
@@ -84,20 +98,50 @@ func newVersionFixture(t *testing.T) *versionFixture {
 }
 
 // append reads the aggregate's current version right before appending, as the
-// frontend does with getAggregateVersion.
+// frontend does with getAggregateVersion, and dispatches the request as
+// POST /api/event/append does (handler/event.go).
 func (f *versionFixture) append(aggType enums.AggregateType, aggID string, et event_types.EventType, p any) (*dbmodel.EventStore, error) {
 	f.t.Helper()
 	raw, err := json.Marshal(p)
 	if err != nil {
 		f.t.Fatalf("marshal payload: %v", err)
 	}
-	return f.svc.Append(testCtx(), cmd.AppendCmd{
+	req := cmd.AppendCmd{
 		AggregateType:   aggType,
 		AggregateID:     aggID,
 		ExpectedVersion: f.aggVersion(aggType, aggID),
 		EventType:       et,
 		Payload:         raw,
-	})
+	}
+	result, handled, err := f.writer.DispatchLegacy(testCtx(), req, kevent.EventParams{Source: "api"})
+	if !handled {
+		return f.svc.Append(testCtx(), req)
+	}
+	return result, err
+}
+
+// mustSeed writes p through BFS at version 0, as bootstrap/event_seed.go does.
+func (f *versionFixture) mustSeed(et event_types.EventType, p any) {
+	f.t.Helper()
+	raw, err := json.Marshal(p)
+	if err != nil {
+		f.t.Fatalf("marshal payload: %v", err)
+	}
+	decoded, err := domainevent.Decode(et, raw)
+	if err != nil {
+		f.t.Fatalf("decode %s: %v", et, err)
+	}
+	pl, ok := decoded.(kevent.Payload)
+	if !ok {
+		f.t.Fatalf("decoded %T is not an event payload", decoded)
+	}
+	evt, err := command.Build(testCtx(), pl, 0, kevent.EventParams{Source: "seed"})
+	if err != nil {
+		f.t.Fatalf("Build %s: %v", et, err)
+	}
+	if _, err := f.writer.Append(testCtx(), evt); err != nil {
+		f.t.Fatalf("Append %s: %v", et, err)
+	}
 }
 
 func (f *versionFixture) mustAppend(aggType enums.AggregateType, aggID string, et event_types.EventType, p any) *dbmodel.EventStore {
@@ -306,17 +350,19 @@ func TestAccountUpdatedVersion(t *testing.T) {
 			accountID: versionCreatedAccountID,
 			steps: []step{
 				{version: 1, name: "修改後名稱"},
-				{version: 1, name: "過期畫面的名稱", wantErr: projection_repo.ErrVersionConflict},
+				{version: 1, name: "過期畫面的名稱", wantErrText: versionConflictText},
 			},
 			wantName:    "修改後名稱",
 			wantVersion: 2,
 		},
 		{
+			// account.created only creates its aggregate (BFS R2 section 3), so the
+			// existing aggregate is a conflict before the unique key is reached.
 			name:      "已在 version 2 時以同一個編號重複新增",
 			accountID: versionCreatedAccountID,
 			steps: []step{
 				{version: 1, name: "修改後名稱"},
-				{create: true, name: "重複新增的名稱", wantErrText: "UNIQUE constraint failed"},
+				{create: true, name: "重複新增的名稱", wantErrText: string(kerrors.ErrVersionConflict)},
 			},
 			wantName:    "修改後名稱",
 			wantVersion: 2,
@@ -326,8 +372,8 @@ func TestAccountUpdatedVersion(t *testing.T) {
 			accountID: versionCreatedAccountID,
 			steps: []step{
 				{version: 1, name: "修改後名稱"},
-				{create: true, name: "重複新增的名稱", wantErrText: "UNIQUE constraint failed"},
-				{version: 1, name: "過期畫面的名稱", wantErr: projection_repo.ErrVersionConflict},
+				{create: true, name: "重複新增的名稱", wantErrText: string(kerrors.ErrVersionConflict)},
+				{version: 1, name: "過期畫面的名稱", wantErrText: versionConflictText},
 			},
 			wantName:    "修改後名稱",
 			wantVersion: 2,
@@ -336,7 +382,7 @@ func TestAccountUpdatedVersion(t *testing.T) {
 			name:      "修改不存在的科目",
 			accountID: versionMissingAccountID,
 			steps: []step{
-				{version: 1, name: "不存在的科目", wantErr: projection_repo.ErrVersionConflict},
+				{version: 1, name: "不存在的科目", wantErrText: versionConflictText},
 			},
 		},
 	}
@@ -359,9 +405,9 @@ func TestAccountUpdatedVersion(t *testing.T) {
 
 func TestLedgerAccountUpdatedVersion(t *testing.T) {
 	type step struct {
-		version int64
-		name    string
-		wantErr error
+		version     int64
+		name        string
+		wantErrText string
 	}
 	cases := []struct {
 		name        string
@@ -380,7 +426,7 @@ func TestLedgerAccountUpdatedVersion(t *testing.T) {
 			name: "已在 version 2 時以過期的 version 1 修改",
 			steps: []step{
 				{version: 1, name: "修改後帳戶"},
-				{version: 1, name: "過期畫面的帳戶", wantErr: projection_repo.ErrVersionConflict},
+				{version: 1, name: "過期畫面的帳戶", wantErrText: versionConflictText},
 			},
 			wantName:    "修改後帳戶",
 			wantVersion: 2,
@@ -388,7 +434,7 @@ func TestLedgerAccountUpdatedVersion(t *testing.T) {
 		{
 			name:        "修改不存在的 ledger_id",
 			missing:     true,
-			steps:       []step{{version: 1, name: "不存在的帳戶", wantErr: projection_repo.ErrVersionConflict}},
+			steps:       []step{{version: 1, name: "不存在的帳戶", wantErrText: versionConflictText}},
 			wantName:    "版本測試帳戶",
 			wantVersion: 1,
 		},
@@ -404,10 +450,58 @@ func TestLedgerAccountUpdatedVersion(t *testing.T) {
 				before := f.ledgerSnapshot(ledgerID)
 				_, err := f.append(enums.AggregateAccount.Enum(), versionLedgerAccountID,
 					event_types.EventLedgerAccountUpdated.Enum(), versionLedgerUpdate(ledgerID, s.name, s.version))
-				expectStep(t, err, s.wantErr, "", before, f.ledgerSnapshot(ledgerID))
+				expectStep(t, err, nil, s.wantErrText, before, f.ledgerSnapshot(ledgerID))
 			}
 			expectRow(t, f.ledgerSnapshot(f.ledgerID), tc.wantName, tc.wantVersion)
 		})
+	}
+}
+
+// TestLedgerAccountEvents_AccountAggregate: a ledger account's events are in
+// its account's aggregate (BFS R2 D7), and its ledger_uuid is the UUID of its
+// creation event, as the legacy projection derives it (D12).
+func TestLedgerAccountEvents_AccountAggregate(t *testing.T) {
+	f := newVersionFixture(t)
+	if _, err := f.append(enums.AggregateAccount.Enum(), versionLedgerAccountID,
+		event_types.EventLedgerAccountUpdated.Enum(), versionLedgerUpdate(f.ledgerID, "修改後帳戶", 1)); err != nil {
+		t.Fatalf("update ledger account: %v", err)
+	}
+
+	type eventRow struct {
+		EventUuid     string `db:"event_uuid"`
+		EventType     string `db:"event_type"`
+		AggregateType string `db:"aggregate_type"`
+		AggregateID   string `db:"aggregate_id"`
+		Version       int64  `db:"aggregate_version"`
+	}
+	var got []eventRow
+	if err := f.db.Select(&got, `SELECT event_uuid, event_type, aggregate_type, aggregate_id, aggregate_version
+		FROM event_store WHERE event_type LIKE 'ledger_account.%' AND merchant_id = ? ORDER BY event_id`, testMID); err != nil {
+		t.Fatalf("read events: %v", err)
+	}
+	want := []eventRow{
+		{EventUuid: f.ledgerEventUUID, EventType: "ledger_account.created", AggregateType: "ACCOUNT", AggregateID: versionLedgerAccountID, Version: 1},
+		{EventType: "ledger_account.updated", AggregateType: "ACCOUNT", AggregateID: versionLedgerAccountID, Version: 2},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("events = %+v, want %d", got, len(want))
+	}
+	for i := range want {
+		if i > 0 {
+			want[i].EventUuid = got[i].EventUuid
+		}
+		if got[i] != want[i] {
+			t.Errorf("event %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+
+	var ledgerUUID string
+	if err := f.db.Get(&ledgerUUID, `SELECT ledger_uuid FROM ledger_accounts WHERE ledger_id = ? AND merchant_id = ?`,
+		f.ledgerID, testMID); err != nil {
+		t.Fatalf("read ledger account: %v", err)
+	}
+	if ledgerUUID != f.ledgerEventUUID {
+		t.Errorf("ledger_uuid = %s, want the creation event %s", ledgerUUID, f.ledgerEventUUID)
 	}
 }
 

@@ -251,8 +251,8 @@ func TestWriter_DispatchLegacy(t *testing.T) {
 	}{
 		{
 			name: "未登錄的事件類型交回舊路徑",
-			req: cmd.AppendCmd{AggregateType: enums.AggregateAccount.Enum(), AggregateID: "1101-92",
-				EventType: event_types.EventAccountCreated.Enum(), Payload: json.RawMessage(`{"account_id":"1101-92"}`)},
+			req: cmd.AppendCmd{AggregateType: enums.AggregateTransaction.Enum(), AggregateID: "",
+				EventType: event_types.EventInvestmentCreated.Enum(), Payload: json.RawMessage(`{"account_id":"1203-02"}`)},
 		},
 		{
 			name: "已登錄、沒有舊映射的 cf 被拒絕",

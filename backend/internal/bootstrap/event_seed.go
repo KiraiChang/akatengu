@@ -1,8 +1,11 @@
 package bootstrap
 
 import (
+	"akatengu/internal/application/command"
+	domainevent "akatengu/internal/domain/event"
 	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
+	kevent "akatengu/internal/kernel/event"
 	"akatengu/internal/model/payload"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/pkg/ctxkey"
@@ -18,17 +21,18 @@ import (
 
 const (
 	seedMerchantID  = int64(1)
-	seedAggregateID = "1"
+	seedAggregateID = domainevent.MerchantAggregateID
 )
 
 // BootstrapEventSeeds 確保 merchant 1 的 seed 資料有對應的事件記錄，
 // 使全量 replay 能從事件重建所有 projection 表，不依賴 SQL seed 直接寫入。
 // 各 aggregate 獨立檢查：已有事件時跳過（冪等），僅在事件不存在時才建立。
-func BootstrapEventSeeds(ctx context.Context, db *sqlx.DB, es *services.EventStoreService, logger *zap.Logger) error {
+// 已遷移到 BFS 的事件類型經 w 寫入，其餘經 es（BFS R2 D11）。
+func BootstrapEventSeeds(ctx context.Context, db *sqlx.DB, es *services.EventStoreService, w *command.Writer, logger *zap.Logger) error {
 	ctx = context.WithValue(ctx, ctxkey.MerchantID, seedMerchantID)
 	eventRepo := query.NewEventRepo(db)
 
-	if err := bootstrapAccounts(ctx, db, es, eventRepo, logger); err != nil {
+	if err := bootstrapAccounts(ctx, db, w, eventRepo, logger); err != nil {
 		return fmt.Errorf("event seed accounts: %w", err)
 	}
 	if err := bootstrapSysAccounts(ctx, db, es, eventRepo, logger); err != nil {
@@ -43,7 +47,7 @@ func BootstrapEventSeeds(ctx context.Context, db *sqlx.DB, es *services.EventSto
 }
 
 // bootstrapAccounts 若 ACCOUNT aggregate 尚無事件，以當前 accounts 表建立一筆 AccountBulkImported 事件。
-func bootstrapAccounts(ctx context.Context, db *sqlx.DB, es *services.EventStoreService, eventRepo query.EventRepo, logger *zap.Logger) error {
+func bootstrapAccounts(ctx context.Context, db *sqlx.DB, w *command.Writer, eventRepo query.EventRepo, logger *zap.Logger) error {
 	aggType := enums.AggregateAccount.Enum()
 	events, err := eventRepo.GetByAggregate(ctx, aggType, seedAggregateID)
 	if err != nil {
@@ -76,7 +80,7 @@ func bootstrapAccounts(ctx context.Context, db *sqlx.DB, es *services.EventStore
 		return nil
 	}
 
-	accounts := make([]payload.AccountCreatePayload, len(rows))
+	accounts := make([]domainevent.AccountCreatePayload, len(rows))
 	for i, r := range rows {
 		accountType, err := enums.ParseAccountType(r.Type)
 		if err != nil {
@@ -94,7 +98,7 @@ func bootstrapAccounts(ctx context.Context, db *sqlx.DB, es *services.EventStore
 			}
 			cashFlowCat = &cat
 		}
-		accounts[i] = payload.AccountCreatePayload{
+		accounts[i] = domainevent.AccountCreatePayload{
 			AccountId:        r.AccountId,
 			ParentId:         r.ParentId,
 			Name:             r.Name,
@@ -108,17 +112,13 @@ func bootstrapAccounts(ctx context.Context, db *sqlx.DB, es *services.EventStore
 		}
 	}
 
-	b, err := json.Marshal(payload.AccountBulkImportedPayload{Accounts: accounts})
+	// The registry derives ('ACCOUNT', seedAggregateID); the aggregate has no
+	// event yet, so version 0 is expected.
+	evt, err := command.Build(ctx, domainevent.AccountBulkImportedPayload{Accounts: accounts}, 0, kevent.EventParams{Source: "seed"})
 	if err != nil {
-		return err
+		return fmt.Errorf("build account.bulk_imported: %w", err)
 	}
-	if _, err := es.Append(ctx, cmd.AppendCmd{
-		AggregateType:   aggType,
-		AggregateID:     seedAggregateID,
-		ExpectedVersion: 0,
-		EventType:       event_types.EventAccountBulkImported.Enum(),
-		Payload:         b,
-	}); err != nil {
+	if _, err := w.Append(ctx, evt); err != nil {
 		return fmt.Errorf("append account.bulk_imported: %w", err)
 	}
 	logger.Info("event seed: AccountBulkImported created", zap.Int("count", len(accounts)))

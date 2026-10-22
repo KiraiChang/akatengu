@@ -47,6 +47,11 @@ func expectEventAppendResult(db *sqlx.DB, rec *httptest.ResponseRecorder, s even
 	var n int
 	Expect(db.Get(&n, `SELECT COUNT(*) FROM event_store WHERE event_type = ?`, s.wantEventType)).To(Succeed())
 	Expect(n).To(Equal(s.wantEvents))
+	if s.wantBFS {
+		Expect(db.Get(&n, `SELECT COUNT(*) FROM event_store WHERE event_type = ?
+			AND json_extract(metadata, '$.execution.source') = 'api'`, s.wantEventType)).To(Succeed())
+		Expect(n).To(Equal(s.wantEvents), "events written without BFS execution metadata")
+	}
 
 	Expect(db.Get(&n, `SELECT COUNT(*) FROM entry_cf_categories WHERE entry_uuid = ? AND merchant_id = ?`,
 		cfTestDebitEntryUUID, cfTestMerchantID)).To(Succeed())

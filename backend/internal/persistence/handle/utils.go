@@ -5,6 +5,13 @@ import (
 	"fmt"
 )
 
+func coalesce(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	return s
+}
+
 func toUpdatedBy(s string) *string {
 	if s == "" {
 		return nil

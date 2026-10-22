@@ -59,6 +59,18 @@ func Specs() []Spec {
 		newSpec(func(_ kevent.Event, p TransactionCFCategoryUpdatedPayload) (enums.AggregateType, string) {
 			return enums.AggregateTransaction.Enum(), p.TxnUUID
 		}, VersionValidate, nil),
+
+		// A ledger account is in its account's aggregate: ledger_account.updated
+		// names it by the integer ledger_id, so no aggregate of its own can be
+		// derived (BFS R2 D7).
+		newSpecWithLegacy(enums.AggregateAccount.Enum(), func(p AccountCreatePayload) string { return p.AccountId }, VersionNew),
+		newSpecWithLegacy(enums.AggregateAccount.Enum(), func(p AccountUpdatedPayload) string { return p.AccountId }, VersionValidate),
+		newSpecWithLegacy(enums.AggregateAccount.Enum(), func(p LedgerAccountCreatePayload) string { return p.AccountId }, VersionValidate),
+		newSpecWithLegacy(enums.AggregateAccount.Enum(), func(p LedgerAccountUpdatedPayload) string { return p.AccountId }, VersionValidate),
+		// Only the seed writes the bulk import (bootstrap/event_seed.go).
+		newSpec(func(_ kevent.Event, _ AccountBulkImportedPayload) (enums.AggregateType, string) {
+			return enums.AggregateAccount.Enum(), MerchantAggregateID
+		}, VersionValidate, nil),
 	}
 }
 
@@ -119,4 +131,23 @@ func newSpec[T kevent.Payload](aggregate func(kevent.Event, T) (enums.AggregateT
 		Version: version,
 		Legacy:  legacy,
 	}
+}
+
+// newSpecWithLegacy builds a Spec whose legacy aggregate is the derived one:
+// POST /api/event/append must send (aggType, id(payload)). Both use the same id,
+// so they cannot disagree.
+func newSpecWithLegacy[T kevent.Payload](aggType enums.AggregateType, id func(T) string, version VersionPolicy) Spec {
+	var zero T
+	return newSpec(func(_ kevent.Event, p T) (enums.AggregateType, string) {
+		return aggType, id(p)
+	}, version, &LegacyAggregate{
+		AggregateType: aggType,
+		AggregateID: func(payload any) (string, error) {
+			p, ok := payload.(T)
+			if !ok {
+				return "", fmt.Errorf("payload %T is not %T", payload, zero)
+			}
+			return id(p), nil
+		},
+	})
 }

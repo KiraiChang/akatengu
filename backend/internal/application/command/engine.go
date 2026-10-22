@@ -22,6 +22,7 @@ func NewEngine(db *sqlx.DB) *engine.BFSEngine {
 
 	projector := handle.NewRegistry()
 	projector.Register(handle.NewCashFlowCategoryProjector(db))
+	projector.Register(handle.NewAccountProjector(db))
 
 	return engine.NewBFSEngine(engine.NewExecutor(m)).
 		WithMiddleware(safety.BackpressureScheduler(3), safety.DepthGuard(10), safety.CycleDetector()).

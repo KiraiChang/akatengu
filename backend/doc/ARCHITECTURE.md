@@ -1000,7 +1000,11 @@
 
   **規則**
 
-  1. **事件註冊表**（R1 建立）：每種遷移到 BFS 的事件類型，登錄 payload 型別、aggregate 的推導方式（A5、A7）、版本策略，以及經 `POST /api/event/append` 時接受的舊 aggregate 映射。R2 的 API 派送與 R3 的重建共用同一份註冊表。R1 實作於 `internal/domain/event/registry.go`（`Spec`、`Specs`、`Lookup`、`Decode`），只負責宣告、解碼與身分規則，只依賴 `enums`、`enums/event_types`、`kernel/event`、`kernel/errors` 與標準函式庫，不依賴 engine、mediator 與 persistence；目前只登錄 `transaction.cf_category_updated`（版本策略「驗證」，沒有舊 aggregate 映射）。R2 段 1 起，`Spec.Aggregate` 改為接收整個事件，不只 payload：多數事件類型仍只看 payload，類別建立事件的 aggregate 則是事件 UUID（計畫書 `doc/plan/BFS_R2_MASTER_DATA.md` 的 D2、D6）。
+  1. **事件註冊表**（R1 建立）：每種遷移到 BFS 的事件類型，登錄 payload 型別、aggregate 的推導方式（A5、A7）、版本策略，以及經 `POST /api/event/append` 時接受的舊 aggregate 映射。R2 的 API 派送與 R3 的重建共用同一份註冊表。R1 實作於 `internal/domain/event/registry.go`（`Spec`、`Specs`、`Lookup`、`Decode`），只負責宣告、解碼與身分規則，只依賴 `enums`、`enums/event_types`、`kernel/event`、`kernel/errors`、`shopspring/decimal`（明細帳戶的 `credit_limit`，R2 段 2 加入）與標準函式庫，不依賴 engine、mediator 與 persistence。R1 只登錄 `transaction.cf_category_updated`（版本策略「驗證」，沒有舊 aggregate 映射）。R2 段 1 起，`Spec.Aggregate` 改為接收整個事件，不只 payload：多數事件類型仍只看 payload，類別建立事件的 aggregate 則是事件 UUID（計畫書 `doc/plan/BFS_R2_MASTER_DATA.md` 的 D2、D6）。R2 段 2 登錄科目與明細帳戶的 5 種事件：
+     - `account.created`：`('ACCOUNT', account_id)`，版本策略「新建」。
+     - `account.updated`、`ledger_account.created`、`ledger_account.updated`：同一個 aggregate，版本策略「驗證」。明細帳戶屬於所屬科目的 aggregate（D7）。
+     - 以上 4 種的舊映射與推導相同，由 `newSpecWithLegacy` 共用同一個 ID 函式。
+     - `account.bulk_imported`：`('ACCOUNT', MerchantAggregateID)`（`"1"`，D8），版本策略「驗證」，沒有舊映射，只由種子寫入。
   2. **派送**（R2 建立）：`POST /api/event/append` 依註冊表把已遷移的事件類型改派到 BFS，其餘沿用舊路徑，直到 R10。BFS 執行失敗時直接回傳錯誤，不得改走舊路徑。舊路徑本身另有保護（F7，ISSUE-028）：`EventStoreService.Append` 收到註冊表中的事件類型時，在執行 pipeline 前回傳 `services.ErrEventTypeMigrated`；R2 建立派送前，經 `POST /api/event/append` 送出這些事件類型會得到 500 與 problem 格式（規則第 7 點）。
 
      R2 段 1 建立派送：`internal/handler/event.go` 的 `Append` 先經 `internal/application/command` 的 `Writer.DispatchLegacy`，處理方式如下：

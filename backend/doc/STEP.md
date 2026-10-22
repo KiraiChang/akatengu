@@ -107,14 +107,16 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
 
 ### R2 子階段
 
-計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1 修改的檔案超過 5 個，再分為 1a～1c，每個 phase 完成後執行 `go build ./...`，三個 phase 完成後一起 review、commit。
+計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1、段 2 修改的檔案超過 5 個，各自再分為三個 phase（1a～1c、2a～2c），每個 phase 完成後執行 `go build ./...`，同一段的三個 phase 完成後一起 review、commit。
 
 | 段 | 說明 | 狀態 |
 |----|------|------|
 | 1a | 註冊表的 `Spec.Aggregate` 改為接收事件（D2）；kernel 事件的 `RootVersion`、engine 依它寫入根事件、`Store.AppendCurrent`（D3）；測試情境 1～4 | ✅ done（2026-10-22） |
 | 1b | `query.Event.GetByUUID`；`application/command` 的 `NewEngine`、`Build`、`Append`、`DispatchLegacy`（D4）；測試情境 5、6 | ✅ done（2026-10-22） |
 | 1c | `NewMux` 改用 `command.NewEngine`；通用 API 先經 `DispatchLegacy`；測試情境 7（F7 的 handler 情境改為驗證新的拒絕訊息） | ✅ done（2026-10-22） |
-| 2 | 科目與明細帳戶 | ⬜ pending |
+| 2a | 科目與明細帳戶：`domain/event` 的 payload（D1）與 `MerchantAggregateID`（D8）、`process` 的 mediator handler（含 D9 的業務版本）；不登錄；測試情境 7（新舊 payload 的 JSON） | ✅ done（2026-10-22） |
+| 2b | 科目與明細帳戶：`persistence/repos/projection` 的寫入方法、`persistence/handle` 的科目 projector（D10）、`command.NewEngine` 註冊；不登錄 | ✅ done（2026-10-22） |
+| 2c | 科目與明細帳戶：註冊表登錄 5 種事件、種子的 `bootstrapAccounts` 改經 D4（D11）；既有測試的調整與測試情境 1～6 | ✅ done（2026-10-22） |
 | 3 | 系統科目與科目設定 | ⬜ pending |
 | 4 | 預付與固定資產類別（F8 已完成） | ⬜ pending |
 | 5 | 期間開帳（F9 已完成） | ⬜ pending |
@@ -134,6 +136,29 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
   - `kernel/errors/code.go` 新增 `ErrRootEnvelopeInvalid`，供未知的 `RootVersion` 使用。
   - `runtime/engine/bfs_engine_mocks_test.go` 的 `mockStore` 補上 `AppendCurrent`。
   - `registry_test.go` 補上「payload 為指標時拒絕」的檢查。
+
+段 2 驗證（2026-10-22，Docker `golang:1.26.9`）：
+- **建置與格式**：`go generate ./...`、`go build ./...` 通過（2a、2b、2c 各自執行）；`go vet`（`domain/event`、`process`、`persistence/handle`、`persistence/repos/projection`、`application/command`、`bootstrap`、`services`、`handler`）通過，`./internal/persistence/...` 只回報既有的 `db_transaction.go` 未具名欄位；修改與新增的 19 個 Go 檔 `gofmt -l` 無輸出；`git diff --check` 無輸出。
+- **測試**：
+  - 情境 7：`TestAccountPayloads_LegacyJSON` 的 5 種事件通過（新舊型別的 JSON 相同，且可互相解碼）。
+  - 情境 1～3：`TestDispatchLegacy_AccountCreated`，以及 `TestDispatchLegacy_AccountCreatedRejected` 的 4 個子測試（aggregate 已存在、種子科目撞唯一鍵、aggregate ID 不符、aggregate 類型不符）通過。
+  - 情境 4：F6 的科目與明細帳戶情境（9 個）與投資情境通過。
+  - 情境 5：`TestLedgerAccountEvents_AccountAggregate` 通過。
+  - 情境 6：`TestBootstrapEventSeeds_AccountsTwice` 通過。
+  - F7：`TestAppend_MigratedEventType` 的 5 個情境通過；handler 38 個 spec 通過，其中 `NewMux POST /api/event/append` 有 4 個。
+  - `go test -vet=off ./...` 全數通過。
+- **反向檢查**（計畫書段 2，在容器副本中修改）：
+  - handler 與 projector 都移除業務版本檢查 → 科目的過期版本、重複新增後過期版本、不存在的科目，以及明細帳戶的過期版本、不存在的 ledger_id，共 5 個情境失敗。
+  - 舊映射檢查改為一律通過 → 情境 3 的 2 個子測試與 handler 的不符情境失敗。
+  - 計畫外另加：
+    - `account.created` 的版本策略改為「驗證」→ 情境 2 與 F6 的 2 個重複新增情境失敗。
+    - 種子改回 `EventStoreService.Append` → 情境 6 失敗（F7 的 `ErrEventTypeMigrated`）。
+    - BFS payload 的一個 JSON tag 改名 → 情境 7 的 `ledger_account.created` 失敗。
+- **與計畫書的差異**：
+  - F6 的兩個「重複新增」步驟，預期錯誤由 `UNIQUE constraint failed` 改為 aggregate 版本衝突（計畫書第 5 節第 3 點）；唯一鍵改由情境 2b（種子科目）覆蓋。
+  - 科目與明細帳戶的衝突斷言改為比對 F6 的訊息文字：`kerrors.EventError` 沒有 `Unwrap`，`errors.Is` 無法穿透。BFS 端沿用 `projection_repo.ErrVersionConflict`，已記入 `TODO.md`。
+  - 段 1 的 `command_test.go`、F7 的 service 測試與 handler 情境，未登錄的對照改用 `investment.created`；F7 原本的 `account.created` 對照改為拒絕情境。
+  - D8 的 `MerchantAggregateID` 在本段建立，種子的 `seedAggregateID` 改為引用它；`handler/setting.go` 的 `configAggregateID` 留到段 3。
 
 ## 最終驗證結果
 

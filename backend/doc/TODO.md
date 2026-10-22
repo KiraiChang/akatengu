@@ -207,6 +207,7 @@
 
 - [ ] [Refactor] `Executor.ExecuteBatch`（`internal/runtime/engine/executor.go`）只有測試使用，以 goroutine 並行 dispatch，與 ADR-023 A1「整棵事件圖一個交易、依序處理」不一致。R1 只多一個 `repo` 參數，並在註解寫明不在 `Run` 的執行路徑上、不得共用 `Run` 的交易內 Repo；是否移除另行評估（`doc/plan/BFS_R1_ENGINE_FOUNDATION.md` 的 D3）
 - [ ] [Refactor] 現金流分類的專屬 handler（`internal/handler/entry_cf_category.go`）仍自行組根事件的封套，沒有改用 R2 段 1 的 `command.Build`。改用後的 aggregate、版本與封套欄位相同；若同時改用 `command.Writer.Append`，回應會從 kernel 事件變成 `event_store` 的紀錄，需先確認前端（`frontside/src/api/cfCategory.ts`）是否使用回應內容。R2 計畫未列入，另行評估（2026-10-22）
+- [ ] [Refactor] BFS 的科目與明細帳戶寫入沿用舊套件的 `projection_repo.ErrVersionConflict`：`internal/process/account.go` 與 `internal/persistence/repos/projection/account.go` 引用 `repos/unit_of_work/event_store/projection_repo`，以保持與 F6 相同的衝突訊息（R2 D9）。R10 移除舊路徑時，把這個 sentinel 移到 BFS 端（例如 `domain/event`），R8、R9 遷移投資等事件時也沿用同一個（2026-10-22）
 - [ ] [DX] `sqlc.yaml` nullable enum override 自動化 — 每新增一個 nullable enum 欄位都需手動宣告 override，考慮以 go:generate 腳本輔助生成（關聯：ADR-005）
 - [ ] [Perf] 股東權益變動表快照優化 — 目前 `queryEquityAccounts` 全表掃描 journal_entries，未使用 period_closings 快照。可參考 `queryBalanceSheetWithSnap` 的模式，在有快照時以快照基底 + delta 取代全量掃描（關聯：ADR-006）
 
