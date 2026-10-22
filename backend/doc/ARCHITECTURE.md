@@ -889,6 +889,11 @@
 
   依一致性邊界為每種業務資料定義專屬的 `AggregateType` 與 aggregate ID。aggregate 的範圍等於需要樂觀鎖保護的一致性邊界。預付、固定資產、分期、投資各以實體 UUID 為 aggregate；期間的開帳、結帳、重開彼此有順序依賴（例如年結要求各月都已結帳，`services/pipelines/factory/period.go:163`），維持每個商戶一個期間 aggregate，但改用專屬類型；匯率依 A6。各 Phase 的計畫列出新增的 `AggregateType`、aggregate ID 規則與 `chk_aggregate_type` 的 migration；期間在 R2 處理。
 
+  R2 段 5 實作：
+  - 新增 `AggregateType` `PERIOD`，aggregate ID 為 `domainevent.MerchantAggregateID`（`"1"`）。這是常數，不是商戶 ID，aggregate 的鍵已包含 `merchant_id`；與 `SYS_CONFIG`、`ACCOUNT_CONFIG` 的慣例相同（計畫書 `doc/plan/BFS_R2_MASTER_DATA.md` 的 D8）。
+  - migration `20261022004_period_aggregate_type.sql` 以同名重建 `event_store`、`aggregate_versions`，在 `chk_aggregate_type` 加入 `PERIOD`，並保存 `event_store` 的 AUTOINCREMENT 計數。
+  - R5 前只有開帳寫在 `PERIOD`；結帳與重開仍寫在 `('ACCOUNT', '')`，兩者沒有共用的樂觀鎖，由讀模型的狀態檢查與唯一鍵保護。
+
   **身分映射規則**（A2、A5、A7）
 
   區分「事件所屬的 aggregate」與「事件影響的交易」：
@@ -1020,6 +1025,11 @@
        - 已有紀錄但不同步的類別，讀模型的 version 改為紀錄的版本，與 F8 的 `20261022002` 相同。這是 F8 之後、段 4 之前，舊路徑以「送出版本 + 1」建立紀錄留下的不一致。
        - 沒有紀錄的類別（從未修改），依讀模型版本補上紀錄。
        - 只改讀模型，不調整 `aggregate_versions`，已存事件的 aggregate 版本不會倒退。
+
+     R2 段 5 登錄期間開帳的 2 種事件（D8）：
+     - `period.month_started`、`period.annual_started`：`('PERIOD', MerchantAggregateID)`，版本策略「交易內」。
+     - 舊映射為前端送出的 `('ACCOUNT', '')`；前端送來的版本指向該 aggregate，不使用。
+     - 同一期間只開立一次，由 `period_closings` 的 `(merchant_id, period_type, period_start)` 唯一鍵保護（F9）。
   2. **派送**（R2 建立）：`POST /api/event/append` 依註冊表把已遷移的事件類型改派到 BFS，其餘沿用舊路徑，直到 R10。BFS 執行失敗時直接回傳錯誤，不得改走舊路徑。舊路徑本身另有保護（F7，ISSUE-028）：`EventStoreService.Append` 收到註冊表中的事件類型時，在執行 pipeline 前回傳 `services.ErrEventTypeMigrated`；R2 建立派送前，經 `POST /api/event/append` 送出這些事件類型會得到 500 與 problem 格式（規則第 7 點）。
 
      R2 段 1 建立派送：`internal/handler/event.go` 的 `Append` 先經 `internal/application/command` 的 `Writer.DispatchLegacy`，處理方式如下：

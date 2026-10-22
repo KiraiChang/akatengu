@@ -25,6 +25,8 @@ type Projection interface {
 	InsertFixedAssetCategory(ctx context.Context, p sqlcdb.InsertFixedAssetCategoryParams) error
 	UpdateFixedAssetCategory(ctx context.Context, p sqlcdb.UpdateFixedAssetCategoryParams) error
 	SoftDeleteFixedAssetCategory(ctx context.Context, p sqlcdb.SoftDeleteFixedAssetCategoryParams) error
+
+	InsertPeriodClose(ctx context.Context, p dbprojection.PeriodClosing) error
 }
 
 type sqlxProjection struct {

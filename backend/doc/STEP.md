@@ -13,7 +13,7 @@
 | 0 | 決策：寫成 ADR-023～027 與前端 ADR-013（ADR-021 由 ADR-026 分階段取代）；`AGENTS.md`、`backend/CLAUDE.md` 加入 BFS 遷移過渡規則；建立 STEP.md | ✅ done（2026-10-21） |
 | R0 | 交易內查詢：讓 `query.Repo` 可綁定 `sqlx.Tx` | ✅ done（2026-10-21） |
 | R1 | engine 基礎：事件圖一個交易（A1）、子事件封套與版本規則（A2）、handler 改用 `Run` 建立的交易內查詢、移除 projector 的 `state` 參數、建立事件註冊表 | ✅ done（2026-10-21） |
-| R2 | 主檔與設定（含 `BootstrapEventSeeds`）、期間開帳改走 BFS；`POST /api/event/append` 依註冊表派送 | ⬜ pending |
+| R2 | 主檔與設定（含 `BootstrapEventSeeds`）、期間開帳改走 BFS；`POST /api/event/append` 依註冊表派送 | ✅ done（2026-10-22） |
 | R3 | BFS 重建機制：只跑 projector、以 `Reset()` 宣告清空範圍、單商戶原子重建（A4）；尚不對外 | ⬜ pending |
 | R4 | 傳票 `transaction.*` 與 `journal.posted` 子事件；每筆交易各自一個 aggregate（A5） | ⬜ pending |
 | R5 | 期間結帳與重開（月結、年結） | ⬜ pending |
@@ -107,7 +107,7 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
 
 ### R2 子階段
 
-計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1～4 修改的檔案超過 5 個，各自再分為三個 phase（1a～1c、2a～2c、3a～3c、4a～4c），每個 phase 完成後執行 `go build ./...`，同一段的三個 phase 完成後一起 review、commit。
+計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1～5 修改的檔案超過 5 個，各自再分為三個 phase（1a～1c、2a～2c、3a～3c、4a～4c、5a～5c），每個 phase 完成後執行 `go build ./...`，同一段的三個 phase 完成後一起 review、commit。
 
 | 段 | 說明 | 狀態 |
 |----|------|------|
@@ -123,7 +123,9 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
 | 4a | 預付與固定資產類別：`domain/event` 的 payload（D1）、`process` 的 mediator handler（payload 驗證；修改與刪除確認類別存在且啟用）；不登錄；新舊 payload 的 JSON 契約測試（情境 7） | ✅ done（2026-10-22） |
 | 4b | 預付與固定資產類別：`persistence/repos/projection` 的寫入方法、兩個類別 projector（D10，含 F8 的版本遞增）、`command.NewEngine` 註冊；不登錄 | ✅ done（2026-10-22） |
 | 4c | 預付與固定資產類別：註冊表登錄 6 種事件（D6）；兩個專屬 handler 改經 D4；migration 補上既有類別的版本紀錄（D6）；`category_test.go`、F8 的 `category_version_test.go` 改經 BFS；情境 1～6 | ✅ done（2026-10-22） |
-| 5 | 期間開帳（F9 已完成） | ⬜ pending |
+| 5a | 期間開帳：`domain/event` 的 payload（D1）、`process` 的 mediator handler（payload 驗證）；不登錄；新舊 payload 的 JSON 契約測試 | ✅ done（2026-10-22） |
+| 5b | 期間開帳：`enums.AggregatePeriod` 與 migration（`chk_aggregate_type` 加入 `PERIOD`，D8）及其測試；只處理兩種開帳事件的期間 projector（D10）、`command.NewEngine` 註冊；不登錄 | ✅ done（2026-10-22） |
+| 5c | 期間開帳：註冊表登錄 2 種事件（`('PERIOD', "1")`、版本策略「交易內」、舊映射 `('ACCOUNT', '')`）；F9 的 `period_unique_test.go` 改經 BFS 派送；情境 1～6 | ✅ done（2026-10-22） |
 
 段 1 驗證（2026-10-22，Docker `golang:1.26.9`）：
 - **建置與格式**：`go generate ./...`、`go build ./...` 通過；`go vet`（`kernel`、`domain/event`、`runtime/engine`、`repos/query`、`application`、`handler`）只回報既有的 `db_transaction.go` 未具名欄位；修改與新增的 16 個 Go 檔 `gofmt -l` 無輸出（`handler/event.go` 原本缺少檔尾換行，依 `doc/NOTES.md` 第 7 點對該檔執行 `gofmt`）。
@@ -220,6 +222,41 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
   - F8 的 `category_version_test.go` 是在計畫書之後才加的，本段也改為經 BFS 寫入。「過期版本」的預期錯誤由舊路徑的 `UNIQUE constraint failed: aggregate_versions.` 改為版本衝突（情境 3）；migration 測試補上 aggregate 版本斷言，涵蓋情境 5、6。
   - `category_test.go` 沒有經 HTTP，而是以與 handler 相同的 `command.Build` 加 `Writer.Append` 寫入（`writeCategoryEvent`），因為 services 測試無法使用 handler 未公開的建構函式；專屬 API 的路由與組裝由新增的 `NewMux` 情境驗證。
   - `category_test.go` 送出的版本改為畫面會送的讀模型版本（1、2）。原本的 0 只是因為 ISSUE-029 才剛好成功。重複刪除的斷言改為比對 `is already inactive`。
+
+段 5 驗證（2026-10-22，Docker `golang:1.26.9`）：
+- **建置與格式**：
+  - `go generate ./...`（含新增的 `enums.AggregatePeriod`）、`go build ./...` 通過（5a、5b、5c 各自執行）。
+  - `go vet`（`domain/event`、`process`、`enums`、`database`、`persistence/handle`、`persistence/repos/projection`、`application/command`、`services`、`handler`）通過。
+  - 修改與新增的 Go 檔 `gofmt -l` 無輸出；`git diff --check` 無輸出。gofmt 會把 doc comment 中的 `''` 改成 `”`，因此 doc comment 的空 aggregate ID 改寫為 `("ACCOUNT", "")`。
+- **測試**（計畫書段 5 的情境）：
+  - 情境 1、3、5：F9 的 `TestPeriodStarted_PerMerchant` 3 個子測試，改經通用 API 的 BFS 派送，前端版本送 7。
+    - 兩個商戶各自開立同一月份、同一年度。
+    - 同一商戶重複開立時唯一鍵擋下，事件與版本紀錄都回復。
+    - 版本改讀 `('PERIOD', "1")`。
+  - 情境 1 另有：
+    - `TestDispatchLegacy_PeriodStarted`：`PERIOD` 已在版本 3、前端送 0 → 寫入版本 4，封套欄位完整。
+    - 經正式 `NewMux` 的 `period.month_started` 情境：200、BFS 執行資訊、開立 OPEN 的月份。
+  - 情境 2：`TestDispatchLegacy_PeriodStartedRejected` 的 3 個子測試（`('ACCOUNT', "1")`、推導的 `('PERIOD', "1")`、`TRANSACTION`）通過。
+  - 情境 4：`TestPeriodStarted_ClosedByLegacy`。BFS 開立 2026-10，以舊路徑的 `period.month_closed` 結帳成功，並開立 2026-11。
+  - 情境 6：`TestPeriodPayloads_LegacyJSON` 的 2 種事件通過；`closing_uuid` 為開帳事件的 UUID（情境 1、4 的測試檢查）。
+  - migration：`TestPeriodAggregateType_Migration` 通過。
+    - 兩張表的資料列、欄位定義、索引與 UNIQUE 不變。
+    - CHECK 接受 `PERIOD`、仍拒絕未知類型。
+    - 下一筆 `event_id` 為保存的計數 + 1。
+  - `go test -vet=off ./...` 全數通過；handler 41 個 spec 通過。
+- **反向檢查**（在容器副本中修改）：
+  - 版本策略改為「驗證」→ `TestDispatchLegacy_PeriodStarted`、F9 的 3 個子測試與跨路徑結帳測試失敗（計畫書段 5）。
+  - 計畫外另加：
+    - 舊映射改為一律通過 → 情境 2 的 3 個子測試失敗。
+    - migration 不還原計數 → migration 測試失敗（下一筆 `event_id` 為 4）。
+    - 拿掉期間 projector 的註冊 → command、F9、跨路徑測試，以及 `NewMux` 情境失敗。`NewMux` 情境原本只檢查事件，攔不到這個問題，因此補上 `wantPeriod`，檢查開立的期間。
+    - BFS payload 的 JSON tag 改名 → 契約測試失敗。
+- **與計畫書的差異**：
+  - F9 的 `period_unique_test.go` 是在計畫書之後才加的，本段改經通用 API 的 BFS 派送。讀取的版本改為 `('PERIOD', "1")`（計畫書第 5 節第 2 點），情境與其餘預期不變。
+  - migration 不沿用 `20260614001` 的「`_new` → 改名」，改採 F9 的同名重建並保存 AUTOINCREMENT 計數（`doc/NOTES.md` 資料庫第 3、4 點）。
+  - handler 的通用 API 情境新增 `wantPeriod` 欄位。
+
+R2 全部完成（段 1～5）。下一步為 R3（BFS 重建機制），開始前需另寫計畫書；R3 必須處理 ISSUE-031（整數 `ledger_id`，計畫書第 8 節）。
 
 ## 最終驗證結果
 

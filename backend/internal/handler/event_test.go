@@ -52,6 +52,11 @@ func expectEventAppendResult(db *sqlx.DB, rec *httptest.ResponseRecorder, s even
 			AND json_extract(metadata, '$.execution.source') = 'api'`, s.wantEventType)).To(Succeed())
 		Expect(n).To(Equal(s.wantEvents), "events written without BFS execution metadata")
 	}
+	if s.wantPeriod != "" {
+		Expect(db.Get(&n, `SELECT COUNT(*) FROM period_closings
+			WHERE merchant_id = ? AND period_start = ? AND status = 'OPEN'`, cfTestMerchantID, s.wantPeriod)).To(Succeed())
+		Expect(n).To(Equal(1), "the period projector did not open the period")
+	}
 
 	Expect(db.Get(&n, `SELECT COUNT(*) FROM entry_cf_categories WHERE entry_uuid = ? AND merchant_id = ?`,
 		cfTestDebitEntryUUID, cfTestMerchantID)).To(Succeed())

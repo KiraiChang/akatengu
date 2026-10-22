@@ -105,6 +105,26 @@ func Specs() []Spec {
 		newSpec(func(_ kevent.Event, p FixedAssetCategoryDeletedPayload) (enums.AggregateType, string) {
 			return enums.AggregateFixedAssetCategory.Enum(), p.CategoryUUID
 		}, VersionValidate, nil),
+
+		// Opening a period writes to the merchant's PERIOD aggregate at its
+		// current version (BFS R2 D8): the frontend still sends ('ACCOUNT', '')
+		// with that aggregate's version, which is not used. The unique key of
+		// period_closings keeps a period from being opened twice.
+		newSpec(func(_ kevent.Event, _ PeriodMonthStartedPayload) (enums.AggregateType, string) {
+			return enums.AggregatePeriod.Enum(), MerchantAggregateID
+		}, VersionInTx, periodLegacyAggregate()),
+		newSpec(func(_ kevent.Event, _ PeriodAnnualStartedPayload) (enums.AggregateType, string) {
+			return enums.AggregatePeriod.Enum(), MerchantAggregateID
+		}, VersionInTx, periodLegacyAggregate()),
+	}
+}
+
+// periodLegacyAggregate is ("ACCOUNT", ""), the aggregate the frontend sends
+// the period events to (frontside/src/api/period.ts).
+func periodLegacyAggregate() *LegacyAggregate {
+	return &LegacyAggregate{
+		AggregateType: enums.AggregateAccount.Enum(),
+		AggregateID:   func(any) (string, error) { return "", nil },
 	}
 }
 

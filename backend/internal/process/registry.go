@@ -25,4 +25,9 @@ func Registry(m *mediator.Mediator) {
 	m.Register(event_types.EventFixedAssetCategoryCreated.Enum(), validateHandle[event_payload.FixedAssetCategoryCreatedPayload]())
 	m.Register(event_types.EventFixedAssetCategoryUpdated.Enum(), EventFixedAssetCategoryUpdatedHandle())
 	m.Register(event_types.EventFixedAssetCategoryDeleted.Enum(), EventFixedAssetCategoryDeletedHandle())
+
+	// Opening a period only validates the payload, as the legacy pipelines do
+	// (services/pipelines/factory/period.go).
+	m.Register(event_types.EventPeriodMonthStarted.Enum(), validateHandle[event_payload.PeriodMonthStartedPayload]())
+	m.Register(event_types.EventPeriodAnnualStarted.Enum(), validateHandle[event_payload.PeriodAnnualStartedPayload]())
 }

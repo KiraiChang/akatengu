@@ -18,6 +18,7 @@ type eventAppendScenario struct {
 	wantEvents    int    // events of wantEventType stored after the request
 	wantCategory  bool   // entry_cf_categories has a row for cfTestDebitEntryUUID
 	wantBFS       bool   // the stored events carry BFS execution metadata (source api)
+	wantPeriod    string // period_start of the OPEN period the request opens ("" = not checked)
 }
 
 // eventAppendScenarios go through the production NewMux wiring.
@@ -59,6 +60,18 @@ var eventAppendScenarios = []eventAppendScenario{
 		wantDetail:    "aggregate does not match the legacy aggregate",
 		wantEventType: "account.created",
 		wantEvents:    0,
+	},
+	{
+		given: "交易與分錄已存在，使用者已選擇商戶",
+		when:  "POST /api/event/append 送出 R2 段 5 遷移到 BFS 的 period.month_started，aggregate 為前端送出的 ('ACCOUNT', '')",
+		then:  "BFS 派送成功，回傳 200，寫入 1 筆 period.month_started 事件",
+		body: `{"aggregate_type":"ACCOUNT","aggregate_id":"","expected_version":0,` +
+			`"event_type":"period.month_started","payload":{"period_start":"2026-10"}}`,
+		wantCode:      http.StatusOK,
+		wantEventType: "period.month_started",
+		wantEvents:    1,
+		wantBFS:       true,
+		wantPeriod:    "2026-10-01",
 	},
 	{
 		given: "交易與分錄已存在，使用者已選擇商戶",

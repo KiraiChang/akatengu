@@ -20,4 +20,6 @@ const (
 	AggregateBankCsvTemplate    aggregateTypeVal = "BANK_CSV_TEMPLATE"
 	AggregateBankStatement      aggregateTypeVal = "BANK_STATEMENT"
 	AggregateBankPdfTemplate    aggregateTypeVal = "BANK_PDF_TEMPLATE"
+	// AggregatePeriod is the merchant's period aggregate (BFS R2 D8, ADR-024 A7).
+	AggregatePeriod aggregateTypeVal = "PERIOD"
 )
