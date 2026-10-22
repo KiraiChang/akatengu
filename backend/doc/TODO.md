@@ -142,6 +142,8 @@
 **伺服器設定（Server Config）**
 
 - [ ] [Refactor] `cmd/main.go` 套用 `cfg.Server` — `bootstrap.LoadConfig()` 已讀取 `SERVER_ADDR`、`SERVER_READ_TIMEOUT`（預設 5s）、`SERVER_WRITE_TIMEOUT`（預設 10s），但 `http.Server` 仍寫死 `Addr: ":8080"` 且未設定 timeout。套用前須先確認預設 timeout 不會中斷 PDF 上傳、`POST /api/audit/replay` 等長請求
+- [ ] [Fix] 引用 `accounts(account_id)` 的 7 個外鍵改以 `(account_id, merchant_id)` 引用或移除（需重建資料表）；須在開啟外鍵（ISSUE-032）之前完成，關聯：ISSUE-033
+- [ ] [Fix] 預設 `DB_PARAM` 改用 modernc 的 `_pragma` 格式，讓外鍵、busy timeout、WAL 生效；開啟外鍵前先完成 ISSUE-033、檢查既有資料的孤兒引用（開啟外鍵不會追溯檢查），並在外鍵開啟下執行全部測試與 migration，關聯：ISSUE-032、ISSUE-033
 
 ### 低優先（P3）
 

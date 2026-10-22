@@ -735,6 +735,51 @@
 
 ---
 
+### [ISSUE-032] 預設的 DB 連線參數沒有生效：外鍵未開啟、沒有 busy timeout、未使用 WAL
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-22
+- **嚴重程度**：Medium
+- **位置**：`internal/bootstrap/config.go:45`、`internal/bootstrap/db.go:18`
+- **描述**：
+  預設的 `DB_PARAM` 是 `?_foreign_keys=on&_busy_timeout=5000&_journal_mode=WAL&_synchronous=NORMAL`，這是 mattn/go-sqlite3 的參數格式；專案使用的 modernc 驅動（`modernc.org/sqlite`）只認得 `_pragma=名稱(值)` 的格式，其餘參數被忽略，不會報錯。F9 計畫書撰寫時以容器內的一次性探測測試確認：以預設參數開啟的連線為 `foreign_keys=0`、`busy_timeout=0`、`journal_mode=delete`；改用 `?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)` 時三者都生效。測試 DB（`shared/utils/test/db.go:46`，`:memory:` 不帶參數）也是外鍵關閉。repo 內沒有覆寫 `DB_PARAM` 的部署設定；實際部署是否以環境變數覆寫，需另行確認。
+- **影響範圍**：
+  所有 `REFERENCES` 外鍵都沒有強制，讀模型可能存在孤立的引用而不會被發現；`busy_timeout` 為 0，若有其他程序（例如備份工具）同時存取 DB，會立即回傳 `SQLITE_BUSY`（程式內的連線池預設只有 1 條連線，`config.go:46`，影響較小）；未使用 WAL，讀寫互相阻擋。
+- **解決方向**：
+  改用 `_pragma` 格式。開啟外鍵前需依序：
+  1. 先修正 ISSUE-033，否則 `PRAGMA foreign_key_check` 與新增科目等寫入會直接報錯。
+  2. 以 `PRAGMA foreign_key_check` 檢查既有開發 DB 的孤兒引用，並決定處理方式。開啟外鍵不會追溯檢查既有資料，外鍵關閉期間留下的孤兒引用不會因此被發現；F9 的 migration 也保留、不修復這類資料。
+  3. 在外鍵開啟下執行全部測試與 migration，確認既有 fixture 與歷史 migration 沒有依賴外鍵關閉。
+
+  屬於獨立的 bug fix，計畫另行確認。在修正前，新的 migration 需在外鍵開啟與關閉時都正確（F9 的做法，`doc/plan/BFS_PREREQ_F9.md` D1）。
+
+---
+
+### [ISSUE-033] 引用 `accounts(account_id)` 的 7 個外鍵定義錯誤
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-22
+- **嚴重程度**：Medium
+- **位置**：
+  - `internal/database/migrations/20260310001_init_table.sql`：`:49`（`accounts.parent_id`）、`:67`（`ledger_accounts`）、`:86`（`sys_accounts`）、`:113`（`journal_entries`）、`:223`（`investments`）
+  - `20260508001_account_balance_snapshots.sql:5`
+  - `20260514003_running_balances.sql:8`（`account_running_balances`）
+- **描述**：
+  `accounts` 的主鍵是 `(account_id, merchant_id)`（`20260310001_init_table.sql:60`），單獨的 `account_id` 沒有唯一索引。SQLite 要求外鍵的父欄位是主鍵或唯一索引，否則視為定義錯誤（foreign key mismatch）。
+
+  F9 計畫書 review 時發現此問題，並以容器內的一次性探測測試（以實際 migration 建立 DB）確認：
+  - **只有這 7 個外鍵有誤**：逐一比對所有外鍵的父欄位，只有上列 7 個引用 `accounts(account_id)` 的外鍵有誤，其他外鍵的父欄位都是主鍵或唯一索引。正確寫法的例子：`20260520001_ledger_account_type_config.sql:11` 以 `(account_id, merchant_id)` 引用。
+  - **無法檢查**：不論外鍵開啟或關閉，對這 7 張表執行 `PRAGMA foreign_key_check` 都會直接回傳 `foreign key mismatch - "<table>" referencing "accounts"`；不指定資料表時，檢查到第一張就中止。
+  - **外鍵開啟時寫入失敗**：新增 `account_balance_snapshots`、新增與刪除 `accounts`（因為 `parent_id` 自我引用）都回傳同一個錯誤；只修改非鍵欄位的 `UPDATE accounts` 成功。其他 5 張子表的外鍵定義相同，預期新增時同樣失敗。
+
+  外鍵目前實際上沒有開啟（ISSUE-032），所以不影響現行功能。
+- **影響範圍**：
+  這 7 個外鍵從未發揮作用，也無法以 `foreign_key_check` 檢查這些表的引用完整性。若只修正 ISSUE-032 就開啟外鍵，新增科目、分錄、科目快照等寫入都會失敗。
+- **解決方向**：
+  改為以 `(account_id, merchant_id)` 引用（`parent_id` 對應 `(parent_id, merchant_id)`），或移除外鍵。SQLite 無法修改既有的外鍵，需要重建這 7 張表（重建做法見 F9 的 D1、D3），並先確認各子表的 `merchant_id` 與父表一致。必須在 ISSUE-032 開啟外鍵之前完成；屬於獨立的 bug fix，計畫另行確認。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open
