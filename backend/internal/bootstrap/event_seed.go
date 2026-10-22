@@ -4,15 +4,10 @@ import (
 	"akatengu/internal/application/command"
 	domainevent "akatengu/internal/domain/event"
 	"akatengu/internal/enums"
-	"akatengu/internal/enums/event_types"
 	kevent "akatengu/internal/kernel/event"
-	"akatengu/internal/model/payload"
-	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/repos/query"
-	"akatengu/internal/services"
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
@@ -27,18 +22,18 @@ const (
 // BootstrapEventSeeds 確保 merchant 1 的 seed 資料有對應的事件記錄，
 // 使全量 replay 能從事件重建所有 projection 表，不依賴 SQL seed 直接寫入。
 // 各 aggregate 獨立檢查：已有事件時跳過（冪等），僅在事件不存在時才建立。
-// 已遷移到 BFS 的事件類型經 w 寫入，其餘經 es（BFS R2 D11）。
-func BootstrapEventSeeds(ctx context.Context, db *sqlx.DB, es *services.EventStoreService, w *command.Writer, logger *zap.Logger) error {
+// 種子事件都經 w 以 BFS 寫入（BFS R2 D11）。
+func BootstrapEventSeeds(ctx context.Context, db *sqlx.DB, w *command.Writer, logger *zap.Logger) error {
 	ctx = context.WithValue(ctx, ctxkey.MerchantID, seedMerchantID)
 	eventRepo := query.NewEventRepo(db)
 
 	if err := bootstrapAccounts(ctx, db, w, eventRepo, logger); err != nil {
 		return fmt.Errorf("event seed accounts: %w", err)
 	}
-	if err := bootstrapSysAccounts(ctx, db, es, eventRepo, logger); err != nil {
+	if err := bootstrapSysAccounts(ctx, db, w, eventRepo, logger); err != nil {
 		return fmt.Errorf("event seed sys_accounts: %w", err)
 	}
-	if err := bootstrapAccountConfigs(ctx, db, es, eventRepo, logger); err != nil {
+	if err := bootstrapAccountConfigs(ctx, db, w, eventRepo, logger); err != nil {
 		return fmt.Errorf("event seed account_configs: %w", err)
 	}
 
@@ -114,11 +109,7 @@ func bootstrapAccounts(ctx context.Context, db *sqlx.DB, w *command.Writer, even
 
 	// The registry derives ('ACCOUNT', seedAggregateID); the aggregate has no
 	// event yet, so version 0 is expected.
-	evt, err := command.Build(ctx, domainevent.AccountBulkImportedPayload{Accounts: accounts}, 0, kevent.EventParams{Source: "seed"})
-	if err != nil {
-		return fmt.Errorf("build account.bulk_imported: %w", err)
-	}
-	if _, err := w.Append(ctx, evt); err != nil {
+	if err := appendSeedEvent(ctx, w, domainevent.AccountBulkImportedPayload{Accounts: accounts}, 0); err != nil {
 		return fmt.Errorf("append account.bulk_imported: %w", err)
 	}
 	logger.Info("event seed: AccountBulkImported created", zap.Int("count", len(accounts)))
@@ -126,7 +117,7 @@ func bootstrapAccounts(ctx context.Context, db *sqlx.DB, w *command.Writer, even
 }
 
 // bootstrapSysAccounts 若 SYS_CONFIG aggregate 尚無事件，為每筆 sys_accounts 各建立一筆 SysAccountUpdated 事件。
-func bootstrapSysAccounts(ctx context.Context, db *sqlx.DB, es *services.EventStoreService, eventRepo query.EventRepo, logger *zap.Logger) error {
+func bootstrapSysAccounts(ctx context.Context, db *sqlx.DB, w *command.Writer, eventRepo query.EventRepo, logger *zap.Logger) error {
 	aggType := enums.AggregateSysConfig.Enum()
 	events, err := eventRepo.GetByAggregate(ctx, aggType, seedAggregateID)
 	if err != nil {
@@ -151,23 +142,12 @@ func bootstrapSysAccounts(ctx context.Context, db *sqlx.DB, es *services.EventSt
 		return nil
 	}
 
-	evtType := event_types.EventSysAccountUpdated.Enum()
 	for i, r := range rows {
-		b, err := json.Marshal(payload.SysAccountUpdatedPayload{
+		if err := appendSeedEvent(ctx, w, domainevent.SysAccountUpdatedPayload{
 			SysCode:     r.SysCode,
 			Description: r.Description,
 			AccountID:   r.AccountID,
-		})
-		if err != nil {
-			return err
-		}
-		if _, err := es.Append(ctx, cmd.AppendCmd{
-			AggregateType:   aggType,
-			AggregateID:     seedAggregateID,
-			ExpectedVersion: int64(i),
-			EventType:       evtType,
-			Payload:         b,
-		}); err != nil {
+		}, int64(i)); err != nil {
 			return fmt.Errorf("append sys_config.sys_account_updated (%s): %w", r.SysCode, err)
 		}
 	}
@@ -176,7 +156,7 @@ func bootstrapSysAccounts(ctx context.Context, db *sqlx.DB, es *services.EventSt
 }
 
 // bootstrapAccountConfigs 若 ACCOUNT_CONFIG aggregate 尚無事件，為 ledger 類型與 asset 類型設定各建立對應事件。
-func bootstrapAccountConfigs(ctx context.Context, db *sqlx.DB, es *services.EventStoreService, eventRepo query.EventRepo, logger *zap.Logger) error {
+func bootstrapAccountConfigs(ctx context.Context, db *sqlx.DB, w *command.Writer, eventRepo query.EventRepo, logger *zap.Logger) error {
 	aggType := enums.AggregateAccountConfig.Enum()
 	events, err := eventRepo.GetByAggregate(ctx, aggType, seedAggregateID)
 	if err != nil {
@@ -199,26 +179,15 @@ func bootstrapAccountConfigs(ctx context.Context, db *sqlx.DB, es *services.Even
 	if err := db.SelectContext(ctx, &ledgerRows, lq, seedMerchantID); err != nil {
 		return fmt.Errorf("read ledger_account_type_config: %w", err)
 	}
-	ledgerEvtType := event_types.EventLedgerAccountTypeConfigUpdated.Enum()
 	for _, r := range ledgerRows {
 		t, err := enums.ParseLedgerAccountType(r.Type)
 		if err != nil {
 			return fmt.Errorf("parse ledger_account_type %q: %w", r.Type, err)
 		}
-		b, err := json.Marshal(payload.LedgerAccountTypeConfigUpdatedPayload{
+		if err := appendSeedEvent(ctx, w, domainevent.LedgerAccountTypeConfigUpdatedPayload{
 			Type:      t,
 			AccountID: r.AccountID,
-		})
-		if err != nil {
-			return err
-		}
-		if _, err := es.Append(ctx, cmd.AppendCmd{
-			AggregateType:   aggType,
-			AggregateID:     seedAggregateID,
-			ExpectedVersion: version,
-			EventType:       ledgerEvtType,
-			Payload:         b,
-		}); err != nil {
+		}, version); err != nil {
 			return fmt.Errorf("append account_config.ledger_type_updated (%s): %w", r.Type, err)
 		}
 		version++
@@ -241,13 +210,12 @@ func bootstrapAccountConfigs(ctx context.Context, db *sqlx.DB, es *services.Even
 	if err := db.SelectContext(ctx, &assetRows, aq, seedMerchantID); err != nil {
 		return fmt.Errorf("read asset_type_account_config: %w", err)
 	}
-	assetEvtType := event_types.EventAssetTypeAccountConfigUpdated.Enum()
 	for _, r := range assetRows {
 		at, err := enums.ParseAssetType(r.AssetType)
 		if err != nil {
 			return fmt.Errorf("parse asset_type %q: %w", r.AssetType, err)
 		}
-		b, err := json.Marshal(payload.AssetTypeAccountConfigUpdatedPayload{
+		if err := appendSeedEvent(ctx, w, domainevent.AssetTypeAccountConfigUpdatedPayload{
 			AssetType:               at,
 			RealizedGainAccountID:   r.RealizedGainAccountID,
 			RealizedLossAccountID:   r.RealizedLossAccountID,
@@ -257,17 +225,7 @@ func bootstrapAccountConfigs(ctx context.Context, db *sqlx.DB, es *services.Even
 			FeeAccountID:            r.FeeAccountID,
 			TaxAccountID:            r.TaxAccountID,
 			AccountID:               r.AccountID,
-		})
-		if err != nil {
-			return err
-		}
-		if _, err := es.Append(ctx, cmd.AppendCmd{
-			AggregateType:   aggType,
-			AggregateID:     seedAggregateID,
-			ExpectedVersion: version,
-			EventType:       assetEvtType,
-			Payload:         b,
-		}); err != nil {
+		}, version); err != nil {
 			return fmt.Errorf("append account_config.asset_type_updated (%s): %w", r.AssetType, err)
 		}
 		version++
@@ -278,4 +236,15 @@ func bootstrapAccountConfigs(ctx context.Context, db *sqlx.DB, es *services.Even
 		zap.Int("asset_types", len(assetRows)),
 	)
 	return nil
+}
+
+// appendSeedEvent writes one seed event through BFS; the registry derives the
+// aggregate, and expectedVersion is the version the seed has written so far.
+func appendSeedEvent(ctx context.Context, w *command.Writer, p kevent.Payload, expectedVersion int64) error {
+	evt, err := command.Build(ctx, p, expectedVersion, kevent.EventParams{Source: "seed"})
+	if err != nil {
+		return err
+	}
+	_, err = w.Append(ctx, evt)
+	return err
 }

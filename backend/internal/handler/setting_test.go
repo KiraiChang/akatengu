@@ -1,13 +1,11 @@
 package handler
 
 import (
+	"akatengu/internal/application/command"
 	"akatengu/internal/bootstrap"
 	dbmodel "akatengu/internal/model/db"
 	"akatengu/internal/pkg/ctxkey"
 	pkgjwt "akatengu/internal/pkg/jwt"
-	"akatengu/internal/repos/query"
-	"akatengu/internal/repos/unit_of_work/event_store"
-	"akatengu/internal/services"
 	"akatengu/internal/shared/utils/test"
 	"context"
 	"database/sql"
@@ -40,10 +38,6 @@ func newSettingTestDB(existingVersion int64) *sqlx.DB {
 		Expect(err).NotTo(HaveOccurred())
 	}
 	return db
-}
-
-func newSettingTestEventService(db *sqlx.DB) *services.EventStoreService {
-	return services.NewEventStoreService(event_store.NewUnitOfWork(db), query.NewQueryRepository(db))
 }
 
 // settingHandlerRequest builds a request for the handler with the merchant and
@@ -143,10 +137,10 @@ var _ = Describe("settingHandler and sysHandler config updates", func() {
 
 		It(label, func() {
 			db := newSettingTestDB(s.existingVersion)
-			es := newSettingTestEventService(db)
+			w := command.NewWriter(db, command.NewEngine(db))
 
-			setting := newSettingHandler(db, es, zap.NewNop())
-			sys := newSysHandler(db, es, zap.NewNop())
+			setting := newSettingHandler(db, w, zap.NewNop())
+			sys := newSysHandler(db, w, zap.NewNop())
 			mux := http.NewServeMux()
 			mux.HandleFunc("PUT /setting/ledger-account-type/{type}", setting.UpdateLedgerAccountTypeConfig)
 			mux.HandleFunc("PUT /setting/asset-type/{type}", setting.UpdateAssetTypeAccountConfig)

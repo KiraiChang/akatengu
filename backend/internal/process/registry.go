@@ -14,4 +14,8 @@ func Registry(m *mediator.Mediator) {
 	m.Register(event_types.EventAccountBulkImported.Enum(), validateHandle[event_payload.AccountBulkImportedPayload]())
 	m.Register(event_types.EventLedgerAccountCreated.Enum(), validateHandle[event_payload.LedgerAccountCreatePayload]())
 	m.Register(event_types.EventLedgerAccountUpdated.Enum(), EventLedgerAccountUpdatedHandle())
+
+	m.Register(event_types.EventSysAccountUpdated.Enum(), EventSysAccountUpdatedHandle())
+	m.Register(event_types.EventLedgerAccountTypeConfigUpdated.Enum(), EventLedgerAccountTypeConfigUpdatedHandle())
+	m.Register(event_types.EventAssetTypeAccountConfigUpdated.Enum(), EventAssetTypeAccountConfigUpdatedHandle())
 }

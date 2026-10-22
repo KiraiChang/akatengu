@@ -3,9 +3,6 @@ package bootstrap
 import (
 	"akatengu/internal/application/command"
 	"akatengu/internal/database"
-	"akatengu/internal/repos/query"
-	"akatengu/internal/repos/unit_of_work/event_store"
-	"akatengu/internal/services"
 	"context"
 	"database/sql"
 	"fmt"
@@ -54,11 +51,8 @@ func InitDB(cfg DBConfig, logger *zap.Logger) (*sqlx.DB, error) {
 	}
 
 	// Event seed bootstrap: 確保 merchant 1 的 seed 資料有對應事件，replay 才能完整重建
-	uow := event_store.NewUnitOfWork(sqlxdb)
-	queryRepo := query.NewQueryRepository(sqlxdb)
-	es := services.NewEventStoreService(uow, queryRepo)
 	w := command.NewWriter(sqlxdb, command.NewEngine(sqlxdb))
-	if err := BootstrapEventSeeds(ctx, sqlxdb, es, w, logger); err != nil {
+	if err := BootstrapEventSeeds(ctx, sqlxdb, w, logger); err != nil {
 		return nil, fmt.Errorf("event seed: %w", err)
 	}
 

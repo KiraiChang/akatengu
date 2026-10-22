@@ -71,6 +71,18 @@ func Specs() []Spec {
 		newSpec(func(_ kevent.Event, _ AccountBulkImportedPayload) (enums.AggregateType, string) {
 			return enums.AggregateAccount.Enum(), MerchantAggregateID
 		}, VersionValidate, nil),
+
+		// The config events are written by their dedicated APIs and the seed;
+		// each merchant has one SYS_CONFIG and one ACCOUNT_CONFIG aggregate.
+		newSpec(func(_ kevent.Event, _ SysAccountUpdatedPayload) (enums.AggregateType, string) {
+			return enums.AggregateSysConfig.Enum(), MerchantAggregateID
+		}, VersionValidate, nil),
+		newSpec(func(_ kevent.Event, _ LedgerAccountTypeConfigUpdatedPayload) (enums.AggregateType, string) {
+			return enums.AggregateAccountConfig.Enum(), MerchantAggregateID
+		}, VersionValidate, nil),
+		newSpec(func(_ kevent.Event, _ AssetTypeAccountConfigUpdatedPayload) (enums.AggregateType, string) {
+			return enums.AggregateAccountConfig.Enum(), MerchantAggregateID
+		}, VersionValidate, nil),
 	}
 }
 

@@ -14,6 +14,10 @@ type Projection interface {
 	UpsertAccount(ctx context.Context, p dbprojection.Account) error
 	CreateLedgerAccount(ctx context.Context, p dbprojection.LedgerAccount) error
 	UpdateLedgerAccount(ctx context.Context, p dbprojection.LedgerAccount) error
+
+	UpsertSysAccount(ctx context.Context, p sqlcdb.UpsertSysAccountParams) error
+	UpsertLedgerAccountTypeConfig(ctx context.Context, p sqlcdb.UpsertLedgerAccountTypeConfigParams) error
+	UpsertAssetTypeAccountConfig(ctx context.Context, p sqlcdb.UpsertAssetTypeAccountConfigParams) error
 }
 
 type sqlxProjection struct {

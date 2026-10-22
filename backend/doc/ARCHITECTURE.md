@@ -1005,6 +1005,12 @@
      - `account.updated`、`ledger_account.created`、`ledger_account.updated`：同一個 aggregate，版本策略「驗證」。明細帳戶屬於所屬科目的 aggregate（D7）。
      - 以上 4 種的舊映射與推導相同，由 `newSpecWithLegacy` 共用同一個 ID 函式。
      - `account.bulk_imported`：`('ACCOUNT', MerchantAggregateID)`（`"1"`，D8），版本策略「驗證」，沒有舊映射，只由種子寫入。
+
+     R2 段 3 登錄系統科目與科目設定的 3 種事件：
+     - `sys_config.sys_account_updated`：`('SYS_CONFIG', MerchantAggregateID)`。
+     - `account_config.ledger_type_updated`、`account_config.asset_type_updated`：`('ACCOUNT_CONFIG', MerchantAggregateID)`。
+     - 3 種的版本策略都是「驗證」：設定 API 讀取目前版本後送出，同 F5；種子送出自己累計的版本。3 種都沒有舊映射，通用 API 一律拒絕。
+     - 設定 API、系統科目 API 與種子共用 `domainevent.MerchantAggregateID`，`handler/setting.go` 原本的 `configAggregateID` 已移除。
   2. **派送**（R2 建立）：`POST /api/event/append` 依註冊表把已遷移的事件類型改派到 BFS，其餘沿用舊路徑，直到 R10。BFS 執行失敗時直接回傳錯誤，不得改走舊路徑。舊路徑本身另有保護（F7，ISSUE-028）：`EventStoreService.Append` 收到註冊表中的事件類型時，在執行 pipeline 前回傳 `services.ErrEventTypeMigrated`；R2 建立派送前，經 `POST /api/event/append` 送出這些事件類型會得到 500 與 problem 格式（規則第 7 點）。
 
      R2 段 1 建立派送：`internal/handler/event.go` 的 `Append` 先經 `internal/application/command` 的 `Writer.DispatchLegacy`，處理方式如下：

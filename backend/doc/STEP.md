@@ -107,7 +107,7 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
 
 ### R2 子階段
 
-計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1、段 2 修改的檔案超過 5 個，各自再分為三個 phase（1a～1c、2a～2c），每個 phase 完成後執行 `go build ./...`，同一段的三個 phase 完成後一起 review、commit。
+計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1～3 修改的檔案超過 5 個，各自再分為三個 phase（1a～1c、2a～2c、3a～3c），每個 phase 完成後執行 `go build ./...`，同一段的三個 phase 完成後一起 review、commit。
 
 | 段 | 說明 | 狀態 |
 |----|------|------|
@@ -117,7 +117,9 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
 | 2a | 科目與明細帳戶：`domain/event` 的 payload（D1）與 `MerchantAggregateID`（D8）、`process` 的 mediator handler（含 D9 的業務版本）；不登錄；測試情境 7（新舊 payload 的 JSON） | ✅ done（2026-10-22） |
 | 2b | 科目與明細帳戶：`persistence/repos/projection` 的寫入方法、`persistence/handle` 的科目 projector（D10）、`command.NewEngine` 註冊；不登錄 | ✅ done（2026-10-22） |
 | 2c | 科目與明細帳戶：註冊表登錄 5 種事件、種子的 `bootstrapAccounts` 改經 D4（D11）；既有測試的調整與測試情境 1～6 | ✅ done（2026-10-22） |
-| 3 | 系統科目與科目設定 | ⬜ pending |
+| 3a | 系統科目與科目設定：`domain/event` 的 payload（D1）、`process` 的 mediator handler（payload 驗證與科目存在）；不登錄；新舊 payload 的 JSON 契約測試 | ✅ done（2026-10-22） |
+| 3b | 系統科目與科目設定：`persistence/repos/projection` 的寫入方法、`persistence/handle` 的設定 projector（D10）、`command.NewEngine` 註冊；不登錄 | ✅ done（2026-10-22） |
+| 3c | 系統科目與科目設定：註冊表登錄 3 種事件；`handler/setting.go` 的 `appendConfigEvent`（設定與系統科目 API）與種子的 `bootstrapSysAccounts`、`bootstrapAccountConfigs` 改經 D4；F5 測試只換建構參數；通用 API 拒絕與種子兩次的測試 | ✅ done（2026-10-22） |
 | 4 | 預付與固定資產類別（F8 已完成） | ⬜ pending |
 | 5 | 期間開帳（F9 已完成） | ⬜ pending |
 
@@ -159,6 +161,29 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
   - 科目與明細帳戶的衝突斷言改為比對 F6 的訊息文字：`kerrors.EventError` 沒有 `Unwrap`，`errors.Is` 無法穿透。BFS 端沿用 `projection_repo.ErrVersionConflict`，已記入 `TODO.md`。
   - 段 1 的 `command_test.go`、F7 的 service 測試與 handler 情境，未登錄的對照改用 `investment.created`；F7 原本的 `account.created` 對照改為拒絕情境。
   - D8 的 `MerchantAggregateID` 在本段建立，種子的 `seedAggregateID` 改為引用它；`handler/setting.go` 的 `configAggregateID` 留到段 3。
+
+段 3 驗證（2026-10-22，Docker `golang:1.26.9`）：
+- **建置與格式**：
+  - `go generate ./...`、`go build ./...` 通過（3a、3b、3c 各自執行）。
+  - `go vet`（`domain/event`、`process`、`persistence/handle`、`persistence/repos/projection`、`application/command`、`bootstrap`、`services`、`handler`）通過。
+  - 修改與新增的 17 個 Go 檔 `gofmt -l` 無輸出；`git diff --check` 無輸出。
+- **測試**：
+  - F5 的設定 handler 情境 13 個、`NewMux` 情境 3 個，預期都沒有修改，全數通過；`setting_test.go` 只把 handler 的建構參數從 `EventStoreService` 換成 `command.Writer`。
+  - 通用 API 拒絕：`TestDispatchLegacy_ConfigRejected` 的 3 種事件通過。
+  - 種子兩次：`TestBootstrapEventSeeds_ConfigsTwice` 通過，使用真實的 `sys_accounts.sql`、`account_type_configs.sql`，驗證版本序列與 Source 為 seed；段 2 的 `TestBootstrapEventSeeds_AccountsTwice` 仍通過。
+  - JSON 契約：`TestConfigPayloads_LegacyJSON` 的 4 個子測試通過，含選填科目為 null 的情境。
+  - `go test -vet=off ./...` 全數通過。
+- **反向檢查**（在容器副本中修改）：
+  - mediator handler 略過科目存在檢查 → F5 的「不存在的科目 9999-99」情境失敗（計畫書段 3）。
+  - 計畫外另加：
+    - 給 `sys_config.sys_account_updated` 加上舊映射 → 拒絕測試的該子測試失敗。
+    - 種子的帳戶類型設定不累計版本 → 種子測試失敗（aggregate_versions 唯一鍵）。
+    - BFS payload 的 `oci_account_id` 改名 → 2 個資產類型子測試失敗。
+    - 拿掉 `account_id` 的 `omitempty` → 選填為 null 的子測試失敗。
+- **與計畫書的差異**：
+  - 科目不存在時的錯誤文字由 `sql: no rows in result set` 改為 `account <id> not found`。舊 pipeline 的 `GetAccount` 查不到時回傳錯誤、不是 nil，原本的 not found 分支永遠跑不到；狀態碼仍為 400（計畫書第 5 節第 6 點）。
+  - F5 測試的情境與預期不變，但 handler 的建構參數必須改。
+  - `BootstrapEventSeeds` 移除 `es` 參數，`bootstrap/db.go` 不再建立舊的 `EventStoreService`。段 2 的 `bootstrapAccounts` 也改用共用的 `appendSeedEvent`，行為不變。
 
 ## 最終驗證結果
 

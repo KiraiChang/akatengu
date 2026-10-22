@@ -1,10 +1,11 @@
 package handler
 
 import (
+	"akatengu/internal/application/command"
+	domainevent "akatengu/internal/domain/event"
 	"akatengu/internal/enums"
-	"akatengu/internal/enums/event_types"
 	"akatengu/internal/handler/response"
-	"akatengu/internal/model/payload"
+	kevent "akatengu/internal/kernel/event"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/services"
 	"encoding/json"
@@ -16,7 +17,7 @@ import (
 
 type sysHandler struct {
 	s        services.SysService
-	es       *services.EventStoreService
+	w        *command.Writer
 	versions query.AggerateRepo
 	l        *zap.Logger
 }
@@ -38,7 +39,7 @@ func (h sysHandler) UpdateSysAccount(w http.ResponseWriter, r *http.Request) {
 	method := "update sys account"
 	ctx := r.Context()
 
-	var p payload.SysAccountUpdatedPayload
+	var p domainevent.SysAccountUpdatedPayload
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
 		h.l.Error(method+" decode fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
@@ -49,8 +50,8 @@ func (h sysHandler) UpdateSysAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := appendConfigEvent(ctx, h.es, h.versions, enums.AggregateSysConfig.Enum(),
-		event_types.EventSysAccountUpdated.Enum(), p)
+	err := appendConfigEvent(ctx, h.w, h.versions, enums.AggregateSysConfig.Enum(), p,
+		kevent.EventParams{Source: "api", Host: r.Host})
 	if err != nil {
 		h.l.Error(method+" fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
@@ -59,10 +60,10 @@ func (h sysHandler) UpdateSysAccount(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, nil)
 }
 
-func newSysHandler(db *sqlx.DB, es *services.EventStoreService, logger *zap.Logger) *sysHandler {
+func newSysHandler(db *sqlx.DB, w *command.Writer, logger *zap.Logger) *sysHandler {
 	return &sysHandler{
 		s:        services.NewSysService(db),
-		es:       es,
+		w:        w,
 		versions: query.NewAggerateRepo(db),
 		l:        logger,
 	}
