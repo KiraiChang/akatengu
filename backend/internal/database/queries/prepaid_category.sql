@@ -15,14 +15,16 @@ SET name               = @name,
     account_id         = @account_id,
     expense_account_id = @expense_account_id,
     updated_by         = @updated_by,
-    updated_at         = datetime('now')
+    updated_at         = datetime('now'),
+    version            = version + 1
 WHERE category_uuid = @category_uuid AND merchant_id = @merchant_id;
 
 -- name: SoftDeletePrepaidCategory :exec
 UPDATE prepaid_categories
 SET is_active  = 0,
     updated_by = @updated_by,
-    updated_at = datetime('now')
+    updated_at = datetime('now'),
+    version    = version + 1
 WHERE category_uuid = @category_uuid AND merchant_id = @merchant_id;
 
 -- name: GetPrepaidCategoryByUUID :one

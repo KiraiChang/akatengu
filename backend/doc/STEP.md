@@ -35,7 +35,7 @@
 | F5 | ISSUE-026：重新提供帳戶類型、資產類型設定與系統科目對應的更新 API | 建議在 R2 之前 | ✅ done（2026-10-21） |
 | F6 | ISSUE-027：科目、帳戶與投資修改的業務版本檢查 | R2、R9 之前 | ✅ done（2026-10-21） |
 | F7 | ISSUE-028：通用寫入 API 拒絕已遷移到 BFS 的事件類型 | R2 之前 | ✅ done（2026-10-22） |
-| F8 | ISSUE-029：預付與固定資產類別的第二次修改或刪除必定失敗 | R2 段 4 之前 | ⬜ pending |
+| F8 | ISSUE-029：預付與固定資產類別的第二次修改或刪除必定失敗 | R2 段 4 之前 | ✅ done（2026-10-22） |
 | F9 | ISSUE-030：不同商戶無法開立同一期間 | 建議在 R2 段 5 之前，R3 之前必須 | ✅ done（2026-10-22） |
 
 F7 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ_F7.md`，一段完成）：`go generate ./...`、`go build ./...`、`go vet`（`services`、`handler`）通過，修改與新增的 4 個檔案 `gofmt -l` 無輸出；`TestAppend_MigratedEventType` 的 4 個情境與 `NewMux POST /api/event/append` 的 2 個 spec 通過；`go test -vet=off ./...` 全數通過。反向檢查（計畫書第 5 節）：移除檢查 → service 情境 1、2、4 與 handler 的已遷移情境失敗；拒絕所有事件類型 → 兩個對照情境失敗；檢查移到 pipeline 之後 → service 情境 4 失敗（回傳 pipeline 的驗證錯誤）。
@@ -48,6 +48,15 @@ F9 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
   - 移除唯一鍵 → 寫入情境 3 與 migration 的 2 個情境失敗。
   - 移除 `defer_foreign_keys` → migration 的外鍵開啟情境失敗（`DROP TABLE` 時 `FOREIGN KEY constraint failed`）。
   - 不還原計數 → migration 的 2 個情境失敗（下一筆 `closing_id` 為 4，預期 6）。
+
+F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ_F8.md`，一段完成）：
+- **建置與格式**：`go generate ./...`、`go build ./...`、`go vet`（`services`）通過；新增的測試檔 `gofmt -l` 無輸出。
+- **測試**：`TestCategoryVersion_Write` 的 3 個情境與 `TestCategoryVersion_Migration` 的 4 個情境，兩種類別各一次，共 14 個子測試通過；`go test -vet=off ./...` 全數通過。
+- **反向檢查**（計畫書第 7 節，修改查詢後重新 `go generate`）：
+  - 修改的查詢不遞增 `version` → 寫入情境 1～3 失敗（第一次修改後讀模型 1、aggregate 2），migration 情境 4、6 失敗。
+  - 停用的查詢不遞增 `version` → 寫入情境 2 失敗。
+  - migration 不更新 → migration 情境 4、5 失敗。
+  - migration 不比對 `merchant_id` → migration 情境 7 失敗（讀模型被改成其他商戶的版本 5）。
 
 ### F5 子階段
 

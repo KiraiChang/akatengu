@@ -689,7 +689,7 @@
 
 ### [ISSUE-029] 預付與固定資產類別的第二次修改或刪除必定失敗
 
-- **狀態**：🔴 Open
+- **狀態**：🟢 Resolved（2026-10-22，計畫書 F8）
 - **日期**：2026-10-22
 - **嚴重程度**：Medium
 - **位置**：`internal/handler/prepaid_category.go:52`、`internal/services/projection/prepaid_category.go:31`、`internal/database/queries/prepaid_category.sql:12-26`；固定資產類別的對應位置（`handler/fixed_asset_category.go`、`services/projection/fixed_asset_category.go`、`database/queries/fixed_asset_category.sql`）
@@ -702,6 +702,14 @@
   預付與固定資產類別設定頁：每個類別只能修改或刪除一次，之後一律失敗。畫面版本檢查（ADR-027 規則 6）實際上沒有作用。
 - **解決方向**：
   小型 bug fix（計畫書 F8），需在 R2 段 4（類別遷移）之前完成：(1) 修改與刪除的 projection 遞增讀模型的 `version`，讓畫面送出的版本與 aggregate 版本一致；(2) migration 修正已留下的不一致：`category_uuid` 的 aggregate 已有版本紀錄時，讀模型的 `version` 改為該紀錄的版本（修改過一次的類別：讀模型 1、aggregate 2 → 讀模型 2），否則只修正程式時，這些類別仍無法再修改。補測試重現「連續修改兩次」與「舊版已修改一次 → migration → 再次修改」。建立事件的 aggregate 身分屬於 A7，由 R2 段 4 處理（`doc/plan/BFS_R2_MASTER_DATA.md` 的 D6）。F8 的計畫另行確認。
+- **解決方式**（2026-10-22，計畫書 `doc/plan/BFS_PREREQ_F8.md`）：
+  1. `queries/prepaid_category.sql`、`queries/fixed_asset_category.sql` 的修改與停用查詢加上 `version = version + 1`，正常流程下讀模型版本與 `category_uuid` aggregate 的版本一致；projection 的 Go 程式不需修改。
+  2. 新增 migration `20261022002_category_version_sync.sql`：`category_uuid` 的 aggregate 在同一商戶下有版本紀錄時，讀模型的 `version` 改為該紀錄的版本，其他欄位不變。從未修改的類別沒有紀錄，維持 1，由 R2 段 4 補上。Down 不還原。
+  3. 測試 `internal/services/category_version_test.go`，每個情境都對兩種類別各執行一次：
+     - 寫入 3 個情境：連續修改兩次、修改後停用、以過期版本修改被拒絕且資料不變。
+     - migration 4 個情境：舊版修改過一次、停用過一次、從未修改，以及版本紀錄只在其他商戶下。
+  4. 反向檢查：修改或停用查詢不遞增、migration 不更新、migration 不比對商戶，都在對應情境失敗。
+  5. 範圍外：過期版本仍回傳舊路徑的唯一鍵錯誤（400）；第一次修改送出任意版本時仍可能不一致，由 R2 段 4 改經 BFS 後關閉（計畫書第 9 節）。
 
 ---
 

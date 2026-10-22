@@ -33,6 +33,10 @@
 6. **檢查外鍵前先確認定義正確**：父欄位不是主鍵或唯一索引時，`PRAGMA foreign_key_check` 會直接回傳 `foreign key mismatch`（ISSUE-033）。檢查特定引用時，可改用 `LEFT JOIN` 找出父表沒有對應列的資料，並以 `pragma_foreign_key_list(<table>)` 確認外鍵定義仍在。
 7. **modernc 驅動只認 `_pragma=名稱(值)` 的 DSN 參數**：例如 `?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)`。go-sqlite3 格式的 `_foreign_keys=on` 等參數會被忽略，也不會報錯（ISSUE-032）；要確認是否生效，連線後查 `PRAGMA foreign_keys` 等值。`PRAGMA foreign_keys` 只作用於目前的連線，測試要先 `SetMaxOpenConns(1)`，在同一條連線、交易外設定。
 8. **測試資料 migration 的效果**：以 `database.MigrateUpTo` 遷移到目標 migration 的前一版、寫入 fixture，再以 `database.RunMigrations` 遷移到最新版本（參考 `internal/database/period_closing_migration_test.go`）。
+9. **對 SQL 做反向修改時，替換條件而不是刪除整行**（F8）：
+   - 刪除整行常會連同行尾的 `)`、`;` 一起刪掉。goose 會在解析時回傳 `unexpected unfinished SQL query`，測試因此失敗，卻不是要驗證的原因。
+   - 改成替換條件，例如 `AND 1 = 1`、`WHERE 0 AND ...`。
+   - 修改 `queries/*.sql` 後，要重新執行 `go generate`，測試才會用到修改後的查詢。
 
 ### 2026-10-21 [DEBUG] 有狀態 middleware 的配置方式與共用狀態的回歸測試
 
