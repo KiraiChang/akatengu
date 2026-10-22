@@ -107,7 +107,7 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
 
 ### R2 子階段
 
-計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1～3 修改的檔案超過 5 個，各自再分為三個 phase（1a～1c、2a～2c、3a～3c），每個 phase 完成後執行 `go build ./...`，同一段的三個 phase 完成後一起 review、commit。
+計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1～4 修改的檔案超過 5 個，各自再分為三個 phase（1a～1c、2a～2c、3a～3c、4a～4c），每個 phase 完成後執行 `go build ./...`，同一段的三個 phase 完成後一起 review、commit。
 
 | 段 | 說明 | 狀態 |
 |----|------|------|
@@ -120,7 +120,9 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
 | 3a | 系統科目與科目設定：`domain/event` 的 payload（D1）、`process` 的 mediator handler（payload 驗證與科目存在）；不登錄；新舊 payload 的 JSON 契約測試 | ✅ done（2026-10-22） |
 | 3b | 系統科目與科目設定：`persistence/repos/projection` 的寫入方法、`persistence/handle` 的設定 projector（D10）、`command.NewEngine` 註冊；不登錄 | ✅ done（2026-10-22） |
 | 3c | 系統科目與科目設定：註冊表登錄 3 種事件；`handler/setting.go` 的 `appendConfigEvent`（設定與系統科目 API）與種子的 `bootstrapSysAccounts`、`bootstrapAccountConfigs` 改經 D4；F5 測試只換建構參數；通用 API 拒絕與種子兩次的測試 | ✅ done（2026-10-22） |
-| 4 | 預付與固定資產類別（F8 已完成） | ⬜ pending |
+| 4a | 預付與固定資產類別：`domain/event` 的 payload（D1）、`process` 的 mediator handler（payload 驗證；修改與刪除確認類別存在且啟用）；不登錄；新舊 payload 的 JSON 契約測試（情境 7） | ✅ done（2026-10-22） |
+| 4b | 預付與固定資產類別：`persistence/repos/projection` 的寫入方法、兩個類別 projector（D10，含 F8 的版本遞增）、`command.NewEngine` 註冊；不登錄 | ✅ done（2026-10-22） |
+| 4c | 預付與固定資產類別：註冊表登錄 6 種事件（D6）；兩個專屬 handler 改經 D4；migration 補上既有類別的版本紀錄（D6）；`category_test.go`、F8 的 `category_version_test.go` 改經 BFS；情境 1～6 | ✅ done（2026-10-22） |
 | 5 | 期間開帳（F9 已完成） | ⬜ pending |
 
 段 1 驗證（2026-10-22，Docker `golang:1.26.9`）：
@@ -184,6 +186,40 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
   - 科目不存在時的錯誤文字由 `sql: no rows in result set` 改為 `account <id> not found`。舊 pipeline 的 `GetAccount` 查不到時回傳錯誤、不是 nil，原本的 not found 分支永遠跑不到；狀態碼仍為 400（計畫書第 5 節第 6 點）。
   - F5 測試的情境與預期不變，但 handler 的建構參數必須改。
   - `BootstrapEventSeeds` 移除 `es` 參數，`bootstrap/db.go` 不再建立舊的 `EventStoreService`。段 2 的 `bootstrapAccounts` 也改用共用的 `appendSeedEvent`，行為不變。
+
+段 4 驗證（2026-10-22，Docker `golang:1.26.9`）：
+- **建置與格式**：
+  - `go generate ./...`、`go build ./...` 通過（4a、4b、4c 各自執行）。
+  - `go vet`（`domain/event`、`process`、`persistence/handle`、`persistence/repos/projection`、`application/command`、`handler`、`services`）通過。
+  - 修改與新增的 18 個 Go 檔 `gofmt -l` 無輸出；`git diff --check` 無輸出。
+- **測試**（計畫書段 4 的情境）：
+  - 情境 1：`NewMux category write routes` 的 2 個 spec（兩種類別各一）。經正式路由建立、修改、刪除，3 筆事件都寫在 `(類型, category_uuid)`，版本 1～3，`category_uuid` 為建立事件的 UUID；F8 的寫入測試另檢查建立後的 aggregate。
+  - 情境 2、3：F8 的 `TestCategoryVersion_Write` 6 個子測試通過。過期的畫面版本回傳版本衝突，資料不變。
+  - 情境 4：`TestDispatchLegacy_CategoryRejected` 的 6 種事件通過。
+  - 情境 5、6：F8 的 `TestCategoryVersion_Migration` 通過，含 review 後新增的情境共 14 個子測試。新增 migration 後的 aggregate 版本斷言：從未修改的類別補上版本 1，已修改的維持 2，其他商戶的紀錄不變；之後經 BFS 修改分別到版本 2、3。
+  - 情境 7：`TestCategoryPayloads_LegacyJSON` 的 6 種事件通過。
+  - `services/category_test.go` 的 8 個 spec 通過，情境與預期不變。
+  - `go test -vet=off ./...` 全數通過。
+- **反向檢查**（在容器副本中修改）：
+  - 建立事件改回其他 aggregate → F8 寫入測試 6 個子測試、`category_test.go` 6 個 spec、`NewMux` 的 2 個 spec 失敗（計畫書段 4）。
+  - 計畫外另加：
+    - 移除補版本紀錄的 migration → migration 測試中「從未修改」與「只在商戶 2 有紀錄」共 4 個子測試失敗。
+    - 修改與刪除略過啟用檢查 → `category_test.go` 的 2 個重複刪除 spec 失敗。
+    - 給 `prepaid_category.created` 加上舊映射 → 拒絕測試的該子測試失敗。
+    - BFS payload 的一個 JSON tag 改名 → 契約測試失敗。
+- **review 修正（F8 之後的版本不一致）**：
+  - **問題**：F8 之後、段 4 之前，舊路徑在類別第一次修改時以「送出版本 + 1」建立 `category_uuid` 的紀錄，讀模型則變成 2。送出版本不是 1 時（例如 0）會留下「讀模型 2、aggregate 1」。原本的 migration 只補缺少的紀錄，F8 的 migration 也不會重跑，之後以畫面版本修改會回傳版本衝突。
+  - **修正**：`20261022003` 先比照 F8，把已有紀錄但不同步的讀模型 version 改為紀錄的版本，再補缺少的紀錄。不調整 `aggregate_versions`，已存事件的 aggregate 版本不會倒退。
+  - **測試**：migration 測試新增 3 個從 `20261022002` 開始的情境，兩種類別各一次。
+    - 讀模型 2、aggregate 1 → 1。
+    - 讀模型 2、aggregate 6 → 6。
+    - 已同步的 2、2 不變。
+    - 之後都以畫面版本經 BFS 修改成功。
+  - **反向檢查**：移除對齊的步驟 → 4 個不同步的子測試失敗。全套 `go test -vet=off ./...` 通過，`git diff --check` 無輸出。
+- **與計畫書的差異**：
+  - F8 的 `category_version_test.go` 是在計畫書之後才加的，本段也改為經 BFS 寫入。「過期版本」的預期錯誤由舊路徑的 `UNIQUE constraint failed: aggregate_versions.` 改為版本衝突（情境 3）；migration 測試補上 aggregate 版本斷言，涵蓋情境 5、6。
+  - `category_test.go` 沒有經 HTTP，而是以與 handler 相同的 `command.Build` 加 `Writer.Append` 寫入（`writeCategoryEvent`），因為 services 測試無法使用 handler 未公開的建構函式；專屬 API 的路由與組裝由新增的 `NewMux` 情境驗證。
+  - `category_test.go` 送出的版本改為畫面會送的讀模型版本（1、2）。原本的 0 只是因為 ISSUE-029 才剛好成功。重複刪除的斷言改為比對 `is already inactive`。
 
 ## 最終驗證結果
 

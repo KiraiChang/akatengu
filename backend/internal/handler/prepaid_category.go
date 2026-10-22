@@ -1,25 +1,25 @@
 package handler
 
 import (
-	"akatengu/internal/enums"
-	"akatengu/internal/enums/event_types"
+	"akatengu/internal/application/command"
+	domainevent "akatengu/internal/domain/event"
 	"akatengu/internal/handler/response"
-	"akatengu/internal/model/payload"
-	"akatengu/internal/model/request/cmd"
+	kevent "akatengu/internal/kernel/event"
+	dbmodel "akatengu/internal/model/db"
 	"akatengu/internal/repos/query"
 	"akatengu/internal/services"
+	"context"
 	"encoding/json"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
 type prepaidCategoryHandler struct {
-	s  services.PrepaidCategoryService
-	es *services.EventStoreService
-	l  *zap.Logger
+	s services.PrepaidCategoryService
+	w *command.Writer
+	l *zap.Logger
 }
 
 func (h *prepaidCategoryHandler) GetAllCategories(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +38,7 @@ func (h *prepaidCategoryHandler) CreateCategory(w http.ResponseWriter, r *http.R
 	method := "create prepaid category"
 	ctx := r.Context()
 
-	var p payload.PrepaidCategoryCreatedPayload
+	var p domainevent.PrepaidCategoryCreatedPayload
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
 		h.l.Error(method+" decode fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
@@ -49,27 +49,9 @@ func (h *prepaidCategoryHandler) CreateCategory(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	newID, err := uuid.NewV7()
-	if err != nil {
-		h.l.Error(method+" generate uuid fail", zap.Error(err))
-		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
-		return
-	}
-
-	b, err := json.Marshal(p)
-	if err != nil {
-		h.l.Error(method+" marshal fail", zap.Error(err))
-		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
-		return
-	}
-
-	result, err := h.es.Append(ctx, cmd.AppendCmd{
-		AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-		AggregateID:     newID.String(),
-		ExpectedVersion: 0,
-		EventType:       event_types.EventPrepaidCategoryCreated.Enum(),
-		Payload:         b,
-	})
+	// The registry names the new category's aggregate after the creation event
+	// (BFS R2 D6), so no version is sent.
+	result, err := appendCategoryEvent(ctx, h.w, r, p, 0)
 	if err != nil {
 		h.l.Error(method+" fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
@@ -85,7 +67,7 @@ func (h *prepaidCategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.R
 
 	var req struct {
 		ExpectedVersion int64 `json:"expected_version"`
-		payload.PrepaidCategoryUpdatedPayload
+		domainevent.PrepaidCategoryUpdatedPayload
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.l.Error(method+" decode fail", zap.Error(err))
@@ -98,20 +80,7 @@ func (h *prepaidCategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	b, err := json.Marshal(req.PrepaidCategoryUpdatedPayload)
-	if err != nil {
-		h.l.Error(method+" marshal fail", zap.Error(err))
-		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
-		return
-	}
-
-	result, err := h.es.Append(ctx, cmd.AppendCmd{
-		AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-		AggregateID:     categoryID,
-		ExpectedVersion: req.ExpectedVersion,
-		EventType:       event_types.EventPrepaidCategoryUpdated.Enum(),
-		Payload:         b,
-	})
+	result, err := appendCategoryEvent(ctx, h.w, r, req.PrepaidCategoryUpdatedPayload, req.ExpectedVersion)
 	if err != nil {
 		h.l.Error(method+" fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
@@ -134,26 +103,13 @@ func (h *prepaidCategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	p := payload.PrepaidCategoryDeletedPayload{CategoryUUID: categoryID}
+	p := domainevent.PrepaidCategoryDeletedPayload{CategoryUUID: categoryID}
 	if err := p.Validate(); err != nil {
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
 		return
 	}
 
-	b, err := json.Marshal(p)
-	if err != nil {
-		h.l.Error(method+" marshal fail", zap.Error(err))
-		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())
-		return
-	}
-
-	result, err := h.es.Append(ctx, cmd.AppendCmd{
-		AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-		AggregateID:     categoryID,
-		ExpectedVersion: req.ExpectedVersion,
-		EventType:       event_types.EventPrepaidCategoryDeleted.Enum(),
-		Payload:         b,
-	})
+	result, err := appendCategoryEvent(ctx, h.w, r, p, req.ExpectedVersion)
 	if err != nil {
 		h.l.Error(method+" fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
@@ -162,10 +118,22 @@ func (h *prepaidCategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.R
 	response.OK(w, result)
 }
 
-func newPrepaidCategoryHandler(db *sqlx.DB, es *services.EventStoreService, l *zap.Logger) *prepaidCategoryHandler {
+func newPrepaidCategoryHandler(db *sqlx.DB, w *command.Writer, l *zap.Logger) *prepaidCategoryHandler {
 	return &prepaidCategoryHandler{
-		s:  services.NewPrepaidCategoryService(query.NewQueryRepository(db).PrepaidCategory),
-		es: es,
-		l:  l,
+		s: services.NewPrepaidCategoryService(query.NewQueryRepository(db).PrepaidCategory),
+		w: w,
+		l: l,
 	}
+}
+
+// appendCategoryEvent writes a prepaid or fixed asset category event through
+// BFS (BFS R2 section 4) and returns its event_store record, the same response
+// as the legacy path. expectedVersion is the version the screen read; the
+// registry ignores it for a creation.
+func appendCategoryEvent(ctx context.Context, w *command.Writer, r *http.Request, p kevent.Payload, expectedVersion int64) (*dbmodel.EventStore, error) {
+	evt, err := command.Build(ctx, p, expectedVersion, kevent.EventParams{Source: "api", Host: r.Host})
+	if err != nil {
+		return nil, err
+	}
+	return w.Append(ctx, evt)
 }

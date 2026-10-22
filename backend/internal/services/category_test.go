@@ -1,16 +1,19 @@
 package services_test
 
 import (
-	"akatengu/internal/enums"
 	"akatengu/internal/enums/event_types"
 	"akatengu/internal/model/payload"
-	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/shared/utils/test"
 	"encoding/json"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
+
+// The categories are written as the category handlers write them since BFS R2
+// segment 4 (writeCategoryEvent): a creation sends no version, and an update
+// or delete sends the read-model version the screen read, 1 after the creation
+// and one more after each change.
 
 // ─────────────────────────────────────────
 // FixedAssetCategory
@@ -22,7 +25,6 @@ var _ = Describe("EventFixedAssetCategoryCreated", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
-		svc := newSvc(db)
 		raw, err := json.Marshal(payload.FixedAssetCategoryCreatedPayload{
 			Name:                         "電腦設備",
 			AssetAccountID:               "1601-01",
@@ -31,13 +33,7 @@ var _ = Describe("EventFixedAssetCategoryCreated", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		result, err := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregateFixedAssetCategory.Enum(),
-			AggregateID:     "fa-cat-agg-1",
-			ExpectedVersion: 0,
-			EventType:       event_types.EventFixedAssetCategoryCreated.Enum(),
-			Payload:         raw,
-		})
+		result, err := writeCategoryEvent(db, event_types.EventFixedAssetCategoryCreated.Enum(), json.RawMessage(raw), 0)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result).NotTo(BeNil())
 
@@ -58,8 +54,6 @@ var _ = Describe("EventFixedAssetCategoryUpdated", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
-		svc := newSvc(db)
-
 		// 先建立類別
 		raw, _ := json.Marshal(payload.FixedAssetCategoryCreatedPayload{
 			Name:                         "辦公設備",
@@ -67,13 +61,7 @@ var _ = Describe("EventFixedAssetCategoryUpdated", func() {
 			AccumDepreciationAccountID:   "1601-02",
 			DepreciationExpenseAccountID: "5601-01",
 		})
-		created, err := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregateFixedAssetCategory.Enum(),
-			AggregateID:     "fa-cat-agg-2",
-			ExpectedVersion: 0,
-			EventType:       event_types.EventFixedAssetCategoryCreated.Enum(),
-			Payload:         raw,
-		})
+		created, err := writeCategoryEvent(db, event_types.EventFixedAssetCategoryCreated.Enum(), json.RawMessage(raw), 0)
 		Expect(err).NotTo(HaveOccurred())
 		catUUID := created.EventUuid
 
@@ -85,13 +73,7 @@ var _ = Describe("EventFixedAssetCategoryUpdated", func() {
 			AccumDepreciationAccountID:   "1602-02",
 			DepreciationExpenseAccountID: "5602-01",
 		})
-		_, err = svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregateFixedAssetCategory.Enum(),
-			AggregateID:     catUUID,
-			ExpectedVersion: 0,
-			EventType:       event_types.EventFixedAssetCategoryUpdated.Enum(),
-			Payload:         raw,
-		})
+		_, err = writeCategoryEvent(db, event_types.EventFixedAssetCategoryUpdated.Enum(), json.RawMessage(raw), 1)
 		Expect(err).NotTo(HaveOccurred())
 
 		row := queryFixedAssetCategory(t, db, catUUID)
@@ -107,32 +89,18 @@ var _ = Describe("EventFixedAssetCategoryDeleted", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
-		svc := newSvc(db)
-
 		raw, _ := json.Marshal(payload.FixedAssetCategoryCreatedPayload{
 			Name:                         "機械設備",
 			AssetAccountID:               "1601-01",
 			AccumDepreciationAccountID:   "1601-02",
 			DepreciationExpenseAccountID: "5601-01",
 		})
-		created, err := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregateFixedAssetCategory.Enum(),
-			AggregateID:     "fa-cat-agg-3",
-			ExpectedVersion: 0,
-			EventType:       event_types.EventFixedAssetCategoryCreated.Enum(),
-			Payload:         raw,
-		})
+		created, err := writeCategoryEvent(db, event_types.EventFixedAssetCategoryCreated.Enum(), json.RawMessage(raw), 0)
 		Expect(err).NotTo(HaveOccurred())
 		catUUID := created.EventUuid
 
 		raw, _ = json.Marshal(payload.FixedAssetCategoryDeletedPayload{CategoryUUID: catUUID})
-		_, err = svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregateFixedAssetCategory.Enum(),
-			AggregateID:     catUUID,
-			ExpectedVersion: 0,
-			EventType:       event_types.EventFixedAssetCategoryDeleted.Enum(),
-			Payload:         raw,
-		})
+		_, err = writeCategoryEvent(db, event_types.EventFixedAssetCategoryDeleted.Enum(), json.RawMessage(raw), 1)
 		Expect(err).NotTo(HaveOccurred())
 
 		row := queryFixedAssetCategory(t, db, catUUID)
@@ -143,41 +111,21 @@ var _ = Describe("EventFixedAssetCategoryDeleted", func() {
 		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 
-		svc := newSvc(db)
-
 		raw, _ := json.Marshal(payload.FixedAssetCategoryCreatedPayload{
 			Name:                         "車輛",
 			AssetAccountID:               "1601-01",
 			AccumDepreciationAccountID:   "1601-02",
 			DepreciationExpenseAccountID: "5601-01",
 		})
-		created, _ := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregateFixedAssetCategory.Enum(),
-			AggregateID:     "fa-cat-agg-4",
-			ExpectedVersion: 0,
-			EventType:       event_types.EventFixedAssetCategoryCreated.Enum(),
-			Payload:         raw,
-		})
+		created, _ := writeCategoryEvent(db, event_types.EventFixedAssetCategoryCreated.Enum(), json.RawMessage(raw), 0)
 		catUUID := created.EventUuid
 
 		raw, _ = json.Marshal(payload.FixedAssetCategoryDeletedPayload{CategoryUUID: catUUID})
-		svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregateFixedAssetCategory.Enum(),
-			AggregateID:     catUUID,
-			ExpectedVersion: 0,
-			EventType:       event_types.EventFixedAssetCategoryDeleted.Enum(),
-			Payload:         raw,
-		})
+		writeCategoryEvent(db, event_types.EventFixedAssetCategoryDeleted.Enum(), json.RawMessage(raw), 1)
 
-		// 再次刪除應失敗（Pipeline 驗證 is_active = false）
-		_, err := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregateFixedAssetCategory.Enum(),
-			AggregateID:     catUUID,
-			ExpectedVersion: 1,
-			EventType:       event_types.EventFixedAssetCategoryDeleted.Enum(),
-			Payload:         raw,
-		})
-		Expect(err).To(HaveOccurred())
+		// 再次刪除應失敗（mediator handler 驗證 is_active = false）
+		_, err := writeCategoryEvent(db, event_types.EventFixedAssetCategoryDeleted.Enum(), json.RawMessage(raw), 2)
+		Expect(err).To(MatchError(ContainSubstring("is already inactive")))
 	})
 })
 
@@ -191,7 +139,6 @@ var _ = Describe("EventPrepaidCategoryCreated", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
-		svc := newSvc(db)
 		raw, err := json.Marshal(payload.PrepaidCategoryCreatedPayload{
 			Name:             "保險費",
 			AccountID:        "1104-01",
@@ -199,13 +146,7 @@ var _ = Describe("EventPrepaidCategoryCreated", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		result, err := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-			AggregateID:     "prepaid-cat-agg-1",
-			ExpectedVersion: 0,
-			EventType:       event_types.EventPrepaidCategoryCreated.Enum(),
-			Payload:         raw,
-		})
+		result, err := writeCategoryEvent(db, event_types.EventPrepaidCategoryCreated.Enum(), json.RawMessage(raw), 0)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result).NotTo(BeNil())
 
@@ -224,31 +165,17 @@ var _ = Describe("EventPrepaidCategoryUpdated", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
-		svc := newSvc(db)
-
 		raw, _ := json.Marshal(payload.PrepaidCategoryCreatedPayload{
 			Name: "租金", AccountID: "1104-02", ExpenseAccountID: "5202-01",
 		})
-		created, err := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-			AggregateID:     "prepaid-cat-agg-2",
-			ExpectedVersion: 0,
-			EventType:       event_types.EventPrepaidCategoryCreated.Enum(),
-			Payload:         raw,
-		})
+		created, err := writeCategoryEvent(db, event_types.EventPrepaidCategoryCreated.Enum(), json.RawMessage(raw), 0)
 		Expect(err).NotTo(HaveOccurred())
 		catUUID := created.EventUuid
 
 		raw, _ = json.Marshal(payload.PrepaidCategoryUpdatedPayload{
 			CategoryUUID: catUUID, Name: "租金（修正）", AccountID: "1104-03", ExpenseAccountID: "5202-02",
 		})
-		_, err = svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-			AggregateID:     catUUID,
-			ExpectedVersion: 0,
-			EventType:       event_types.EventPrepaidCategoryUpdated.Enum(),
-			Payload:         raw,
-		})
+		_, err = writeCategoryEvent(db, event_types.EventPrepaidCategoryUpdated.Enum(), json.RawMessage(raw), 1)
 		Expect(err).NotTo(HaveOccurred())
 
 		row := queryPrepaidCategory(t, db, catUUID)
@@ -264,29 +191,15 @@ var _ = Describe("EventPrepaidCategoryDeleted", func() {
 		DeferCleanup(closeDB)
 		t := GinkgoT()
 
-		svc := newSvc(db)
-
 		raw, _ := json.Marshal(payload.PrepaidCategoryCreatedPayload{
 			Name: "訂閱費", AccountID: "1104-04", ExpenseAccountID: "5203-01",
 		})
-		created, err := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-			AggregateID:     "prepaid-cat-agg-3",
-			ExpectedVersion: 0,
-			EventType:       event_types.EventPrepaidCategoryCreated.Enum(),
-			Payload:         raw,
-		})
+		created, err := writeCategoryEvent(db, event_types.EventPrepaidCategoryCreated.Enum(), json.RawMessage(raw), 0)
 		Expect(err).NotTo(HaveOccurred())
 		catUUID := created.EventUuid
 
 		raw, _ = json.Marshal(payload.PrepaidCategoryDeletedPayload{CategoryUUID: catUUID})
-		_, err = svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-			AggregateID:     catUUID,
-			ExpectedVersion: 0,
-			EventType:       event_types.EventPrepaidCategoryDeleted.Enum(),
-			Payload:         raw,
-		})
+		_, err = writeCategoryEvent(db, event_types.EventPrepaidCategoryDeleted.Enum(), json.RawMessage(raw), 1)
 		Expect(err).NotTo(HaveOccurred())
 
 		row := queryPrepaidCategory(t, db, catUUID)
@@ -297,37 +210,17 @@ var _ = Describe("EventPrepaidCategoryDeleted", func() {
 		db, closeDB := test.NewTestDBGinkgo()
 		DeferCleanup(closeDB)
 
-		svc := newSvc(db)
-
 		raw, _ := json.Marshal(payload.PrepaidCategoryCreatedPayload{
 			Name: "授權費", AccountID: "1104-05", ExpenseAccountID: "5204-01",
 		})
-		created, _ := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-			AggregateID:     "prepaid-cat-agg-4",
-			ExpectedVersion: 0,
-			EventType:       event_types.EventPrepaidCategoryCreated.Enum(),
-			Payload:         raw,
-		})
+		created, _ := writeCategoryEvent(db, event_types.EventPrepaidCategoryCreated.Enum(), json.RawMessage(raw), 0)
 		catUUID := created.EventUuid
 
 		raw, _ = json.Marshal(payload.PrepaidCategoryDeletedPayload{CategoryUUID: catUUID})
-		svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-			AggregateID:     catUUID,
-			ExpectedVersion: 0,
-			EventType:       event_types.EventPrepaidCategoryDeleted.Enum(),
-			Payload:         raw,
-		})
+		writeCategoryEvent(db, event_types.EventPrepaidCategoryDeleted.Enum(), json.RawMessage(raw), 1)
 
-		// 再次刪除應失敗（Pipeline 驗證 is_active = false）
-		_, err := svc.Append(testCtx(), cmd.AppendCmd{
-			AggregateType:   enums.AggregatePrepaidCategory.Enum(),
-			AggregateID:     catUUID,
-			ExpectedVersion: 1,
-			EventType:       event_types.EventPrepaidCategoryDeleted.Enum(),
-			Payload:         raw,
-		})
-		Expect(err).To(HaveOccurred())
+		// 再次刪除應失敗（mediator handler 驗證 is_active = false）
+		_, err := writeCategoryEvent(db, event_types.EventPrepaidCategoryDeleted.Enum(), json.RawMessage(raw), 2)
+		Expect(err).To(MatchError(ContainSubstring("is already inactive")))
 	})
 })

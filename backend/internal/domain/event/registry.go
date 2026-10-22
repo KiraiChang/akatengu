@@ -83,6 +83,28 @@ func Specs() []Spec {
 		newSpec(func(_ kevent.Event, _ AssetTypeAccountConfigUpdatedPayload) (enums.AggregateType, string) {
 			return enums.AggregateAccountConfig.Enum(), MerchantAggregateID
 		}, VersionValidate, nil),
+
+		// A category's aggregate is its creation event's UUID, which is also its
+		// category_uuid (BFS R2 D6). Updates and deletes send the version the
+		// screen read (ADR-027 rule 6). Only the dedicated APIs write them.
+		newSpec(func(evt kevent.Event, _ PrepaidCategoryCreatedPayload) (enums.AggregateType, string) {
+			return enums.AggregatePrepaidCategory.Enum(), evt.Uuid
+		}, VersionNew, nil),
+		newSpec(func(_ kevent.Event, p PrepaidCategoryUpdatedPayload) (enums.AggregateType, string) {
+			return enums.AggregatePrepaidCategory.Enum(), p.CategoryUUID
+		}, VersionValidate, nil),
+		newSpec(func(_ kevent.Event, p PrepaidCategoryDeletedPayload) (enums.AggregateType, string) {
+			return enums.AggregatePrepaidCategory.Enum(), p.CategoryUUID
+		}, VersionValidate, nil),
+		newSpec(func(evt kevent.Event, _ FixedAssetCategoryCreatedPayload) (enums.AggregateType, string) {
+			return enums.AggregateFixedAssetCategory.Enum(), evt.Uuid
+		}, VersionNew, nil),
+		newSpec(func(_ kevent.Event, p FixedAssetCategoryUpdatedPayload) (enums.AggregateType, string) {
+			return enums.AggregateFixedAssetCategory.Enum(), p.CategoryUUID
+		}, VersionValidate, nil),
+		newSpec(func(_ kevent.Event, p FixedAssetCategoryDeletedPayload) (enums.AggregateType, string) {
+			return enums.AggregateFixedAssetCategory.Enum(), p.CategoryUUID
+		}, VersionValidate, nil),
 	}
 }
 

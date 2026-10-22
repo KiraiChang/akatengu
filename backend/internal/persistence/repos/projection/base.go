@@ -18,6 +18,13 @@ type Projection interface {
 	UpsertSysAccount(ctx context.Context, p sqlcdb.UpsertSysAccountParams) error
 	UpsertLedgerAccountTypeConfig(ctx context.Context, p sqlcdb.UpsertLedgerAccountTypeConfigParams) error
 	UpsertAssetTypeAccountConfig(ctx context.Context, p sqlcdb.UpsertAssetTypeAccountConfigParams) error
+
+	InsertPrepaidCategory(ctx context.Context, p sqlcdb.InsertPrepaidCategoryParams) error
+	UpdatePrepaidCategory(ctx context.Context, p sqlcdb.UpdatePrepaidCategoryParams) error
+	SoftDeletePrepaidCategory(ctx context.Context, p sqlcdb.SoftDeletePrepaidCategoryParams) error
+	InsertFixedAssetCategory(ctx context.Context, p sqlcdb.InsertFixedAssetCategoryParams) error
+	UpdateFixedAssetCategory(ctx context.Context, p sqlcdb.UpdateFixedAssetCategoryParams) error
+	SoftDeleteFixedAssetCategory(ctx context.Context, p sqlcdb.SoftDeleteFixedAssetCategoryParams) error
 }
 
 type sqlxProjection struct {

@@ -1011,6 +1011,15 @@
      - `account_config.ledger_type_updated`、`account_config.asset_type_updated`：`('ACCOUNT_CONFIG', MerchantAggregateID)`。
      - 3 種的版本策略都是「驗證」：設定 API 讀取目前版本後送出，同 F5；種子送出自己累計的版本。3 種都沒有舊映射，通用 API 一律拒絕。
      - 設定 API、系統科目 API 與種子共用 `domainevent.MerchantAggregateID`，`handler/setting.go` 原本的 `configAggregateID` 已移除。
+
+     R2 段 4 登錄預付與固定資產類別各 3 種事件（D6）：
+     - `*.created`：`(PREPAID_CATEGORY／FIXED_ASSET_CATEGORY, 事件 UUID)`，版本策略「新建」。事件 UUID 同時是讀模型的 `category_uuid`，舊 projection 的推導不變。
+     - `*.updated`、`*.deleted`：`(同一類型, payload.category_uuid)`，版本策略「驗證」，送出畫面讀到的讀模型版本（規則 6）。
+     - 6 種都沒有舊映射，只由專屬 API 寫入。
+     - 既有類別由 migration `20261022003_category_version_backfill.sql` 讓讀模型版本等於 aggregate 版本：
+       - 已有紀錄但不同步的類別，讀模型的 version 改為紀錄的版本，與 F8 的 `20261022002` 相同。這是 F8 之後、段 4 之前，舊路徑以「送出版本 + 1」建立紀錄留下的不一致。
+       - 沒有紀錄的類別（從未修改），依讀模型版本補上紀錄。
+       - 只改讀模型，不調整 `aggregate_versions`，已存事件的 aggregate 版本不會倒退。
   2. **派送**（R2 建立）：`POST /api/event/append` 依註冊表把已遷移的事件類型改派到 BFS，其餘沿用舊路徑，直到 R10。BFS 執行失敗時直接回傳錯誤，不得改走舊路徑。舊路徑本身另有保護（F7，ISSUE-028）：`EventStoreService.Append` 收到註冊表中的事件類型時，在執行 pipeline 前回傳 `services.ErrEventTypeMigrated`；R2 建立派送前，經 `POST /api/event/append` 送出這些事件類型會得到 500 與 problem 格式（規則第 7 點）。
 
      R2 段 1 建立派送：`internal/handler/event.go` 的 `Append` 先經 `internal/application/command` 的 `Writer.DispatchLegacy`，處理方式如下：

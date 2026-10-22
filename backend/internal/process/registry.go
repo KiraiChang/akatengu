@@ -18,4 +18,11 @@ func Registry(m *mediator.Mediator) {
 	m.Register(event_types.EventSysAccountUpdated.Enum(), EventSysAccountUpdatedHandle())
 	m.Register(event_types.EventLedgerAccountTypeConfigUpdated.Enum(), EventLedgerAccountTypeConfigUpdatedHandle())
 	m.Register(event_types.EventAssetTypeAccountConfigUpdated.Enum(), EventAssetTypeAccountConfigUpdatedHandle())
+
+	m.Register(event_types.EventPrepaidCategoryCreated.Enum(), validateHandle[event_payload.PrepaidCategoryCreatedPayload]())
+	m.Register(event_types.EventPrepaidCategoryUpdated.Enum(), EventPrepaidCategoryUpdatedHandle())
+	m.Register(event_types.EventPrepaidCategoryDeleted.Enum(), EventPrepaidCategoryDeletedHandle())
+	m.Register(event_types.EventFixedAssetCategoryCreated.Enum(), validateHandle[event_payload.FixedAssetCategoryCreatedPayload]())
+	m.Register(event_types.EventFixedAssetCategoryUpdated.Enum(), EventFixedAssetCategoryUpdatedHandle())
+	m.Register(event_types.EventFixedAssetCategoryDeleted.Enum(), EventFixedAssetCategoryDeletedHandle())
 }
