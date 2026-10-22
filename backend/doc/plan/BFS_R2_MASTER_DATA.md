@@ -180,7 +180,7 @@
 | 6 | 既有類別在舊版修改過一次（讀模型 1、aggregate 2）→ F8 migration（讀模型 2）→ 段 4 migration（不變）→ 經 BFS 修改 | 成功，aggregate 與讀模型都是版本 3 |
 | 7 | 新舊 payload 的 JSON | 一致（D12 的契約） |
 
-情境 5、6 驗證 migration 對既有資料的效果：以 goose 先遷移到該 migration 的前一版、寫入 fixture，再遷移到最新版本（`shared/utils/test/db.go` 新增對應的測試 helper；F8 若先建立同樣的 helper，段 4 沿用）。
+情境 5、6 驗證 migration 對既有資料的效果：以 goose 先遷移到該 migration 的前一版、寫入 fixture，再遷移到最新版本（沿用 F9 建立的 `database.MigrateUpTo`，F8 也以同樣方式測試）。
 
 反向檢查：建立事件改回隨機 aggregate → aggregate 等於 `category_uuid` 的情境與連續修改失敗。
 

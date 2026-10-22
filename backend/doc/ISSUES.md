@@ -697,7 +697,7 @@
   兩個原因疊加：
   1. 建立事件的 aggregate ID 是 handler 隨機產生的 UUID，`category_uuid` 卻是事件 UUID；修改與刪除以 `category_uuid` 為 aggregate，與建立時不同。
   2. 讀模型的 `version` 從不遞增（UPDATE 與軟刪除都沒有更新 `version`），畫面一律以 `version`（固定為 1）作為 `expected_version` 送出（`frontside/src/components/PrepaidCategoryConfig.svelte:117`、`FixedAssetCategoryConfig.svelte:122`）。
-  第一次修改時，`category_uuid` 的 aggregate 沒有版本紀錄，舊路徑以「送出版本 + 1」新建紀錄（版本 2）；第二次仍送 1，比對不符後再新建紀錄，撞上 `aggregate_versions` 的唯一鍵。R2 計畫書盤點時，以容器內的一次性探測測試經 `EventStoreService.Append` 重現（預付類別）：第一次修改成功，aggregate 版本 2、讀模型版本 1；第二次回傳 `UNIQUE constraint failed: aggregate_versions.aggregate_type, aggregate_versions.aggregate_id, aggregate_versions.merchant_id`。固定資產類別的程式相同，依程式碼推導。
+  第一次修改時，`category_uuid` 的 aggregate 沒有版本紀錄，舊路徑以「送出版本 + 1」新建紀錄（版本 2）；第二次仍送 1，比對不符後再新建紀錄，撞上 `aggregate_versions` 的唯一鍵。R2 計畫書盤點時，以容器內的一次性探測測試經 `EventStoreService.Append` 重現（預付類別）：第一次修改成功，aggregate 版本 2、讀模型版本 1；第二次回傳 `UNIQUE constraint failed: aggregate_versions.aggregate_type, aggregate_versions.aggregate_id, aggregate_versions.merchant_id`。固定資產類別的程式相同；F8 計畫書撰寫時以同樣的探測確認結果相同，修改一次後的停用也同樣失敗。
 - **影響範圍**：
   預付與固定資產類別設定頁：每個類別只能修改或刪除一次，之後一律失敗。畫面版本檢查（ADR-027 規則 6）實際上沒有作用。
 - **解決方向**：
