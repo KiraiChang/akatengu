@@ -687,6 +687,54 @@
 
 ---
 
+### [ISSUE-029] 預付與固定資產類別的第二次修改或刪除必定失敗
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-22
+- **嚴重程度**：Medium
+- **位置**：`internal/handler/prepaid_category.go:52`、`internal/services/projection/prepaid_category.go:31`、`internal/database/queries/prepaid_category.sql:12-26`；固定資產類別的對應位置（`handler/fixed_asset_category.go`、`services/projection/fixed_asset_category.go`、`database/queries/fixed_asset_category.sql`）
+- **描述**：
+  兩個原因疊加：
+  1. 建立事件的 aggregate ID 是 handler 隨機產生的 UUID，`category_uuid` 卻是事件 UUID；修改與刪除以 `category_uuid` 為 aggregate，與建立時不同。
+  2. 讀模型的 `version` 從不遞增（UPDATE 與軟刪除都沒有更新 `version`），畫面一律以 `version`（固定為 1）作為 `expected_version` 送出（`frontside/src/components/PrepaidCategoryConfig.svelte:117`、`FixedAssetCategoryConfig.svelte:122`）。
+  第一次修改時，`category_uuid` 的 aggregate 沒有版本紀錄，舊路徑以「送出版本 + 1」新建紀錄（版本 2）；第二次仍送 1，比對不符後再新建紀錄，撞上 `aggregate_versions` 的唯一鍵。R2 計畫書盤點時，以容器內的一次性探測測試經 `EventStoreService.Append` 重現（預付類別）：第一次修改成功，aggregate 版本 2、讀模型版本 1；第二次回傳 `UNIQUE constraint failed: aggregate_versions.aggregate_type, aggregate_versions.aggregate_id, aggregate_versions.merchant_id`。固定資產類別的程式相同，依程式碼推導。
+- **影響範圍**：
+  預付與固定資產類別設定頁：每個類別只能修改或刪除一次，之後一律失敗。畫面版本檢查（ADR-027 規則 6）實際上沒有作用。
+- **解決方向**：
+  小型 bug fix（計畫書 F8），需在 R2 段 4（類別遷移）之前完成：(1) 修改與刪除的 projection 遞增讀模型的 `version`，讓畫面送出的版本與 aggregate 版本一致；(2) migration 修正已留下的不一致：`category_uuid` 的 aggregate 已有版本紀錄時，讀模型的 `version` 改為該紀錄的版本（修改過一次的類別：讀模型 1、aggregate 2 → 讀模型 2），否則只修正程式時，這些類別仍無法再修改。補測試重現「連續修改兩次」與「舊版已修改一次 → migration → 再次修改」。建立事件的 aggregate 身分屬於 A7，由 R2 段 4 處理（`doc/plan/BFS_R2_MASTER_DATA.md` 的 D6）。F8 的計畫另行確認。
+
+---
+
+### [ISSUE-030] 不同商戶無法開立同一期間
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-22
+- **嚴重程度**：High
+- **位置**：`internal/database/migrations/20260310001_init_table.sql:215`、`internal/database/migrations/20260514002_add_merchant_id.sql:16`
+- **描述**：
+  `period_closings` 的唯一鍵是 `UNIQUE(period_type, period_start)`；之後加入 `merchant_id` 時沒有更新唯一鍵，所以一個商戶開立某個期間後，其他商戶就無法開立同一期間。R2 計畫書盤點時，以容器內的一次性探測測試重現：商戶 1 開立 2026-10 後，商戶 2 開立同月回傳 `UNIQUE constraint failed: period_closings.period_type, period_closings.period_start`，商戶 2 沒有任何期間。
+- **影響範圍**：
+  多商戶的期間開帳。傳票、分期、預付、固定資產、投資的 pipeline 都要求交易日期所在月份為 OPEN，因此後開帳的商戶在該月份無法記帳。也違反 R3 驗收條件「重建商戶 A 不影響商戶 B」的前提（ADR-025 A4）。
+- **解決方向**：
+  小型 bug fix（計畫書 F9），建議在 R2 段 5（期間開帳遷移）之前完成，R3 之前必須完成：以 migration 把唯一鍵改為 `(merchant_id, period_type, period_start)`（SQLite 需重建資料表），並補測試重現「兩個商戶開立同一期間」。同一商戶重複開立同一期間仍由唯一鍵擋下（R2 段 5 依賴這個保護）。其他資料表的唯一鍵是否也缺少 `merchant_id`，另行盤點（`TODO.md`）。F9 的計畫另行確認。
+
+---
+
+### [ISSUE-031] 單商戶重建後整數 `ledger_id` 改變，引用它的事件重播失敗
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-22
+- **嚴重程度**：High
+- **位置**：`internal/database/migrations/20260310001_init_table.sql:66`（`ledger_id INTEGER PRIMARY KEY`）；以整數 `ledger_id` 引用明細帳戶的 payload：`internal/model/payload/account.go:167`（`ledger_account.updated`）、`transaction.go:15`、`investment.go:70`、`:109`、`:147`、`bank_statement.go:109`
+- **描述**：
+  明細帳戶的 `ledger_id` 是 SQLite 的 rowid，重建時重新新增會取得新的 ID；`ledger_uuid` 雖由建立事件的 UUID 推導（ISSUE-018 的修正），之後的事件仍以整數 `ledger_id` 引用。單商戶重建時，其他商戶保留的明細帳戶佔用較大的 ID，被重建商戶的 ID 就會改變。R2 計畫書 review 時以工作區副本確認：另一商戶保留 `ledger_id` 2 時，商戶 1 的明細帳戶經舊 `Replay` 由 1 變成 3，之後的 `ledger_account.updated` 仍引用 1，重播失敗。
+- **影響範圍**：
+  舊 `Replay` 與事件匯入（多商戶時）；R3 的單商戶重建（ADR-025 A4）。傳票分錄、投資與銀行對帳引用的明細帳戶也會對不上。
+- **解決方向**：
+  舊 replay 不修正（Wontfix，同 ISSUE-021、022 的決定）。R3 的計畫必須處理並列入驗收，例如重建時保留原本的整數 ID，或事件改以 `ledger_uuid` 引用（屬於 payload 變更，需另行規劃）。R2 不修改 payload，也不承諾舊 `Replay` 的重建結果（`doc/plan/BFS_R2_MASTER_DATA.md` 的 D12）。
+
+---
+
 <!--
 ### [ISSUE-XXX] 標題
 - **狀態**：🔴 Open
