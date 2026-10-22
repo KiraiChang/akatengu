@@ -43,8 +43,10 @@ type Spec struct {
 	// Decode turns the payload JSON stored in event_store into the payload value
 	// type that mediator handlers and projectors assert.
 	Decode func(raw json.RawMessage) (any, error)
-	// Aggregate derives the aggregate the event belongs to (ADR-024 A5, A7).
-	Aggregate func(payload any) (enums.AggregateType, string, error)
+	// Aggregate derives the aggregate the event belongs to (ADR-024 A5, A7)
+	// from its payload, or from the event itself when the payload has no
+	// identity, such as an aggregate named after the event UUID.
+	Aggregate func(evt kevent.Event) (enums.AggregateType, string, error)
 	Version   VersionPolicy
 	// Legacy is nil when POST /api/event/append does not accept the event type.
 	Legacy *LegacyAggregate
@@ -54,7 +56,7 @@ type Spec struct {
 // enums are initialized, so it never runs at package initialization.
 func Specs() []Spec {
 	return []Spec{
-		newSpec(func(p TransactionCFCategoryUpdatedPayload) (enums.AggregateType, string) {
+		newSpec(func(_ kevent.Event, p TransactionCFCategoryUpdatedPayload) (enums.AggregateType, string) {
 			return enums.AggregateTransaction.Enum(), p.TxnUUID
 		}, VersionValidate, nil),
 	}
@@ -93,8 +95,9 @@ func Decode(t event_types.EventType, raw json.RawMessage) (any, error) {
 }
 
 // newSpec builds a Spec for payload type T; the event type and Decode come
-// from T, so they cannot disagree with it.
-func newSpec[T kevent.Payload](aggregate func(T) (enums.AggregateType, string), version VersionPolicy, legacy *LegacyAggregate) Spec {
+// from T, so they cannot disagree with it. aggregate receives the event and
+// its payload already asserted to T.
+func newSpec[T kevent.Payload](aggregate func(kevent.Event, T) (enums.AggregateType, string), version VersionPolicy, legacy *LegacyAggregate) Spec {
 	var zero T
 	return Spec{
 		EventType: zero.EventType(),
@@ -105,12 +108,12 @@ func newSpec[T kevent.Payload](aggregate func(T) (enums.AggregateType, string), 
 			}
 			return p, nil
 		},
-		Aggregate: func(payload any) (enums.AggregateType, string, error) {
-			p, ok := payload.(T)
+		Aggregate: func(evt kevent.Event) (enums.AggregateType, string, error) {
+			p, ok := evt.Payload.(T)
 			if !ok {
-				return enums.AggregateType{}, "", fmt.Errorf("payload %T is not %T", payload, zero)
+				return enums.AggregateType{}, "", fmt.Errorf("payload %T is not %T", evt.Payload, zero)
 			}
-			aggType, aggID := aggregate(p)
+			aggType, aggID := aggregate(evt, p)
 			return aggType, aggID, nil
 		},
 		Version: version,

@@ -52,6 +52,25 @@ const (
 	ChildAggregateDerived
 )
 
+// RootVersion tells BFSEngine how to version a root event, following the
+// version policy of its event type (ADR-027 rule 4). It has no meaning for a
+// child event, which follows ChildAggregate.
+type RootVersion int
+
+const (
+	// RootVersionExpected writes the next version of an aggregate that must be
+	// at ExpectedVersion; ExpectedVersion 0 creates it. It is the zero value, so
+	// an event built without a mode keeps this behavior.
+	RootVersionExpected RootVersion = iota
+	// RootVersionNew creates the aggregate at version 1; any existing version
+	// record, including one at version 0, is a conflict. ExpectedVersion is ignored.
+	RootVersionNew
+	// RootVersionCurrent writes the version after the one read inside the
+	// transaction, creating the aggregate at version 1 when it has no record.
+	// ExpectedVersion is ignored.
+	RootVersionCurrent
+)
+
 // Event 事件的封套
 type Event struct {
 	Uuid            string                `json:"uuid"`
@@ -66,6 +85,7 @@ type Event struct {
 	ExpectedVersion int64                 `json:"expected_version"`
 	Id              int64                 `json:"id"`
 	ChildAggregate  ChildAggregate        `json:"-"`
+	RootVersion     RootVersion           `json:"-"`
 }
 
 // EventParams 建立完整 Event 所需的外部輸入；Timestamp 自動填入，空值欄位套用預設值

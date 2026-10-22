@@ -22,6 +22,10 @@ type Store interface {
 	// Create writes evt as version 1 of a new aggregate. Any existing version
 	// record, including one at version 0, is a conflict (ADR-023 A2 rule 3).
 	Create(ctx context.Context, evt event.Event) (int64, int64, error)
+	// AppendCurrent writes evt as the version after the aggregate's current
+	// one, read in this transaction; an aggregate without a record is created
+	// at version 1. evt.ExpectedVersion is ignored (ADR-027 rule 4, in_tx).
+	AppendCurrent(ctx context.Context, evt event.Event) (int64, int64, error)
 }
 
 type sqlxStore struct {
@@ -96,6 +100,20 @@ func (s *sqlxStore) Create(ctx context.Context, evt event.Event) (int64, int64, 
 
 	eventID, err := s.insertEvent(ctx, evt, newVersion)
 	return eventID, newVersion, err
+}
+
+func (s *sqlxStore) AppendCurrent(ctx context.Context, evt event.Event) (int64, int64, error) {
+	current, err := s.q.GetAggregateVersion(ctx, sqlcdb.GetAggregateVersionParams{
+		AggregateType: evt.AggregateType,
+		AggregateID:   evt.AggregateUuid,
+		MerchantID:    evt.MerchantID,
+	})
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, 0, kerrors.NewInfrastructureError(kerrors.ErrStoreReadFailed, evt, fmt.Errorf("get version: %w", err))
+	}
+	// Without a record current is 0, and Append creates the aggregate at version 1.
+	evt.ExpectedVersion = current
+	return s.Append(ctx, evt)
 }
 
 // insertEvent writes evt at version after the version record is updated.

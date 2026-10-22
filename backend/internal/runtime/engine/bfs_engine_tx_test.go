@@ -191,7 +191,7 @@ func newTxTestDB() *sqlx.DB {
 	return db
 }
 
-func txRootEvent(expectedVersion int64) event.Event {
+func txRootEvent(expectedVersion int64, mode event.RootVersion) event.Event {
 	evt := event.NewEvent[testPayload](txRootAggID, testPayload{typ: typeA}, event.Metadata{
 		Tracing: event.TracingData{CorrelationID: txCorrelationID, RequestID: txRequestID},
 	})
@@ -200,6 +200,7 @@ func txRootEvent(expectedVersion int64) event.Event {
 	evt.MerchantID = txMerchantID
 	evt.UpdatedBy = txUserName
 	evt.ExpectedVersion = expectedVersion
+	evt.RootVersion = mode
 	return evt
 }
 
@@ -249,7 +250,7 @@ var _ = Describe("BFSEngine Run with a DB: event graph transaction and child eve
 				eng = eng.WithUnitOfWork(repos.NewUnitOfWork(db))
 			}
 
-			_, err := eng.Run(ctx, txRootEvent(s.rootVersion))
+			_, err := eng.Run(ctx, txRootEvent(s.rootVersion, s.rootMode))
 
 			switch {
 			case s.wantCode != "":

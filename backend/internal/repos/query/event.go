@@ -13,6 +13,7 @@ import (
 
 type EventRepo interface {
 	GetByAggregate(ctx context.Context, aggregateType enums.AggregateType, aggregateID string) ([]db.EventStore, error)
+	GetByUUID(ctx context.Context, eventUUID string) (*db.EventStore, error)
 	GetAfterVersion(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, afterVersion int64) ([]db.EventStore, error)
 	GetAfterEventID(ctx context.Context, aggregateType enums.AggregateType, afterEventID int64, limit int) ([]db.EventStore, error)
 	GetSnapshot(ctx context.Context, aggregateType enums.AggregateType, aggregateID string) (*db.Snapshot, error)
@@ -47,6 +48,22 @@ func (r *sqlcdbEventRepository) GetByAggregate(ctx context.Context, aggregateTyp
 		return nil, err
 	}
 	return toDBEvents(rows), nil
+}
+
+func (r *sqlcdbEventRepository) GetByUUID(ctx context.Context, eventUUID string) (*db.EventStore, error) {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.q.GetEventByUUID(ctx, sqlcdb.GetEventByUUIDParams{
+		EventUuid:  eventUUID,
+		MerchantID: merchantID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	evt := db.EventStoreFromEventStore(row)
+	return &evt, nil
 }
 
 func (r *sqlcdbEventRepository) GetAfterVersion(ctx context.Context, aggregateType enums.AggregateType, aggregateID string, afterVersion int64) ([]db.EventStore, error) {

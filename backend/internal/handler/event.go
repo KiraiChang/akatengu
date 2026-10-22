@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"akatengu/internal/application/command"
 	"akatengu/internal/handler/response"
+	kevent "akatengu/internal/kernel/event"
 	dbprojection "akatengu/internal/model/db/projection"
 	"akatengu/internal/model/request/cmd"
 	"akatengu/internal/pkg/eventcrypto"
@@ -17,12 +19,14 @@ import (
 
 type EventHandler struct {
 	service *services.EventStoreService
+	writer  *command.Writer
 	logger  *zap.Logger
 }
 
-func NewEventHandler(service *services.EventStoreService, logger *zap.Logger) *EventHandler {
+func NewEventHandler(service *services.EventStoreService, writer *command.Writer, logger *zap.Logger) *EventHandler {
 	return &EventHandler{
 		service: service,
+		writer:  writer,
 		logger:  logger,
 	}
 }
@@ -97,7 +101,12 @@ func (h *EventHandler) Append(w http.ResponseWriter, r *http.Request) {
 		response.WriteError(w, r, http.StatusBadRequest, "Bad Request", err.Error())
 		return
 	}
-	result, err := h.service.Append(ctx, req)
+	// Event types in the registry go through BFS (ADR-027 rule 2); once
+	// dispatched, a failure is returned and never retried on the legacy path.
+	result, handled, err := h.writer.DispatchLegacy(ctx, req, kevent.EventParams{Source: "api", Host: r.Host})
+	if !handled {
+		result, err = h.service.Append(ctx, req)
+	}
 	if err != nil {
 		h.logger.Error("create event fail", zap.Error(err))
 		response.WriteError(w, r, http.StatusInternalServerError, "Internal Server Error", err.Error())

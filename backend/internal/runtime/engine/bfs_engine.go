@@ -140,13 +140,13 @@ func (e *BFSEngine) terminal(tx *repos.DbTransaction, versions aggregateVersions
 	}
 }
 
-// write appends ev with the version rule of ADR-023 A2: the root event uses the
-// caller's ExpectedVersion, a child in its parent's aggregate continues from
-// the version written earlier in this Run, and a derived aggregate is created.
+// write appends ev with the version rule of ADR-023 A2: the root event follows
+// its RootVersion, a child in its parent's aggregate continues from the
+// version written earlier in this Run, and a derived aggregate is created.
 func write(ctx context.Context, store repos.Store, depth int, ev event.Event, versions aggregateVersions) (int64, int64, error) {
 	switch {
 	case depth == 0:
-		return store.Append(ctx, ev)
+		return writeRoot(ctx, store, ev)
 	case ev.ChildAggregate == event.ChildAggregateDerived:
 		return store.Create(ctx, ev)
 	default:
@@ -157,6 +157,22 @@ func write(ctx context.Context, store repos.Store, depth int, ev event.Event, ve
 		}
 		ev.ExpectedVersion = v
 		return store.Append(ctx, ev)
+	}
+}
+
+// writeRoot appends a root event with the version mode set from its event
+// type's version policy (ADR-027 rule 4).
+func writeRoot(ctx context.Context, store repos.Store, ev event.Event) (int64, int64, error) {
+	switch ev.RootVersion {
+	case event.RootVersionExpected:
+		return store.Append(ctx, ev)
+	case event.RootVersionNew:
+		return store.Create(ctx, ev)
+	case event.RootVersionCurrent:
+		return store.AppendCurrent(ctx, ev)
+	default:
+		return 0, 0, kerrors.NewRuntimeError(kerrors.ErrRootEnvelopeInvalid, ev,
+			fmt.Errorf("unknown root version mode %d", ev.RootVersion))
 	}
 }
 

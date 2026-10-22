@@ -25,6 +25,10 @@ const (
 // BFSEngine (ADR-023 A2).
 const ErrChildEnvelopeInvalid EventErrorCode = "RUNTIME_CHILD_ENVELOPE_INVALID"
 
+// ErrRootEnvelopeInvalid: a root event's version mode is unknown to BFSEngine
+// (ADR-027 rule 4).
+const ErrRootEnvelopeInvalid EventErrorCode = "RUNTIME_ROOT_ENVELOPE_INVALID"
+
 // ========== BUSINESS LAYER ==========
 const (
 	ErrBusinessRuleFailed EventErrorCode = "BUSINESS_RULE_FAILED"

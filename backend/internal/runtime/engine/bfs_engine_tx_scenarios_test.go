@@ -2,6 +2,7 @@ package engine
 
 import (
 	kerrors "akatengu/internal/kernel/errors"
+	"akatengu/internal/kernel/event"
 	"akatengu/internal/pkg/uuidx"
 	"akatengu/internal/runtime/mediator"
 	"akatengu/internal/runtime/safety"
@@ -50,6 +51,7 @@ type txScenario struct {
 	noUnitOfWork      bool                // run without a DB transaction
 	seedVersions      []txVersionRow      // aggregate_versions rows written before Run
 	rootVersion       int64               // ExpectedVersion of the root event
+	rootMode          event.RootVersion   // version mode of the root event; zero = RootVersionExpected
 	timeout           time.Duration       // deadline of the Run context; 0 = none
 	rootHandler       func(rec *txRecorder) mediator.HandlerFunc
 	childHandler      func(rec *txRecorder) mediator.HandlerFunc // nil = recordChild
@@ -66,6 +68,9 @@ type txScenario struct {
 
 // txRootV1 is the root event written as version 1 of the root aggregate.
 var txRootV1 = txEventRow{txAggType, txRootAggID, 1, txTypeA}
+
+// txRootAt is the root event written as version v of the root aggregate.
+func txRootAt(v int64) txEventRow { return txEventRow{txAggType, txRootAggID, v, txTypeA} }
 
 // txSameEvent is a typeB event at version v of the root aggregate.
 func txSameEvent(v int64) txEventRow { return txEventRow{txAggType, txRootAggID, v, txTypeB} }
@@ -245,5 +250,58 @@ var txScenarios = []txScenario{
 		rootHandler:  emitSame(0),
 		wantCode:     kerrors.ErrStoreWriteFailed,
 		wantVersions: []txVersionRow{txRootVersion(1)},
+	},
+	{
+		given:           "根事件為 RootVersionNew，aggregate 不存在",
+		when:            "Run",
+		then:            "建立 aggregate，寫入版本 1",
+		rootMode:        event.RootVersionNew,
+		rootHandler:     emitSame(0),
+		wantEvents:      []txEventRow{txRootV1},
+		wantVersions:    []txVersionRow{txRootVersion(1)},
+		wantCheckpoints: 1,
+	},
+	{
+		given:        "根事件為 RootVersionNew，aggregate 已有版本 0 的紀錄",
+		when:         "Run",
+		then:         "回傳 ErrVersionConflict，不寫入事件，版本紀錄仍為 0",
+		seedVersions: []txVersionRow{txRootVersion(0)},
+		rootMode:     event.RootVersionNew,
+		rootHandler:  emitSame(0),
+		wantCode:     kerrors.ErrVersionConflict,
+		wantVersions: []txVersionRow{txRootVersion(0)},
+	},
+	{
+		given:        "根事件為 RootVersionNew，aggregate 已在版本 2",
+		when:         "Run",
+		then:         "回傳 ErrVersionConflict，不寫入事件，版本紀錄仍為 2",
+		seedVersions: []txVersionRow{txRootVersion(2)},
+		rootMode:     event.RootVersionNew,
+		rootHandler:  emitSame(0),
+		wantCode:     kerrors.ErrVersionConflict,
+		wantVersions: []txVersionRow{txRootVersion(2)},
+	},
+	{
+		given:           "根事件為 RootVersionCurrent，aggregate 不存在",
+		when:            "根事件以 ExpectedVersion 5 送出",
+		then:            "忽略 ExpectedVersion，建立 aggregate，寫入版本 1",
+		rootMode:        event.RootVersionCurrent,
+		rootVersion:     5,
+		rootHandler:     emitSame(0),
+		wantEvents:      []txEventRow{txRootV1},
+		wantVersions:    []txVersionRow{txRootVersion(1)},
+		wantCheckpoints: 1,
+	},
+	{
+		given:           "根事件為 RootVersionCurrent，aggregate 已在版本 3",
+		when:            "根事件以 ExpectedVersion 1 送出，並產生一個同 aggregate 的子事件",
+		then:            "忽略 ExpectedVersion，根事件寫入版本 4，子事件接著寫入版本 5",
+		seedVersions:    []txVersionRow{txRootVersion(3)},
+		rootMode:        event.RootVersionCurrent,
+		rootVersion:     1,
+		rootHandler:     emitSame(1),
+		wantEvents:      []txEventRow{txRootAt(4), txSameEvent(5)},
+		wantVersions:    []txVersionRow{txRootVersion(5)},
+		wantCheckpoints: 1,
 	},
 }

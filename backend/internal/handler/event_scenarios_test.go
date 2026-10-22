@@ -24,12 +24,12 @@ var eventAppendScenarios = []eventAppendScenario{
 	{
 		given: "交易與分錄已存在，使用者已選擇商戶",
 		when:  "POST /api/event/append 送出已遷移到 BFS 的 transaction.cf_category_updated",
-		then:  "回傳 500 與 problem 格式，detail 說明事件已遷移到 BFS；不寫入事件，分錄沒有分類",
+		then:  "BFS 派送拒絕（沒有舊映射），回傳 500 與 problem 格式；不寫入事件，分錄沒有分類",
 		body: `{"aggregate_type":"TRANSACTION","aggregate_id":"` + cfTestTxnUUID + `","expected_version":0,` +
 			`"event_type":"transaction.cf_category_updated",` +
 			`"payload":{"txn_uuid":"` + cfTestTxnUUID + `","entries":[{"entry_uuid":"` + cfTestDebitEntryUUID + `","cf_category":"INVESTING"}]}}`,
 		wantCode:      http.StatusInternalServerError,
-		wantDetail:    "event type is migrated to BFS",
+		wantDetail:    "is not accepted by POST /api/event/append",
 		wantEventType: "transaction.cf_category_updated",
 		wantEvents:    0,
 	},

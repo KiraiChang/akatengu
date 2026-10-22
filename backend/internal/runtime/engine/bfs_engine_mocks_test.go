@@ -22,6 +22,11 @@ func (m *mockStore) Create(_ context.Context, _ event.Event) (int64, int64, erro
 	return 0, 0, m.err
 }
 
+func (m *mockStore) AppendCurrent(_ context.Context, _ event.Event) (int64, int64, error) {
+	m.appendCount++
+	return 0, 0, m.err
+}
+
 type mockUoW struct {
 	store *mockStore
 	err   error

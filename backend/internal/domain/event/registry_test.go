@@ -41,14 +41,21 @@ func TestLookup_CFCategoryUpdated(t *testing.T) {
 		t.Errorf("Legacy = %+v, want nil: the event is only written through its dedicated API", spec.Legacy)
 	}
 
-	aggType, aggID, err := spec.Aggregate(cfTestPayload())
+	aggType, aggID, err := spec.Aggregate(kevent.Event{EventType: cfType, Payload: cfTestPayload()})
 	if err != nil {
 		t.Fatalf("Aggregate: %v", err)
 	}
 	if aggType != enums.AggregateTransaction.Enum() || aggID != cfTestPayload().TxnUUID {
 		t.Errorf("aggregate = (%v, %s), want (TRANSACTION, %s)", aggType, aggID, cfTestPayload().TxnUUID)
 	}
+
+	// The payload is asserted by value type, the same as the projectors do.
+	if _, _, err := spec.Aggregate(kevent.Event{EventType: cfType, Payload: ptrTo(cfTestPayload())}); err == nil {
+		t.Error("Aggregate accepted a *TransactionCFCategoryUpdatedPayload")
+	}
 }
+
+func ptrTo[T any](v T) *T { return &v }
 
 func TestDecode(t *testing.T) {
 	test.InitEnums()

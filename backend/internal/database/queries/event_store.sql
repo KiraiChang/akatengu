@@ -10,6 +10,12 @@ FROM event_store
 WHERE aggregate_type = @aggregate_type AND aggregate_id = @aggregate_id AND merchant_id = @merchant_id
 ORDER BY aggregate_version;
 
+-- name: GetEventByUUID :one
+SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
+       aggregate_version, event_type, payload, metadata, updated_by
+FROM event_store
+WHERE event_uuid = @event_uuid AND merchant_id = @merchant_id;
+
 -- name: GetEventsAfterVersion :many
 SELECT event_id, event_uuid, occurred_at, merchant_id, aggregate_type, aggregate_id,
        aggregate_version, event_type, payload, metadata, updated_by

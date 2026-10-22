@@ -105,6 +105,36 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
 
 段 3 驗證（2026-10-21，Docker `golang:1.26.9`）：`go generate ./...`、`go build ./...`、`go vet`（`domain/event`、`persistence/handle`）通過，新增的 3 個檔案 `gofmt -l` 無輸出；`domain/event` 的 3 個測試與 `persistence/handle` 的解碼後套用測試通過；`go test -vet=off ./...` 全數通過。反向檢查（計畫書 5.4）：`Decode` 改回傳指標 → 解碼情境與解碼後套用（projector 的 payload type error）失敗；移除 cf 的登錄 → Lookup、解碼、註冊表檢查與解碼後套用都失敗。
 
+### R2 子階段
+
+計畫書：`doc/plan/BFS_R2_MASTER_DATA.md`。各段連同自己的測試完成，依 1 → 5 各自 review、commit。段 1 修改的檔案超過 5 個，再分為 1a～1c，每個 phase 完成後執行 `go build ./...`，三個 phase 完成後一起 review、commit。
+
+| 段 | 說明 | 狀態 |
+|----|------|------|
+| 1a | 註冊表的 `Spec.Aggregate` 改為接收事件（D2）；kernel 事件的 `RootVersion`、engine 依它寫入根事件、`Store.AppendCurrent`（D3）；測試情境 1～4 | ✅ done（2026-10-22） |
+| 1b | `query.Event.GetByUUID`；`application/command` 的 `NewEngine`、`Build`、`Append`、`DispatchLegacy`（D4）；測試情境 5、6 | ✅ done（2026-10-22） |
+| 1c | `NewMux` 改用 `command.NewEngine`；通用 API 先經 `DispatchLegacy`；測試情境 7（F7 的 handler 情境改為驗證新的拒絕訊息） | ✅ done（2026-10-22） |
+| 2 | 科目與明細帳戶 | ⬜ pending |
+| 3 | 系統科目與科目設定 | ⬜ pending |
+| 4 | 預付與固定資產類別（F8 已完成） | ⬜ pending |
+| 5 | 期間開帳（F9 已完成） | ⬜ pending |
+
+段 1 驗證（2026-10-22，Docker `golang:1.26.9`）：
+- **建置與格式**：`go generate ./...`、`go build ./...` 通過；`go vet`（`kernel`、`domain/event`、`runtime/engine`、`repos/query`、`application`、`handler`）只回報既有的 `db_transaction.go` 未具名欄位；修改與新增的 16 個 Go 檔 `gofmt -l` 無輸出（`handler/event.go` 原本缺少檔尾換行，依 `doc/NOTES.md` 第 7 點對該檔執行 `gofmt`）。
+- **測試**：
+  - `runtime/engine` 47 個 spec 通過，含新增的 5 個根事件版本情境（情境 1～3；既有 42 個即情境 4）。
+  - `application/command` 4 個測試、6 個子測試通過（情境 5～7，另含 `Build` 的拒絕與 `Writer.Append` 的成功、過期版本）。
+  - `NewMux POST /api/event/append` 與現金流分類的 handler 情境通過。
+  - `go test -vet=off ./...` 全數通過。
+- **反向檢查**（計畫書段 1）：
+  - `RootVersionNew` 改用 `Append` → 「已有版本 0」與「已在版本 2」兩個情境失敗。
+  - `RootVersionCurrent` 改用 `Append` → 情境 3 的兩個情境失敗。
+  - 計畫外另加：handler 一律走舊路徑 → 通用 API 的 cf 情境失敗（detail 變成 F7 的訊息）。
+- **計畫外的修改**：
+  - `kernel/errors/code.go` 新增 `ErrRootEnvelopeInvalid`，供未知的 `RootVersion` 使用。
+  - `runtime/engine/bfs_engine_mocks_test.go` 的 `mockStore` 補上 `AppendCurrent`。
+  - `registry_test.go` 補上「payload 為指標時拒絕」的檢查。
+
 ## 最終驗證結果
 
 R10 完成後記錄全套驗證結果。

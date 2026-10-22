@@ -1000,13 +1000,28 @@
 
   **規則**
 
-  1. **事件註冊表**（R1 建立）：每種遷移到 BFS 的事件類型，登錄 payload 型別、aggregate 的推導方式（A5、A7）、版本策略，以及經 `POST /api/event/append` 時接受的舊 aggregate 映射。R2 的 API 派送與 R3 的重建共用同一份註冊表。R1 實作於 `internal/domain/event/registry.go`（`Spec`、`Specs`、`Lookup`、`Decode`），只負責宣告、解碼與身分規則，只依賴 `enums`、`enums/event_types`、`kernel/event`、`kernel/errors` 與標準函式庫，不依賴 engine、mediator 與 persistence；目前只登錄 `transaction.cf_category_updated`（版本策略「驗證」，沒有舊 aggregate 映射）。
+  1. **事件註冊表**（R1 建立）：每種遷移到 BFS 的事件類型，登錄 payload 型別、aggregate 的推導方式（A5、A7）、版本策略，以及經 `POST /api/event/append` 時接受的舊 aggregate 映射。R2 的 API 派送與 R3 的重建共用同一份註冊表。R1 實作於 `internal/domain/event/registry.go`（`Spec`、`Specs`、`Lookup`、`Decode`），只負責宣告、解碼與身分規則，只依賴 `enums`、`enums/event_types`、`kernel/event`、`kernel/errors` 與標準函式庫，不依賴 engine、mediator 與 persistence；目前只登錄 `transaction.cf_category_updated`（版本策略「驗證」，沒有舊 aggregate 映射）。R2 段 1 起，`Spec.Aggregate` 改為接收整個事件，不只 payload：多數事件類型仍只看 payload，類別建立事件的 aggregate 則是事件 UUID（計畫書 `doc/plan/BFS_R2_MASTER_DATA.md` 的 D2、D6）。
   2. **派送**（R2 建立）：`POST /api/event/append` 依註冊表把已遷移的事件類型改派到 BFS，其餘沿用舊路徑，直到 R10。BFS 執行失敗時直接回傳錯誤，不得改走舊路徑。舊路徑本身另有保護（F7，ISSUE-028）：`EventStoreService.Append` 收到註冊表中的事件類型時，在執行 pipeline 前回傳 `services.ErrEventTypeMigrated`；R2 建立派送前，經 `POST /api/event/append` 送出這些事件類型會得到 500 與 problem 格式（規則第 7 點）。
+
+     R2 段 1 建立派送：`internal/handler/event.go` 的 `Append` 先經 `internal/application/command` 的 `Writer.DispatchLegacy`，處理方式如下：
+     - 未登錄的事件類型：交回舊路徑。
+     - 已登錄、沒有舊映射（例如現金流分類）：回傳 `command.ErrLegacyNotAccepted`。
+     - aggregate 不符舊映射：回傳 `command.ErrLegacyAggregateMismatch`（規則第 3 點）。
+     - 其餘：以註冊表解碼後經 BFS 寫入，再回讀 `event_store` 的紀錄，成功回應與舊路徑相同。
+
+     派送建立後，通用 API 送出已登錄的事件類型由派送處理；`ErrEventTypeMigrated` 保留給其他直接呼叫 `Append` 的寫入端。BFS 的組裝集中在 `command.NewEngine`，`NewMux` 與之後的種子共用。
   3. **舊 aggregate 映射**：前端送出的 `aggregate_type`、`aggregate_id` 必須等於該事件類型明列的舊映射（例如 `prepaid.created` 為 `('TRANSACTION', '')`，`ledger_account.updated` 為 `('ACCOUNT', payload.account_id)`），否則拒絕請求；實際寫入的 aggregate 一律由後端推導。各 Phase 的計畫列出遷移的每種事件類型的映射。
   4. **版本策略**由註冊表依事件類型決定，不看前端送了什麼：
      - **新建**：建立新 aggregate 的事件一律以版本 0 寫入；aggregate 已存在時視為衝突。
      - **驗證**：舊映射就是後端推導的 aggregate 時（例如 `account.updated` 的 `('ACCOUNT', account_id)`），依 A2 第 1 點使用並驗證前端的版本。
      - **交易內**：舊映射是共用 aggregate、與後端推導的不同時，前端的版本指向別的 aggregate，沒有意義，根事件改以交易內的目前版本寫入。這是 A2 第 1 點的例外，只適用於註冊表明列的事件類型。代價：失去目前共用 aggregate 上「取得版本到送出」之間的衝突偵測，改由 A1 的交易內業務驗證保護業務規則，兩者並不等價。
+     - **實作**（R2 段 1）：`command.Build` 依版本策略設定 kernel 事件的 `RootVersion`（不序列化），engine 只對根事件依它選擇寫入方式；子事件仍依 A2。
+
+       | 版本策略 | `RootVersion` | 寫入 |
+       |---|---|---|
+       | 新建 | `RootVersionNew` | `Store.Create`：已有任何版本紀錄（包含版本 0）都是衝突 |
+       | 驗證 | `RootVersionExpected`（零值） | `Store.Append` 與 `ExpectedVersion` |
+       | 交易內 | `RootVersionCurrent` | `Store.AppendCurrent`：在交易內讀取目前版本後寫入下一版，不使用 `ExpectedVersion` |
   5. **業務版本**：payload 帶有 `version` 的事件，handler 必須在交易內比對目前資料的版本，不符時回傳衝突、不寫入事件（行為與 F6 修正後相同）；不論版本策略是哪一種都要保留。
   6. **專屬 API**：科目類別、銀行範本等送出畫面版本的專屬 API，依 A2 第 1 點驗證，遷移時保留。
   7. 成功回應與錯誤格式維持不變（目前 `POST /api/event/append` 的錯誤一律回 500 與 problem 格式，`internal/handler/event.go:103`）；前端只判斷 `response.ok` 與錯誤的 `detail`／`title`（`frontside/src/api/aggregate.ts:13`）。
