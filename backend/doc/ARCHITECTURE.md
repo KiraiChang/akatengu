@@ -1000,7 +1000,7 @@
 
   **規則**
 
-  1. **事件註冊表**（R1 建立）：每種遷移到 BFS 的事件類型，登錄 payload 型別、aggregate 的推導方式（A5、A7）、版本策略，以及經 `POST /api/event/append` 時接受的舊 aggregate 映射。R2 的 API 派送與 R3 的重建共用同一份註冊表。
+  1. **事件註冊表**（R1 建立）：每種遷移到 BFS 的事件類型，登錄 payload 型別、aggregate 的推導方式（A5、A7）、版本策略，以及經 `POST /api/event/append` 時接受的舊 aggregate 映射。R2 的 API 派送與 R3 的重建共用同一份註冊表。R1 實作於 `internal/domain/event/registry.go`（`Spec`、`Specs`、`Lookup`、`Decode`），只負責宣告、解碼與身分規則，只依賴 `enums`、`enums/event_types`、`kernel/event`、`kernel/errors` 與標準函式庫，不依賴 engine、mediator 與 persistence；目前只登錄 `transaction.cf_category_updated`（版本策略「驗證」，沒有舊 aggregate 映射）。
   2. **派送**（R2 建立）：`POST /api/event/append` 依註冊表把已遷移的事件類型改派到 BFS，其餘沿用舊路徑，直到 R10。BFS 執行失敗時直接回傳錯誤，不得改走舊路徑。
   3. **舊 aggregate 映射**：前端送出的 `aggregate_type`、`aggregate_id` 必須等於該事件類型明列的舊映射（例如 `prepaid.created` 為 `('TRANSACTION', '')`，`ledger_account.updated` 為 `('ACCOUNT', payload.account_id)`），否則拒絕請求；實際寫入的 aggregate 一律由後端推導。各 Phase 的計畫列出遷移的每種事件類型的映射。
   4. **版本策略**由註冊表依事件類型決定，不看前端送了什麼：

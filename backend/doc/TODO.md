@@ -199,6 +199,7 @@
 
 **技術優化**
 
+- [ ] [Refactor] `Executor.ExecuteBatch`（`internal/runtime/engine/executor.go`）只有測試使用，以 goroutine 並行 dispatch，與 ADR-023 A1「整棵事件圖一個交易、依序處理」不一致。R1 只多一個 `repo` 參數，並在註解寫明不在 `Run` 的執行路徑上、不得共用 `Run` 的交易內 Repo；是否移除另行評估（`doc/plan/BFS_R1_ENGINE_FOUNDATION.md` 的 D3）
 - [ ] [DX] `sqlc.yaml` nullable enum override 自動化 — 每新增一個 nullable enum 欄位都需手動宣告 override，考慮以 go:generate 腳本輔助生成（關聯：ADR-005）
 - [ ] [Perf] 股東權益變動表快照優化 — 目前 `queryEquityAccounts` 全表掃描 journal_entries，未使用 period_closings 快照。可參考 `queryBalanceSheetWithSnap` 的模式，在有快照時以快照基底 + delta 取代全量掃描（關聯：ADR-006）
 

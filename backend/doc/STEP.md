@@ -12,7 +12,7 @@
 |-------|------|------|
 | 0 | 決策：寫成 ADR-023～027 與前端 ADR-013（ADR-021 由 ADR-026 分階段取代）；`AGENTS.md`、`backend/CLAUDE.md` 加入 BFS 遷移過渡規則；建立 STEP.md | ✅ done（2026-10-21） |
 | R0 | 交易內查詢：讓 `query.Repo` 可綁定 `sqlx.Tx` | ✅ done（2026-10-21） |
-| R1 | engine 基礎：事件圖一個交易（A1）、子事件封套與版本規則（A2）、handler 改用 `Run` 建立的交易內查詢、移除 projector 的 `state` 參數、建立事件註冊表 | 🟡 in progress |
+| R1 | engine 基礎：事件圖一個交易（A1）、子事件封套與版本規則（A2）、handler 改用 `Run` 建立的交易內查詢、移除 projector 的 `state` 參數、建立事件註冊表 | ✅ done（2026-10-21） |
 | R2 | 主檔與設定（含 `BootstrapEventSeeds`）、期間開帳改走 BFS；`POST /api/event/append` 依註冊表派送 | ⬜ pending |
 | R3 | BFS 重建機制：只跑 projector、以 `Reset()` 宣告清空範圍、單商戶原子重建（A4）；尚不對外 | ⬜ pending |
 | R4 | 傳票 `transaction.*` 與 `journal.posted` 子事件；每筆交易各自一個 aggregate（A5） | ⬜ pending |
@@ -79,7 +79,9 @@
 | 2 | 事件圖交易邊界、Run-local 交易內查詢、子事件封套與版本（A1、A2，計畫書第 4 節） | ✅ done（2026-10-21） |
 
 段 2 驗證（2026-10-21，Docker `golang:1.26`）：`go generate ./...`、`go build ./...` 通過，修改與新增的檔案 `gofmt -l` 無輸出；`go vet` 只回報既有的 `db_transaction.go` 未具名欄位（HEAD 已存在，記入 `TODO.md`）；`runtime/engine` 42 個 spec、`kernel/event` 測試全數通過；`go test -vet=off ./...` 全數通過。`-race`：接 DB 後 sqlite 無法在記憶體上限內以 `-race` 編譯，改在容器副本移除兩個接 DB 的測試檔後執行 `./internal/runtime/...`，通過（`doc/NOTES.md` 測試第 9 點）。反向檢查（計畫書 4.4）：每事件各自提交 → 9～12 與 7a、7b、8、16 失敗；移除 ctx 檢查 → 13a；全域 Repo → 14；移除版本紀錄 → 2～4、6；衍生改用 Append → 7a；移除封套覆寫 → 15。計畫外的修改：`shared/utils/test/db.go` 新增 `InitEnums()`、engine suite 改呼叫它，避免與測試 DB 重複初始化 enum 而 panic（`doc/NOTES.md` 測試第 8 點）。
-| 3 | 事件註冊表（計畫書第 5 節） | ⬜ pending |
+| 3 | 事件註冊表（計畫書第 5 節） | ✅ done（2026-10-21） |
+
+段 3 驗證（2026-10-21，Docker `golang:1.26.9`）：`go generate ./...`、`go build ./...`、`go vet`（`domain/event`、`persistence/handle`）通過，新增的 3 個檔案 `gofmt -l` 無輸出；`domain/event` 的 3 個測試與 `persistence/handle` 的解碼後套用測試通過；`go test -vet=off ./...` 全數通過。反向檢查（計畫書 5.4）：`Decode` 改回傳指標 → 解碼情境與解碼後套用（projector 的 payload type error）失敗；移除 cf 的登錄 → Lookup、解碼、註冊表檢查與解碼後套用都失敗。
 
 ## 最終驗證結果
 
