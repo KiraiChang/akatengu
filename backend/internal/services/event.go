@@ -1,6 +1,7 @@
 package services
 
 import (
+	domainevent "akatengu/internal/domain/event"
 	"akatengu/internal/enums"
 	"akatengu/internal/model/db"
 	dbprojection "akatengu/internal/model/db/projection"
@@ -25,6 +26,9 @@ import (
 var (
 	ErrUnsupportedExportVersion = errors.New("unsupported export version")
 	ErrPasswordRequired         = errors.New("password required for encrypted export")
+	// ErrEventTypeMigrated rejects an event type registered in the event
+	// registry: it is written only through BFSEngine.Run (ISSUE-028).
+	ErrEventTypeMigrated = errors.New("event type is migrated to BFS and cannot be appended through the legacy path")
 )
 
 type AggregateState struct {
@@ -52,6 +56,10 @@ func NewEventStoreService(uow event_store.UnitOfWork, query *query.Repo) *EventS
 // Append 寫入一個事件，同步更新所有 projection
 // 整個流程在同一個 transaction 內完成
 func (es *EventStoreService) Append(ctx context.Context, cmd cmd.AppendCmd) (*db.EventStore, error) {
+	// One write path per event type: reject migrated types before any pipeline runs.
+	if _, migrated := domainevent.Lookup(cmd.EventType); migrated {
+		return nil, fmt.Errorf("%w: %v", ErrEventTypeMigrated, cmd.EventType)
+	}
 	ct, err := es.factory.Dispatch(ctx, cmd)
 	if err != nil {
 		return nil, err

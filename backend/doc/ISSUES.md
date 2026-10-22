@@ -668,7 +668,7 @@
 
 ### [ISSUE-028] 通用寫入 API 仍可經舊路徑寫入已遷移到 BFS 的現金流分類事件
 
-- **狀態**：🔴 Open
+- **狀態**：🟢 Resolved（2026-10-22，計畫書 F7）
 - **日期**：2026-10-21
 - **嚴重程度**：Medium
 - **位置**：`internal/handler/event.go:100`、`internal/services/pipelines/factory/base.go:57`、`internal/services/projection/entry_cf_category.go:147`
@@ -680,6 +680,10 @@
   現金流分類（`entry_cf_categories`）的寫入與版本檢查。之後每遷移一種事件類型都會有相同的問題，R2 建立依註冊表的派送之前，需要逐一處理。
 - **解決方向**：
   另開小型 bug fix（計畫書 F7），不併入 R1 的重構：在舊入口拒絕寫入已遷移到 BFS 的事件類型（目前只有 `transaction.cf_category_updated`），回傳錯誤、不寫入事件；專屬 API 不受影響。舊 pipeline 的登錄暫不移除，因為舊 replay（`services/event.go:192`，Wontfix，R10 移除）仍以它重播既有的事件。F7 的計畫另行確認。
+- **解決方式**（2026-10-22，計畫書 `doc/plan/BFS_PREREQ_F7.md`）：
+  1. `EventStoreService.Append` 開頭以 R1 的事件註冊表（`domainevent.Lookup`）檢查事件類型，已登錄的類型在執行 pipeline 前回傳 `services.ErrEventTypeMigrated`，不寫入事件。`Append` 是舊寫入路徑唯一的入口，通用 API、專屬 handler 與種子事件都受這個檢查保護；舊 replay 與事件匯入不經 `Append`，不受影響。
+  2. `EventHandler.Append` 不修改，錯誤維持 500 與 problem 格式（ADR-027 規則 7）。
+  3. 測試：`internal/services/event_append_test.go`（4 個情境：以交易 UUID 與其他 aggregate 寫入、無效 payload 都被拒絕，未遷移的 `account.created` 照常寫入）、`internal/handler/event_test.go` 與 `event_scenarios_test.go`（經 `NewMux` 的 2 個情境）。反向檢查：移除檢查時繞過的寫入成功；檢查移到 pipeline 之後時，無效 payload 回傳 pipeline 的驗證錯誤。
 
 ---
 

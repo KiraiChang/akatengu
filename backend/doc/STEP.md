@@ -34,7 +34,9 @@
 | F4 | ISSUE-025：safety middleware 的狀態改為每次 `Run` 各自獨立 | R1 之前 | ✅ done（2026-10-21） |
 | F5 | ISSUE-026：重新提供帳戶類型、資產類型設定與系統科目對應的更新 API | 建議在 R2 之前 | ✅ done（2026-10-21） |
 | F6 | ISSUE-027：科目、帳戶與投資修改的業務版本檢查 | R2、R9 之前 | ✅ done（2026-10-21） |
-| F7 | ISSUE-028：通用寫入 API 拒絕已遷移到 BFS 的事件類型 | R2 之前 | ⬜ pending |
+| F7 | ISSUE-028：通用寫入 API 拒絕已遷移到 BFS 的事件類型 | R2 之前 | ✅ done（2026-10-22） |
+
+F7 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ_F7.md`，一段完成）：`go generate ./...`、`go build ./...`、`go vet`（`services`、`handler`）通過，修改與新增的 4 個檔案 `gofmt -l` 無輸出；`TestAppend_MigratedEventType` 的 4 個情境與 `NewMux POST /api/event/append` 的 2 個 spec 通過；`go test -vet=off ./...` 全數通過。反向檢查（計畫書第 5 節）：移除檢查 → service 情境 1、2、4 與 handler 的已遷移情境失敗；拒絕所有事件類型 → 兩個對照情境失敗；檢查移到 pipeline 之後 → service 情境 4 失敗（回傳 pipeline 的驗證錯誤）。
 
 ### F5 子階段
 
