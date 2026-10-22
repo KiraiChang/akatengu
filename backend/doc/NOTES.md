@@ -19,6 +19,21 @@
 
 <!-- 新增時在最上方插入，格式如下 -->
 
+### 2026-10-22 [DEBUG] SQLite 重建被外鍵引用的資料表，以及 modernc 的 DSN 參數
+
+1. **要改資料表內宣告的 UNIQUE、CHECK 或外鍵，只能重建資料表**：SQLite 無法 `DROP` 這些約束的自動索引，也不能 `ALTER` 約束。
+2. **被其他資料表以外鍵引用時，以同名重建**：依序為備份到暫存表 → `DROP` → 以原名稱重建 → 以原本的主鍵寫回 → 刪除暫存表 → 重建索引，開頭執行 `PRAGMA defer_foreign_keys = ON`（參考 `migrations/20261022001_period_closing_merchant_unique.sql`）。
+   - 外鍵開啟時，`DROP` 等於先刪除所有列，違反延後到 commit 檢查；寫回原本的主鍵後就消除。
+   - 外鍵關閉時，這個 pragma 沒有作用；goose 的交易結束後自動還原。
+   - 子資料表的外鍵寫的是名稱，不改名就不受 `foreign_keys`、`legacy_alter_table` 影響。
+   - **只適用於子表外鍵沒有設定刪除動作的情況**：外鍵開啟時，`DROP` 的隱含刪除會執行子表外鍵的 `ON DELETE` 動作。`CASCADE` 會刪除子資料，`SET NULL` 會把引用改成 NULL；寫回父資料不會還原，交易照常 commit（2026-10-22 探測確認；外鍵關閉時不會執行）。外鍵目前沒有開啟（ISSUE-032），這類 migration 現在看似正常，修正後就會刪改資料。重建前以 `pragma_foreign_key_list(<子表>)` 的 `on_delete` 欄位確認，每個引用都是 `NO ACTION`（未設定時的預設值）；有其他動作時不能直接套用，需另行設計。目前只有 `transaction_templates` 被 `ON DELETE CASCADE` 引用（`20260525001_transaction_template.sql:25`）；F9 的兩個引用沒有設定動作。
+3. **不要用「建立 `_new` → 複製 → `DROP` 舊表 → 改名」重建被引用的表**：外鍵開啟時 commit 失敗（`FOREIGN KEY constraint failed`）；外鍵關閉時，AUTOINCREMENT 的計數會退回現有最大 ID。不被引用、也沒有 AUTOINCREMENT 的表仍可沿用（例如 `20260614001_bank_pdf_multiledger.sql`）。
+4. **AUTOINCREMENT 的計數要另外保存**：`DROP TABLE` 會刪除 `sqlite_sequence` 中該表的計數，寫回資料後只會依現有最大 ID 重算，曾被刪除的 ID 可能被重新使用。先把 `seq` 存到暫存表，寫回後還原為兩者中較大的值；計數列不存在時要 `INSERT`。
+5. **延後的外鍵檢查不會追溯既有資料**：只計算本交易的語句造成的違反，開啟外鍵後也不會檢查既有的孤兒引用。migration 成功不能當作資料完整的證明（ISSUE-032）。
+6. **檢查外鍵前先確認定義正確**：父欄位不是主鍵或唯一索引時，`PRAGMA foreign_key_check` 會直接回傳 `foreign key mismatch`（ISSUE-033）。檢查特定引用時，可改用 `LEFT JOIN` 找出父表沒有對應列的資料，並以 `pragma_foreign_key_list(<table>)` 確認外鍵定義仍在。
+7. **modernc 驅動只認 `_pragma=名稱(值)` 的 DSN 參數**：例如 `?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)`。go-sqlite3 格式的 `_foreign_keys=on` 等參數會被忽略，也不會報錯（ISSUE-032）；要確認是否生效，連線後查 `PRAGMA foreign_keys` 等值。`PRAGMA foreign_keys` 只作用於目前的連線，測試要先 `SetMaxOpenConns(1)`，在同一條連線、交易外設定。
+8. **測試資料 migration 的效果**：以 `database.MigrateUpTo` 遷移到目標 migration 的前一版、寫入 fixture，再以 `database.RunMigrations` 遷移到最新版本（參考 `internal/database/period_closing_migration_test.go`）。
+
 ### 2026-10-21 [DEBUG] 有狀態 middleware 的配置方式與共用狀態的回歸測試
 
 1. **有狀態的 middleware 要在包裝 processor 時配置狀態**：`safety.Middleware` 的值可以重用，狀態放在 `func(next EventProcessor) EventProcessor` 裡，每次組 chain 時才建立；engine 在每次 `Run` 開頭組一次 chain（ISSUE-025）。若狀態放在 `CycleDetector()` 這類建構函式裡，重用同一個 middleware 值時，即使每次 `Run` 都重組 chain，狀態仍然共用。

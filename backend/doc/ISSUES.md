@@ -707,7 +707,7 @@
 
 ### [ISSUE-030] 不同商戶無法開立同一期間
 
-- **狀態**：🔴 Open
+- **狀態**：🟢 Resolved（2026-10-22，計畫書 F9）
 - **日期**：2026-10-22
 - **嚴重程度**：High
 - **位置**：`internal/database/migrations/20260310001_init_table.sql:215`、`internal/database/migrations/20260514002_add_merchant_id.sql:16`
@@ -717,6 +717,17 @@
   多商戶的期間開帳。傳票、分期、預付、固定資產、投資的 pipeline 都要求交易日期所在月份為 OPEN，因此後開帳的商戶在該月份無法記帳。也違反 R3 驗收條件「重建商戶 A 不影響商戶 B」的前提（ADR-025 A4）。
 - **解決方向**：
   小型 bug fix（計畫書 F9），建議在 R2 段 5（期間開帳遷移）之前完成，R3 之前必須完成：以 migration 把唯一鍵改為 `(merchant_id, period_type, period_start)`（SQLite 需重建資料表），並補測試重現「兩個商戶開立同一期間」。同一商戶重複開立同一期間仍由唯一鍵擋下（R2 段 5 依賴這個保護）。其他資料表的唯一鍵是否也缺少 `merchant_id`，另行盤點（`TODO.md`）。F9 的計畫另行確認。
+- **解決方式**（2026-10-22，計畫書 `doc/plan/BFS_PREREQ_F9.md`）：
+  1. 新增 migration `20261022001_period_closing_merchant_unique.sql`，重建 `period_closings`，唯一鍵改為 `UNIQUE(merchant_id, period_type, period_start)`。
+     - **保留不變**：欄位、預設值、CHECK 與 3 個索引；原本的 `closing_id` 與 AUTOINCREMENT 計數。
+     - **重建順序**：同名重建並開啟 `defer_foreign_keys`，外鍵開啟或關閉時都正確（做法見 `NOTES.md` 2026-10-22）。
+     - **Down**：不還原。
+  2. `internal/database/migrate.go` 新增 `MigrateUpTo`，供測試在前一版的 schema 寫入 fixture。
+  3. 測試：
+     - `internal/services/period_unique_test.go`：經 `EventStoreService.Append` 的 3 個情境，涵蓋兩個商戶開立同一月份、同一年度，以及同一商戶重複開立被唯一鍵擋下且不寫入事件。
+     - `internal/database/period_closing_migration_test.go`：migration 的 2 個情境，在外鍵關閉與開啟下確認資料、欄位、快照的引用、外鍵定義、索引、唯一鍵與計數。
+  4. 反向檢查：唯一鍵改回舊鍵、移除唯一鍵、移除 `defer_foreign_keys`、不還原計數，都在對應情境失敗。
+  5. 範圍外：既有的孤兒引用不檢查、不修復，交由 ISSUE-032；引用 `accounts(account_id)` 的外鍵定義錯誤見 ISSUE-033。
 
 ---
 
