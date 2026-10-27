@@ -14,7 +14,7 @@
 | R0 | 交易內查詢：讓 `query.Repo` 可綁定 `sqlx.Tx` | ✅ done（2026-10-21） |
 | R1 | engine 基礎：事件圖一個交易（A1）、子事件封套與版本規則（A2）、handler 改用 `Run` 建立的交易內查詢、移除 projector 的 `state` 參數、建立事件註冊表 | ✅ done（2026-10-21） |
 | R2 | 主檔與設定（含 `BootstrapEventSeeds`）、期間開帳改走 BFS；`POST /api/event/append` 依註冊表派送 | ✅ done（2026-10-22） |
-| R3 | BFS 重建機制：只跑 projector、以 `Reset()` 宣告清空範圍、單商戶原子重建（A4）；尚不對外 | 🚧 in progress（段 1 完成） |
+| R3 | BFS 重建機制：只跑 projector、以 `Reset()` 宣告清空範圍、單商戶原子重建（A4）；尚不對外 | 🚧 in progress（段 2 完成） |
 | R4 | 傳票 `transaction.*` 與 `journal.posted` 子事件；每筆交易各自一個 aggregate（A5） | ⬜ pending |
 | R5 | 期間結帳與重開（月結、年結） | ⬜ pending |
 | R6 | 銀行範本、匯入改走 BFS；比對與忽略事件化（ADR-026）；更新過渡規則中的 ADR-021 例外 | ⬜ pending |
@@ -268,7 +268,9 @@ R2 全部完成（段 1～5）。
 | 1a | engine：`EventResult.Payload`，handler 回傳的補充後 payload 在寫入前取代原本的 payload，型別不同時回傳新的錯誤代碼（D3）；engine 測試情境 1～3 | ✅ done（2026-10-27） |
 | 1b | `ledger_account.created`：payload 新增 `ledger_id`；唯讀查詢 `GetNextLedgerID`；handler 在交易內配置 ID；projector 改用 BFS 專用的 `CreateLedgerAccountWithID`。舊的 `CreateLedgerAccount` 不修改（D3） | ✅ done（2026-10-27） |
 | 1c | 測試：調整 R2 的契約測試；新增情境 4～8，含舊 replay 重播兩個明細帳戶 | ✅ done（2026-10-27） |
-| 2 | `Reset`（D1、D9） | ⬜ pending |
+| 2a | 查詢與方法：各資料表依商戶刪除的 sqlc 查詢與 `persistence/repos/projection` 的方法；刪除指定名稱 checkpoint 的查詢與 `Checkpoint.Delete`（D1） | ✅ done（2026-10-27） |
+| 2b | `Projector.Reset`、`Registry.ResetAll`（清空資料表並刪除各 projector 的 checkpoint，D1、D6）；6 個 projector 實作 `Reset`；測試替身補上 `Reset`；抽出 `command.NewProjectors`，讓測試取得與 engine 相同的 projector | ✅ done（2026-10-27） |
+| 2c | 測試：D9 的清空範圍（BFS 寫入前後的差異）、前置資料與商戶 1 不變、連續執行兩次；反向檢查 | ✅ done（2026-10-27） |
 | 3 | `Rebuild`（D2、D4～D8、D10） | ⬜ pending |
 
 段 1 驗證（2026-10-27，Docker `golang:1.26.9`）：
@@ -293,6 +295,36 @@ R2 全部完成（段 1～5）。
 - **與計畫書的差異**：
   - 錯誤代碼命名為 `ErrResultPayloadInvalid`。
   - 情境 5 改為「商戶 1 已有 1、商戶 2 已有 2，商戶 1 再建立一個 → 3」，同時涵蓋兩個商戶。
+
+段 2 驗證（2026-10-27，Docker `golang:1.26.9`）：
+- **建置與格式**：
+  - `go generate ./...`、`go build ./...` 通過（2a、2b、2c 各自執行）。
+  - `go vet` 通過：`persistence/handle`、`persistence/repos/projection`、`application/command`、`runtime/engine`。`persistence/repos` 只回報既有的 `db_transaction.go` 未具名欄位（`TODO.md`）；本段新增的 `Delete` 使用具名欄位。
+  - 修改與新增的 15 個 Go 檔 `gofmt -l` 無輸出；`git diff --check` 無輸出。
+- **測試**（`application/command/reset_test.go` 的 `TestResetAll`；fixture 在 `rebuild_fixture_test.go`，段 3 沿用）：
+  - fixture：
+    - 前置資料：兩個商戶各以 SQL 寫入一筆 ACTIVE 交易與兩筆分錄；商戶 2 另有一筆舊 projection 名稱（`TRANSACTION`）的 checkpoint。
+    - 兩個商戶各經 `command.Build`、`Writer.Append` 寫入 17 種事件，由 `domainevent.Specs()` 檢查沒有遺漏。
+    - 科目以 `account.bulk_imported` 匯入 `seeds/accounts.sql` 給商戶 1 的科目，讀法同 `BootstrapEventSeeds`；設定取自 `seeds/sys_accounts.sql`、`account_type_configs.sql`。
+  - 寫入前後有差異的資料表正好是計畫書 1.1 的 10 張表，且在基準中沒有商戶 2 的資料。
+  - 情境 1：`ResetAll` 後，這 10 張表沒有商戶 2 的資料。
+  - 情境 2：其他資料表回到基準，包含前置的 `transactions`、`journal_entries`，以及只剩舊名稱的 checkpoint；`event_store`、`aggregate_versions`、`snapshots` 維持寫入後的狀態；商戶 1 的資料全部不變。
+  - 情境 3：連續執行兩次不出錯，資料不變。
+  - `go test -vet=off ./...` 全數通過；engine 49 個 spec 通過。
+- **反向檢查**（在容器副本中修改）：
+  - `accountProjector.Reset` 不刪除 `account_closure` → 情境 1、2 失敗（剩下 533 筆）。
+  - `configProjector.Reset` 不刪除 `asset_type_account_config` → 情境 1、2 失敗。
+  - 計畫外另加：
+    - `ResetAll` 不刪除 checkpoint → 情境 2 失敗（7 筆，應為 1 筆）。
+    - 預付類別的刪除拿掉商戶條件 → 情境 2 的商戶 1 失敗。
+    - 現金流分類的刪除改為刪除該商戶的 `journal_entries` → 情境 1、2 失敗。
+- **計畫外的修改**：
+  - `persistence/repos` 的 `Checkpoint` 新增 `Delete`，`database/queries/event_store.sql` 新增 `DeleteCheckpoint`。
+  - 抽出 `command.NewProjectors`，`NewEngine` 改為使用它；測試以它取得與 engine 相同的 projector。
+  - engine 測試的 `mockProjector`、`txProjector` 補上 `Reset`。
+- **與計畫書的差異**：
+  - D6 的「套用事件前刪除 BFS projector 的 checkpoint」併入 `Registry.ResetAll`：清空每個 projector 的資料表後，接著刪除它的 checkpoint。段 3 的 `Rebuild` 呼叫 `ResetAll` 即可。
+  - 段 3 的 fixture 原寫「商戶 2 以 `account.created` 等事件建立自己的科目」，實作改為兩個商戶都以 `account.bulk_imported` 匯入種子科目，再以 `account.created` 新增一個科目。設定與類別引用的科目因此都存在。
 
 ## 最終驗證結果
 

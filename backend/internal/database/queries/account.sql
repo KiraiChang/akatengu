@@ -155,3 +155,16 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,datetime('now'))
         cash_flow_category = excluded.cash_flow_category,
         updated_by         = excluded.updated_by,
         updated_at         = datetime('now');
+
+-- The deletes below clear one merchant's rows before a rebuild applies its
+-- events again (BFS R3 D1). account_closure is written by the accounts insert
+-- trigger, so the account projector clears it too.
+
+-- name: DeleteAllAccountClosureByMerchant :exec
+DELETE FROM account_closure WHERE merchant_id = @merchant_id;
+
+-- name: DeleteAllLedgerAccountsByMerchant :exec
+DELETE FROM ledger_accounts WHERE merchant_id = @merchant_id;
+
+-- name: DeleteAllAccountsByMerchant :exec
+DELETE FROM accounts WHERE merchant_id = @merchant_id;

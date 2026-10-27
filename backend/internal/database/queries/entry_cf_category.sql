@@ -35,3 +35,6 @@ WHERE t.merchant_id = @merchant_id
   AND (@date_from = '' OR t.txn_date >= @date_from)
   AND (@date_to   = '' OR t.txn_date <= @date_to)
 ORDER BY t.txn_id DESC, je.entry_id ASC;
+
+-- name: DeleteAllEntryCFCategoriesByMerchant :exec
+DELETE FROM entry_cf_categories WHERE merchant_id = @merchant_id;

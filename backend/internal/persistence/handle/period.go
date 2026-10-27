@@ -8,6 +8,7 @@ import (
 	"akatengu/internal/kernel/event"
 	dbprojection "akatengu/internal/model/db/projection"
 	"akatengu/internal/persistence/repos"
+	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/shared/utils"
 	"context"
 	"fmt"
@@ -47,6 +48,17 @@ func (c periodProjector) Apply(ctx context.Context, tx *repos.DbTransaction, evt
 
 func (c periodProjector) Name() string {
 	return "periodProjector"
+}
+
+// Reset deletes all the merchant's periods. Closing and reopening still write
+// period_closings on the legacy path until R5, so a rebuild must not run for a
+// merchant with legacy events (BFS R3 D5).
+func (c periodProjector) Reset(ctx context.Context, tx *repos.DbTransaction) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	return tx.Projection.DeletePeriodClosings(ctx, merchantID)
 }
 
 // applyMonthStarted opens the month as an OPEN period named after the event

@@ -51,3 +51,4 @@ func (m *mockProjector) Apply(_ context.Context, _ *repos.DbTransaction, _ event
 	m.applyCount++
 	return m.applyErr
 }
+func (m *mockProjector) Reset(_ context.Context, _ *repos.DbTransaction) error { return nil }

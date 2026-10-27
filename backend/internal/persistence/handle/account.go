@@ -7,6 +7,7 @@ import (
 	"akatengu/internal/kernel/event"
 	dbprojection "akatengu/internal/model/db/projection"
 	"akatengu/internal/persistence/repos"
+	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/shared/utils"
 	"context"
 	"fmt"
@@ -47,6 +48,22 @@ func (c accountProjector) Apply(ctx context.Context, tx *repos.DbTransaction, ev
 
 func (c accountProjector) Name() string {
 	return "accountProjector"
+}
+
+// Reset deletes the merchant's accounts and ledger accounts, and the
+// account_closure rows the accounts insert trigger wrote.
+func (c accountProjector) Reset(ctx context.Context, tx *repos.DbTransaction) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	if err := tx.Projection.DeleteAccountClosure(ctx, merchantID); err != nil {
+		return err
+	}
+	if err := tx.Projection.DeleteLedgerAccounts(ctx, merchantID); err != nil {
+		return err
+	}
+	return tx.Projection.DeleteAccounts(ctx, merchantID)
 }
 
 // applyAccountBulkImported writes the accounts in payload order; a parent must

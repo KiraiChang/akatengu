@@ -97,6 +97,10 @@ VALUES (@projection_name, @merchant_id, @last_event_id, datetime('now'))
     last_event_id = excluded.last_event_id,
     updated_at = excluded.updated_at;
 
+-- name: DeleteCheckpoint :exec
+DELETE FROM projection_checkpoints
+WHERE projection_name = @projection_name AND merchant_id = @merchant_id;
+
 -- name: GetAggregateVersion :one
 SELECT current_version FROM aggregate_versions
 WHERE aggregate_type = @aggregate_type AND aggregate_id = @aggregate_id AND merchant_id = @merchant_id;

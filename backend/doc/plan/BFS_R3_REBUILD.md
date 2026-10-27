@@ -181,7 +181,7 @@ F10 依 `ISSUES.md` 以小幅修改實作與 review，實作計畫另行確認�
 - **3a**：
   - `aggregate_versions` 的查詢：依商戶刪除；從 `event_store` 寫入最大版本。
 - **3b**：
-  - `runtime/engine` 的 `Rebuild`：前置檢查、`defer_foreign_keys`、清除 checkpoint、`ResetAll`、依序套用、重算版本。
+  - `runtime/engine` 的 `Rebuild`：前置檢查、`defer_foreign_keys`、`ResetAll`（段 2 實作時已包含清除 checkpoint）、依序套用、重算版本。
   - 把 `event_store` 的資料列轉回 kernel 事件，沿用 R1 測試的轉換方式（`persistence/handle/decode_apply_test.go`），改為正式的程式。
   - 依需要新增錯誤代碼。
 - **3c**：

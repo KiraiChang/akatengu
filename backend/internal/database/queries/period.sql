@@ -96,3 +96,6 @@ SET closing_txn_id = ?,
     updated_by     = ?,
     updated_at     = datetime('now')
 WHERE closing_id = ?;
+
+-- name: DeleteAllPeriodClosingsByMerchant :exec
+DELETE FROM period_closings WHERE merchant_id = @merchant_id;

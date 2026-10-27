@@ -61,3 +61,9 @@ JOIN account_closure ac
      ON a.account_id = ac.descendant_id AND a.merchant_id = ac.merchant_id
 WHERE ac.ancestor_id = @ancestor_id AND ac.merchant_id = @merchant_id AND ac.depth > 0
 ORDER BY a.account_id ASC;
+
+-- name: DeleteAllLedgerAccountTypeConfigByMerchant :exec
+DELETE FROM ledger_account_type_config WHERE merchant_id = @merchant_id;
+
+-- name: DeleteAllAssetTypeAccountConfigByMerchant :exec
+DELETE FROM asset_type_account_config WHERE merchant_id = @merchant_id;

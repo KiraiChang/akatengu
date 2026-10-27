@@ -7,6 +7,7 @@ import (
 	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/persistence/repos"
+	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/shared/utils"
 	"context"
 
@@ -44,6 +45,21 @@ func (c configProjector) Apply(ctx context.Context, tx *repos.DbTransaction, evt
 
 func (c configProjector) Name() string {
 	return "configProjector"
+}
+
+// Reset deletes the merchant's system accounts and account settings.
+func (c configProjector) Reset(ctx context.Context, tx *repos.DbTransaction) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	if err := tx.Projection.DeleteSysAccounts(ctx, merchantID); err != nil {
+		return err
+	}
+	if err := tx.Projection.DeleteLedgerAccountTypeConfigs(ctx, merchantID); err != nil {
+		return err
+	}
+	return tx.Projection.DeleteAssetTypeAccountConfigs(ctx, merchantID)
 }
 
 func (c *configProjector) applySysAccountUpdated(ctx context.Context, tx *repos.DbTransaction, evt event.Event) error {

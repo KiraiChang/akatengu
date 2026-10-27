@@ -217,6 +217,8 @@ func (p *txProjector) Apply(_ context.Context, _ *repos.DbTransaction, evt event
 	return nil
 }
 
+func (p *txProjector) Reset(_ context.Context, _ *repos.DbTransaction) error { return nil }
+
 func newTxTestDB() *sqlx.DB {
 	db, closeDB := test.NewTestDBGinkgo()
 	DeferCleanup(closeDB)

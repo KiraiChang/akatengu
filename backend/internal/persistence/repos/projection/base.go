@@ -27,6 +27,19 @@ type Projection interface {
 	SoftDeleteFixedAssetCategory(ctx context.Context, p sqlcdb.SoftDeleteFixedAssetCategoryParams) error
 
 	InsertPeriodClose(ctx context.Context, p dbprojection.PeriodClosing) error
+
+	// The Delete methods clear one merchant's rows of a table before a rebuild
+	// (BFS R3 D1); see reset.go.
+	DeleteAccountClosure(ctx context.Context, merchantID int64) error
+	DeleteLedgerAccounts(ctx context.Context, merchantID int64) error
+	DeleteAccounts(ctx context.Context, merchantID int64) error
+	DeleteSysAccounts(ctx context.Context, merchantID int64) error
+	DeleteLedgerAccountTypeConfigs(ctx context.Context, merchantID int64) error
+	DeleteAssetTypeAccountConfigs(ctx context.Context, merchantID int64) error
+	DeletePrepaidCategories(ctx context.Context, merchantID int64) error
+	DeleteFixedAssetCategories(ctx context.Context, merchantID int64) error
+	DeletePeriodClosings(ctx context.Context, merchantID int64) error
+	DeleteEntryCFCategories(ctx context.Context, merchantID int64) error
 }
 
 type sqlxProjection struct {

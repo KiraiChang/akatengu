@@ -7,6 +7,7 @@ import (
 	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/persistence/repos"
+	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/shared/utils"
 	"context"
 
@@ -39,6 +40,17 @@ func (c cashFlowCategoryProjector) Apply(ctx context.Context, tx *repos.DbTransa
 
 func (c cashFlowCategoryProjector) Name() string {
 	return "cashFlowCategoryProjector"
+}
+
+// Reset deletes all the merchant's entry cash flow categories. The legacy
+// transaction projection still writes their defaults until R4, so a rebuild
+// must not run for a merchant with legacy events (BFS R3 D5).
+func (c cashFlowCategoryProjector) Reset(ctx context.Context, tx *repos.DbTransaction) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	return tx.Projection.DeleteEntryCFCategories(ctx, merchantID)
 }
 
 func (s *cashFlowCategoryProjector) applyUserUpdate(ctx context.Context, tx *repos.DbTransaction, evt event.Event) error {

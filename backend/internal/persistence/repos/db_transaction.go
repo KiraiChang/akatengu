@@ -22,6 +22,9 @@ type DbTransaction struct {
 type Checkpoint interface {
 	Update(ctx context.Context, projectionName string, lastEventID int64) error
 	Upsert(ctx context.Context, projectionName string, lastEventID int64) error
+	// Delete removes the projector's checkpoint of the merchant in ctx, before
+	// a rebuild applies the merchant's events again (BFS R3 D6).
+	Delete(ctx context.Context, projectionName string) error
 }
 
 type sqlcdbTxCheckpoint struct{ q *sqlcdb.Queries }
@@ -47,6 +50,17 @@ func (r *sqlcdbTxCheckpoint) Update(ctx context.Context, name string, lastEventI
 		ProjectionName: name,
 		MerchantID:     merchantId,
 		LastEventID:    lastEventID,
+	})
+}
+
+func (r *sqlcdbTxCheckpoint) Delete(ctx context.Context, name string) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	return r.q.DeleteCheckpoint(ctx, sqlcdb.DeleteCheckpointParams{
+		ProjectionName: name,
+		MerchantID:     merchantID,
 	})
 }
 

@@ -7,6 +7,7 @@ import (
 	"akatengu/internal/kernel/errors"
 	"akatengu/internal/kernel/event"
 	"akatengu/internal/persistence/repos"
+	"akatengu/internal/pkg/ctxkey"
 	"akatengu/internal/shared/utils"
 	"context"
 
@@ -44,6 +45,15 @@ func (c fixedAssetCategoryProjector) Apply(ctx context.Context, tx *repos.DbTran
 
 func (c fixedAssetCategoryProjector) Name() string {
 	return "fixedAssetCategoryProjector"
+}
+
+// Reset deletes the merchant's fixed asset categories, deleted ones included.
+func (c fixedAssetCategoryProjector) Reset(ctx context.Context, tx *repos.DbTransaction) error {
+	merchantID, err := ctxkey.GetMerchantID(ctx)
+	if err != nil {
+		return err
+	}
+	return tx.Projection.DeleteFixedAssetCategories(ctx, merchantID)
 }
 
 // applyCreated names the category after its creation event's UUID, which is

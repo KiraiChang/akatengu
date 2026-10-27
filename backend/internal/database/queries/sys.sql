@@ -20,3 +20,6 @@ VALUES(@merchant_id, @sys_code, @description, @account_id)
 ON CONFLICT(merchant_id, sys_code) DO UPDATE SET
     account_id  = excluded.account_id,
     description = excluded.description;
+
+-- name: DeleteAllSysAccountsByMerchant :exec
+DELETE FROM sys_accounts WHERE merchant_id = @merchant_id;

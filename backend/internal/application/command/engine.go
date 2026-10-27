@@ -20,6 +20,15 @@ func NewEngine(db *sqlx.DB) *engine.BFSEngine {
 	m := mediator.NewMediator()
 	process.Registry(m)
 
+	return engine.NewBFSEngine(engine.NewExecutor(m)).
+		WithMiddleware(safety.BackpressureScheduler(3), safety.DepthGuard(10), safety.CycleDetector()).
+		WithProjector(NewProjectors(db)).
+		WithUnitOfWork(repos.NewUnitOfWork(db))
+}
+
+// NewProjectors registers every BFS projector, the set NewEngine applies and
+// resets; tests use it to reach the same set.
+func NewProjectors(db *sqlx.DB) *handle.Registry {
 	projector := handle.NewRegistry()
 	projector.Register(handle.NewCashFlowCategoryProjector(db))
 	projector.Register(handle.NewAccountProjector(db))
@@ -27,9 +36,5 @@ func NewEngine(db *sqlx.DB) *engine.BFSEngine {
 	projector.Register(handle.NewPrepaidCategoryProjector(db))
 	projector.Register(handle.NewFixedAssetCategoryProjector(db))
 	projector.Register(handle.NewPeriodProjector(db))
-
-	return engine.NewBFSEngine(engine.NewExecutor(m)).
-		WithMiddleware(safety.BackpressureScheduler(3), safety.DepthGuard(10), safety.CycleDetector()).
-		WithProjector(projector).
-		WithUnitOfWork(repos.NewUnitOfWork(db))
+	return projector
 }

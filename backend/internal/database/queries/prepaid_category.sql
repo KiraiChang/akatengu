@@ -35,3 +35,6 @@ WHERE category_uuid = @category_uuid AND merchant_id = @merchant_id;
 SELECT * FROM prepaid_categories
 WHERE merchant_id = @merchant_id AND is_active = 1
 ORDER BY name;
+
+-- name: DeleteAllPrepaidCategoriesByMerchant :exec
+DELETE FROM prepaid_categories WHERE merchant_id = @merchant_id;
