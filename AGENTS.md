@@ -14,7 +14,7 @@
 
 | 範圍 | 技術與責任 | 主要入口 |
 |---|---|---|
-| `backend/` | Go 1.26 API、事件溯源、SQLite/sqlc、靜態檔案服務 | `backend/cmd/main.go`、`backend/internal/handler/handler.go` |
+| `backend/` | Go 1.27 API、事件溯源、SQLite/sqlc、靜態檔案服務 | `backend/cmd/main.go`、`backend/internal/handler/handler.go` |
 | `frontside/` | Svelte 5 SPA、TypeScript 6、Vite | `frontside/src/main.ts`、`frontside/src/App.svelte` |
 | `backend/doc/` | 後端 ADR、測試策略、問題、筆記、TODO | `backend/doc/ARCHITECTURE.md` |
 | `frontside/doc/` | 前端 ADR、問題、筆記、TODO | `frontside/doc/ARCHITECTURE.md` |

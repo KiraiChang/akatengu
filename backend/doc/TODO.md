@@ -155,7 +155,9 @@
 **程式碼格式**
 
 - [ ] [DX] `internal/persistence/repos/db_transaction.go` 的 `sqlcdb.UpsertCheckpointParams` 以未具名欄位建立，`go vet ./internal/persistence/repos/` 回報 composites（`struct literal uses unkeyed fields`）。2026-10-21 於 R1 段 2 驗證時發現，HEAD 已存在，非 R1 引入；以具名欄位改寫即可，另以小幅修改處理
-- [ ] [DX] 全專案 52 個已追蹤的 Go 檔案未通過 `gofmt`（2026-10-19 於 F3 驗證時發現，例如 `internal/services/bank_statement_review.go` 的 struct 欄位未對齊）。建議以只調整格式的獨立 commit 執行 `gofmt -w`，不混入功能修改，方便 review
+- [ ] [DX] 全專案 52 個已追蹤的 Go 檔案未通過 `gofmt`（2026-10-19 於 F3 驗證時發現，例如 `internal/services/bank_statement_review.go` 的 struct 欄位未對齊）。建議以只調整格式的獨立 commit 執行 `gofmt -w`，不混入功能修改，方便 review。2026-10-27 升級到 Go 1.27.3 時重新計算：1.26.9 下為 49 個，1.27.3 下為 50 個，多出的是 `internal/domain/event/account_test.go`（Go 1.27 改了多值 `return` 中 composite literal 的縮排）
+- [ ] [Fix] `go vet ./internal/... ./cmd/...` 回報 `internal/services/pipelines/factory/base.go:153`、`period.go:53` 的 `fmt.Errorf` 結果未使用：錯誤建立後沒有回傳，對應的檢查不會生效。另外 `internal/repos/unit_of_work/event_store/checkpoint.go:16` 與上方的 `db_transaction.go` 一樣以未具名欄位建立 `UpsertCheckpointParams`。2026-10-27 升級 Go 1.27.3 時確認，1.26.9 對升級前的 HEAD 結果相同；先確認舊 pipeline 這兩處的預期行為再修正
+- [ ] [DX] `go.mod` 沒有 tidy：`go mod tidy -diff` 顯示 `github.com/google/uuid`、`onsi/ginkgo/v2`、`onsi/gomega`、`xuri/excelize/v2` 是直接依賴卻標為 `// indirect`，`go.sum` 也有多餘與缺少的項目。2026-10-27 升級 Go 1.27.3 時發現；以 Go 1.26.9 對升級前的 HEAD 執行也相同，不是升級造成的。以獨立 commit 執行 `go mod tidy` 並跑全套測試
 
 **測試規範一致性**
 

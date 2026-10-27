@@ -234,7 +234,7 @@ F10 依 `ISSUES.md` 以小幅修改實作與 review，實作計畫另行確認�
 
 ## 5. 驗證與文件
 
-**驗證**：每段依 `doc/NOTES.md` 測試第 3 點的 Docker 流程（`golang:1.26.9`、900 MB 記憶體上限）執行：
+**驗證**：每段依 `doc/NOTES.md` 測試第 3 點的 Docker 流程（900 MB 記憶體上限）執行；段 1、段 2 使用 `golang:1.26.9`，2026-10-27 升級後使用 `golang:1.27.3`：
 - `go generate ./...`、`go build ./...`
 - 修改到的套件執行 `go vet`
 - `go test -vet=off ./...`

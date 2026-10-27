@@ -2,7 +2,7 @@
 
 Akatengu 是一套會計管理系統，採前後端分離開發、單一後端部署：
 
-- `backend/`：Go 1.26、`net/http`、SQLite、sqlc，以及事件溯源（Event Sourcing）
+- `backend/`：Go 1.27、`net/http`、SQLite、sqlc，以及事件溯源（Event Sourcing）
 - `frontside/`：Svelte 5、TypeScript、Vite；正式建置產物會寫入後端的嵌入式靜態資源目錄
 
 ## 專案結構
