@@ -2,7 +2,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| 狀態 | ⏳ 待 review |
+| 狀態 | ✅ review 通過（2026-10-27），實作中；進度見 `doc/STEP.md` 的 R3 子階段 |
 | 建立日期 | 2026-10-27 |
 | 最後修訂 | 2026-10-27：依 review 修訂兩處。(1) D3：舊 projection 與 BFS 共用 `CreateLedgerAccount` 查詢與 mapper（`repos/unit_of_work/event_store/projection_repo/account.go:50`、`persistence/repos/projection/account.go:35`）。若直接修改這個查詢，舊 projection 沒有設定 `LedgerId`，重新產生 mapper 後會寫入 0，舊 replay 重播第二個明細帳戶時就會撞主鍵。改為 BFS 另外新增可以指定 ID 的查詢，原查詢不動，段 1 補上舊 replay 重播兩個明細帳戶的情境。(2) D9：`transaction.cf_category_updated` 的 handler 必須查到有效的交易與分錄（`process/cashflow.go:30-55`），這組前置資料只能以 SQL 建立。改為明列前置資料，以 BFS 寫入前後的差異找出清空範圍，並驗證前置的交易與分錄不變 |
 | 分支 | `refactor`（基準 commit `9b18ba6`） |

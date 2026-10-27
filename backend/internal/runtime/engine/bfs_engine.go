@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type BFSEngine struct {
@@ -103,6 +104,15 @@ func (e *BFSEngine) terminal(tx *repos.DbTransaction, versions aggregateVersions
 		if err != nil {
 			// Pass through the result so callers can inspect r.Policy.
 			return r, err
+		}
+		if r.Payload != nil {
+			// The event records what the handler decided, such as an ID it
+			// allocated, so a rebuild applies the same values (BFS R3 D3).
+			if reflect.TypeOf(r.Payload) != reflect.TypeOf(ev.Payload) {
+				return r, kerrors.NewRuntimeError(kerrors.ErrResultPayloadInvalid, ev,
+					fmt.Errorf("handler returned payload %T for %T", r.Payload, ev.Payload))
+			}
+			ev.Payload = r.Payload
 		}
 		if tx == nil {
 			return r, nil

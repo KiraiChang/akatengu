@@ -9,6 +9,7 @@ import (
 	"akatengu/internal/persistence/repos"
 	"akatengu/internal/shared/utils"
 	"context"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -126,13 +127,18 @@ func (c *accountProjector) applyAccountUpdated(ctx context.Context, tx *repos.Db
 }
 
 // applyLedgerCreated names the ledger account after its creation event's UUID,
-// the same as the legacy projection (BFS R2 D12).
+// the same as the legacy projection (BFS R2 D12), and writes it under the
+// ledger_id the event recorded (BFS R3 D3).
 func (c *accountProjector) applyLedgerCreated(ctx context.Context, tx *repos.DbTransaction, evt event.Event) error {
 	p, err := checkAndGetPayload[event_payload.LedgerAccountCreatePayload](&evt)
 	if err != nil {
 		return err
 	}
+	if p.LedgerId <= 0 {
+		return fmt.Errorf("ledger_account.created %s has no ledger_id", evt.Uuid)
+	}
 	return tx.Projection.CreateLedgerAccount(ctx, dbprojection.LedgerAccount{
+		LedgerId:    p.LedgerId,
 		MerchantID:  evt.MerchantID,
 		LedgerUuid:  evt.Uuid,
 		AccountId:   p.AccountId,

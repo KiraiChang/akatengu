@@ -68,6 +68,9 @@ func (s *stubAccountRepo) GetAllLedgers(_ context.Context) ([]projection.LedgerA
 func (s *stubAccountRepo) GetLedgerByUuid(_ context.Context, _ string) (*projection.LedgerAccount, error) {
 	return s.ledger, s.ledgerErr
 }
+func (s *stubAccountRepo) NextLedgerID(_ context.Context) (int64, error) {
+	return 0, nil
+}
 
 var _ query.AccountRepo = (*stubAccountRepo)(nil)
 

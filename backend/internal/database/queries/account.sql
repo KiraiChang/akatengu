@@ -50,6 +50,12 @@ SELECT ledger_id, ledger_uuid, account_id, institution, name, type,
 FROM ledger_accounts
 WHERE ledger_uuid = @ledger_uuid AND merchant_id = @merchant_id;
 
+-- name: GetNextLedgerID :one
+-- ledger_id is the primary key across merchants, so the next one is taken
+-- over all of them, as SQLite assigns a rowid (BFS R3 D3).
+SELECT CAST(COALESCE(MAX(ledger_id), 0) + 1 AS INTEGER) AS next_ledger_id
+FROM ledger_accounts;
+
 -- name: GetAllLedgers :many
 SELECT ledger_id, ledger_uuid, account_id, institution, name, type,
        account_no, currency, credit_limit, billing_day, due_day,
@@ -106,6 +112,13 @@ WHERE account_id = ? AND merchant_id = ? AND version = ?;
 INSERT INTO ledger_accounts
     (merchant_id, ledger_uuid, account_id, institution, name, type, account_no, currency, credit_limit, billing_day, due_day, is_active, note, version, updated_by)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);
+
+-- name: CreateLedgerAccountWithID :exec
+-- BFS writes the ledger_id recorded in ledger_account.created, so a rebuild
+-- keeps the ID (BFS R3 D3); the legacy projection keeps CreateLedgerAccount.
+INSERT INTO ledger_accounts
+    (ledger_id, merchant_id, ledger_uuid, account_id, institution, name, type, account_no, currency, credit_limit, billing_day, due_day, is_active, note, version, updated_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);
 
 -- name: UpdateLedgerAccount :execrows
 UPDATE ledger_accounts

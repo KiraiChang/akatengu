@@ -83,7 +83,12 @@ func TestAccountPayloads_LegacyJSON(t *testing.T) {
 			payload.AccountBulkImportedPayload{Accounts: []payload.AccountCreatePayload{oldCreate}})
 	})
 	t.Run("ledger_account.created", func(t *testing.T) {
-		expectSameJSON(t, newLedger, oldLedger)
+		// BFS R3 D3: the BFS payload adds the ledger_id its handler allocates.
+		// The legacy type ignores it; a legacy payload has none, so the BFS
+		// projector rejects it.
+		withID := newLedger
+		withID.LedgerId = 7
+		expectJSONWithLedgerID(t, withID, oldLedger)
 	})
 	t.Run("ledger_account.updated", func(t *testing.T) {
 		expectSameJSON(t, domainevent.LedgerAccountUpdatedPayload{
@@ -98,6 +103,43 @@ func TestAccountPayloads_LegacyJSON(t *testing.T) {
 			Note: oldLedger.Note, Version: 2, Type: oldLedger.Type,
 		})
 	})
+}
+
+// expectJSONWithLedgerID checks that the JSON of the BFS payload n is the one
+// of the legacy payload o plus n's ledger_id, and that the legacy type decodes
+// it to o.
+func expectJSONWithLedgerID(t *testing.T, n domainevent.LedgerAccountCreatePayload, o payload.LedgerAccountCreatePayload) {
+	t.Helper()
+	newJSON, err := json.Marshal(n)
+	if err != nil {
+		t.Fatalf("marshal %T: %v", n, err)
+	}
+	oldJSON, err := json.Marshal(o)
+	if err != nil {
+		t.Fatalf("marshal %T: %v", o, err)
+	}
+	var newFields, oldFields map[string]any
+	if err := json.Unmarshal(newJSON, &newFields); err != nil {
+		t.Fatalf("unmarshal BFS JSON: %v", err)
+	}
+	if err := json.Unmarshal(oldJSON, &oldFields); err != nil {
+		t.Fatalf("unmarshal legacy JSON: %v", err)
+	}
+	if newFields["ledger_id"] != float64(n.LedgerId) {
+		t.Errorf("ledger_id = %v, want %d", newFields["ledger_id"], n.LedgerId)
+	}
+	delete(newFields, "ledger_id")
+	if !reflect.DeepEqual(newFields, oldFields) {
+		t.Fatalf("JSON without ledger_id differs:\n new %s\n old %s", newJSON, oldJSON)
+	}
+
+	var gotOld payload.LedgerAccountCreatePayload
+	if err := json.Unmarshal(newJSON, &gotOld); err != nil {
+		t.Fatalf("legacy type decodes BFS JSON: %v", err)
+	}
+	if !reflect.DeepEqual(gotOld, o) {
+		t.Errorf("legacy type decoded %#v, want %#v", gotOld, o)
+	}
 }
 
 // expectSameJSON checks that the BFS payload n and the legacy payload o of the

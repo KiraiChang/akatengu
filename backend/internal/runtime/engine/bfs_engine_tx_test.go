@@ -26,8 +26,9 @@ import (
 // txRecorder lets the handlers of a scenario report what they saw.
 type txRecorder struct {
 	cancel     context.CancelFunc
-	childCalls int // typeB handler calls
-	rootFound  int // root events found by queryRoot
+	childCalls int      // typeB handler calls
+	rootFound  int      // root events found by queryRoot
+	projected  []string // Note of each payload the projector applied
 }
 
 var errTxChild = errors.New("r1 child handler failed")
@@ -135,6 +136,33 @@ func queryRoot(rec *txRecorder) mediator.HandlerFunc {
 	}
 }
 
+// enrichRoot returns the root's payload with Note set, and one typeB child.
+func enrichRoot(_ *txRecorder) mediator.HandlerFunc {
+	return func(_ context.Context, _ *query.Repo, evt event.Event) (result.EventResult, error) {
+		p := evt.Payload.(testPayload)
+		p.Note = txEnrichedNote
+		return result.EventResult{Payload: p, Events: []event.Event{childOf(evt)}}, nil
+	}
+}
+
+// otherTestPayload is not the type of the root's payload.
+type otherTestPayload struct{ Note string }
+
+func enrichWithOtherType(_ *txRecorder) mediator.HandlerFunc {
+	return func(_ context.Context, _ *query.Repo, _ event.Event) (result.EventResult, error) {
+		return result.EventResult{Payload: otherTestPayload{Note: txEnrichedNote}}, nil
+	}
+}
+
+// expectEnrichedRoot checks that event_store and the projector got the root's
+// enriched payload, and the child's own payload.
+func expectEnrichedRoot(rec *txRecorder, db *sqlx.DB) {
+	var payloads []string
+	Expect(db.Select(&payloads, `SELECT payload FROM event_store ORDER BY event_id`)).To(Succeed())
+	Expect(payloads).To(Equal([]string{`{"note":"` + txEnrichedNote + `"}`, `{}`}))
+	Expect(rec.projected).To(Equal([]string{txEnrichedNote, ""}))
+}
+
 func expectChildCalls(n int) func(*txRecorder, *sqlx.DB) {
 	return func(rec *txRecorder, _ *sqlx.DB) {
 		Expect(rec.childCalls).To(Equal(n))
@@ -168,7 +196,10 @@ func expectChildEnvelope(_ *txRecorder, db *sqlx.DB) {
 
 // txProjector handles typeA and typeB; its checkpoint shows whether the
 // projector writes of a Run were committed.
-type txProjector struct{ failOnB bool }
+type txProjector struct {
+	failOnB bool
+	rec     *txRecorder
+}
 
 func (p *txProjector) Name() string { return "r1TxProjector" }
 
@@ -179,6 +210,9 @@ func (p *txProjector) EventTypes() []event_types.EventType {
 func (p *txProjector) Apply(_ context.Context, _ *repos.DbTransaction, evt event.Event) error {
 	if p.failOnB && evt.EventType == typeB {
 		return errors.New("r1 projector failed")
+	}
+	if tp, ok := evt.Payload.(testPayload); ok && p.rec != nil {
+		p.rec.projected = append(p.rec.projected, tp.Note)
 	}
 	return nil
 }
@@ -239,7 +273,7 @@ var _ = Describe("BFSEngine Run with a DB: event graph transaction and child eve
 			med.Register(typeB, child(rec))
 
 			projectors := handle.NewRegistry()
-			projectors.Register(&txProjector{failOnB: s.failProjectorOnB})
+			projectors.Register(&txProjector{failOnB: s.failProjectorOnB, rec: rec})
 
 			middlewares := s.middlewares
 			if middlewares == nil {

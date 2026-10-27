@@ -67,6 +67,35 @@ func EventAccountUpdatedHandle() mediator.HandlerFunc {
 }
 
 // ----------------------------------
+// EventLedgerAccountCreated
+// ----------------------------------
+
+// EventLedgerAccountCreatedHandle allocates the ledger_id inside the Run's
+// transaction and records it in the event, replacing any value the client
+// sent, so a rebuild writes the ledger account back under the same ID
+// (BFS R3 D3).
+func EventLedgerAccountCreatedHandle() mediator.HandlerFunc {
+	return func(ctx context.Context, repo *query.Repo, evt event.Event) (result.EventResult, error) {
+		result := result.EventResult{}
+		p, err := checkAndGetPayload[event_payload.LedgerAccountCreatePayload](evt)
+		if err != nil {
+			return result, err
+		}
+		if err := p.Validate(); err != nil {
+			return result, kerrors.NewBusinessError(kerrors.ErrPayloadInvalid, evt, err)
+		}
+
+		id, err := repo.Account.NextLedgerID(ctx)
+		if err != nil {
+			return result, kerrors.NewInfrastructureError(kerrors.ErrStoreReadFailed, evt, fmt.Errorf("next ledger_id: %w", err))
+		}
+		p.LedgerId = id
+		result.Payload = *p
+		return result, nil
+	}
+}
+
+// ----------------------------------
 // EventLedgerAccountUpdated
 // ----------------------------------
 

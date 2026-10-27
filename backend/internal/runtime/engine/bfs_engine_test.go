@@ -21,7 +21,12 @@ import (
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-type testPayload struct{ typ event_types.EventType }
+// Note is the only exported field, so it is all event_store keeps of the
+// payload; the BFS R3 D3 scenarios set it to check the enriched payload.
+type testPayload struct {
+	typ  event_types.EventType
+	Note string `json:"note,omitempty"`
+}
 
 func (p testPayload) EventType() event_types.EventType { return p.typ }
 

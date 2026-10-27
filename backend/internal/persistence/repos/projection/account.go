@@ -31,8 +31,10 @@ func (r *sqlxProjection) UpsertAccount(ctx context.Context, p dbprojection.Accou
 	return r.q.UpsertAccount(ctx, p.ToUpsertAccountParams())
 }
 
+// CreateLedgerAccount writes p.LedgerId instead of letting SQLite assign it
+// (BFS R3 D3); the legacy projection keeps its own query.
 func (r *sqlxProjection) CreateLedgerAccount(ctx context.Context, p dbprojection.LedgerAccount) error {
-	return r.q.CreateLedgerAccount(ctx, p.ToCreateLedgerAccountParams())
+	return r.q.CreateLedgerAccountWithID(ctx, p.ToCreateLedgerAccountWithIDParams())
 }
 
 // UpdateLedgerAccount is versioned as UpdateAccount.

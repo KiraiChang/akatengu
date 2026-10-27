@@ -107,8 +107,12 @@ func (p AccountUpdatedPayload) Validate() error {
 	return joinErrors(errs)
 }
 
-// LedgerAccountCreatePayload is the payload for ledger_account.created
+// LedgerAccountCreatePayload is the payload for ledger_account.created.
+// LedgerId is allocated by the mediator handler, replacing any value the
+// client sent, and recorded so a rebuild keeps the ID (BFS R3 D3); the legacy
+// payload has no such field.
 type LedgerAccountCreatePayload struct {
+	LedgerId    int64                   `json:"ledger_id"`
 	AccountId   string                  `json:"account_id"`
 	Institution string                  `json:"institution"`
 	Name        string                  `json:"name"`

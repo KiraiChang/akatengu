@@ -14,7 +14,7 @@
 | R0 | 交易內查詢：讓 `query.Repo` 可綁定 `sqlx.Tx` | ✅ done（2026-10-21） |
 | R1 | engine 基礎：事件圖一個交易（A1）、子事件封套與版本規則（A2）、handler 改用 `Run` 建立的交易內查詢、移除 projector 的 `state` 參數、建立事件註冊表 | ✅ done（2026-10-21） |
 | R2 | 主檔與設定（含 `BootstrapEventSeeds`）、期間開帳改走 BFS；`POST /api/event/append` 依註冊表派送 | ✅ done（2026-10-22） |
-| R3 | BFS 重建機制：只跑 projector、以 `Reset()` 宣告清空範圍、單商戶原子重建（A4）；尚不對外 | ⬜ pending |
+| R3 | BFS 重建機制：只跑 projector、以 `Reset()` 宣告清空範圍、單商戶原子重建（A4）；尚不對外 | 🚧 in progress（段 1 完成） |
 | R4 | 傳票 `transaction.*` 與 `journal.posted` 子事件；每筆交易各自一個 aggregate（A5） | ⬜ pending |
 | R5 | 期間結帳與重開（月結、年結） | ⬜ pending |
 | R6 | 銀行範本、匯入改走 BFS；比對與忽略事件化（ADR-026）；更新過渡規則中的 ADR-021 例外 | ⬜ pending |
@@ -257,7 +257,42 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
   - migration 不沿用 `20260614001` 的「`_new` → 改名」，改採 F9 的同名重建並保存 AUTOINCREMENT 計數（`doc/NOTES.md` 資料庫第 3、4 點）。
   - handler 的通用 API 情境新增 `wantPeriod` 欄位。
 
-R2 全部完成（段 1～5）。下一步為 R3（BFS 重建機制），計畫書：`doc/plan/BFS_R3_REBUILD.md`（2026-10-27 撰寫，待 review）；ISSUE-031 依其 D3 處理。子階段在實作開始時展開。
+R2 全部完成（段 1～5）。
+
+### R3 子階段
+
+計畫書：`doc/plan/BFS_R3_REBUILD.md`（2026-10-27 review 通過，commit `3deb84a`）。各段連同自己的測試完成，依 1 → 3 各自 review、commit。三段修改的檔案都超過 5 個，各自再分為三個 phase，每個 phase 完成後執行 `go build ./...`；同一段的三個 phase 完成後一起 review、commit。段 2、段 3 的 phase 在開始時展開。
+
+| 段 | 說明 | 狀態 |
+|----|------|------|
+| 1a | engine：`EventResult.Payload`，handler 回傳的補充後 payload 在寫入前取代原本的 payload，型別不同時回傳新的錯誤代碼（D3）；engine 測試情境 1～3 | ✅ done（2026-10-27） |
+| 1b | `ledger_account.created`：payload 新增 `ledger_id`；唯讀查詢 `GetNextLedgerID`；handler 在交易內配置 ID；projector 改用 BFS 專用的 `CreateLedgerAccountWithID`。舊的 `CreateLedgerAccount` 不修改（D3） | ✅ done（2026-10-27） |
+| 1c | 測試：調整 R2 的契約測試；新增情境 4～8，含舊 replay 重播兩個明細帳戶 | ✅ done（2026-10-27） |
+| 2 | `Reset`（D1、D9） | ⬜ pending |
+| 3 | `Rebuild`（D2、D4～D8、D10） | ⬜ pending |
+
+段 1 驗證（2026-10-27，Docker `golang:1.26.9`）：
+- **建置與格式**：
+  - `go generate ./...`、`go build ./...` 通過（1a、1b、1c 各自執行）。
+  - `go vet` 通過：`kernel/...`、`runtime/engine`、`process`、`persistence/handle`、`persistence/repos/projection`、`repos/query`、`domain/event`、`application/command`。`services/pipelines/factory` 只回報既有的 `base.go:153`、`period.go:53`（`fmt.Errorf` 的結果未使用），本段沒有修改這兩個檔案。
+  - 修改與新增的 17 個 Go 檔 `gofmt -l` 無輸出；`git diff --check` 無輸出。
+- **測試**（計畫書段 1 的情境）：
+  - 情境 1～3：`runtime/engine` 49 個 spec 通過。新增 2 個（補充後的 payload、型別不同）；既有的 47 個即情境 3。
+  - 情境 4～6：`TestDispatchLegacy_LedgerCreatedRecordsID` 的 3 個子測試通過。
+  - 情境 7：`TestAccountPayloads_LegacyJSON` 的 `ledger_account.created` 改為檢查「舊 JSON 加上 `ledger_id`」，以及舊型別可以解碼；其餘 4 種不變。
+  - 情境 8：`TestReplay_TwoLedgerAccounts` 通過。
+  - `go test -vet=off ./...` 全數通過。
+- **反向檢查**（在容器副本中修改）：
+  - `terminal` 忽略補充後的 payload → engine 的補充情境失敗，情境 4～6 失敗。其中情境 6 直接使用前端送來的 99。
+  - handler 不配置 ID、改由資料庫配置 → 情境 4～6 失敗（事件的 `ledger_id` 為 0 或 99）。
+  - 共用的 `CreateLedgerAccount` 加入 `ledger_id`，並重新 `go generate` → 情境 8 失敗（`UNIQUE constraint failed: ledger_accounts.ledger_id`，即 review P1）。
+- **計畫外的修改**：
+  - `services/pipelines/factory/asset_test.go` 的 `stubAccountRepo` 實作整個 `query.AccountRepo`，補上 `NextLedgerID`。
+  - engine 測試的 `testPayload` 新增匯出欄位 `Note`（`omitempty`，既有事件的 JSON 不變）；`txProjector` 記錄它套用的 payload。
+  - ADR-028 在本段寫入（計畫書第 5 節原列為「實作時」）。
+- **與計畫書的差異**：
+  - 錯誤代碼命名為 `ErrResultPayloadInvalid`。
+  - 情境 5 改為「商戶 1 已有 1、商戶 2 已有 2，商戶 1 再建立一個 → 3」，同時涵蓋兩個商戶。
 
 ## 最終驗證結果
 

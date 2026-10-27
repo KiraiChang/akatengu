@@ -25,6 +25,7 @@ const (
 	txAggType       = "TRANSACTION"
 	txTypeA         = "transaction.created"
 	txTypeB         = "transaction.corrected"
+	txEnrichedNote  = "r3-enriched"
 )
 
 // txDerivedAggID is the aggregate NewDerivedEvent creates from the root event.
@@ -303,5 +304,22 @@ var txScenarios = []txScenario{
 		wantEvents:      []txEventRow{txRootAt(4), txSameEvent(5)},
 		wantVersions:    []txVersionRow{txRootVersion(5)},
 		wantCheckpoints: 1,
+	},
+	{
+		given:           "根事件的 handler 回傳補充後的 payload（同型別），並產生一個同 aggregate 的子事件",
+		when:            "Run",
+		then:            "event_store 與 projector 都取得根事件補充後的 payload；子事件的 payload 不受影響",
+		rootHandler:     enrichRoot,
+		wantEvents:      []txEventRow{txRootV1, txSameEvent(2)},
+		wantVersions:    []txVersionRow{txRootVersion(2)},
+		wantCheckpoints: 1,
+		verify:          expectEnrichedRoot,
+	},
+	{
+		given:       "根事件的 handler 回傳不同型別的 payload",
+		when:        "Run",
+		then:        "回傳 ErrResultPayloadInvalid，不寫入事件與版本紀錄",
+		rootHandler: enrichWithOtherType,
+		wantCode:    kerrors.ErrResultPayloadInvalid,
 	},
 }

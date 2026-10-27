@@ -19,6 +19,9 @@ type AccountRepo interface {
 	GetLedgerPaged(ctx context.Context, req model.PaginationParams) ([]projection.LedgerAccount, int64, error)
 	GetAllLedgers(ctx context.Context) ([]projection.LedgerAccount, error)
 	GetLedgerByUuid(ctx context.Context, uuid string) (*projection.LedgerAccount, error)
+	// NextLedgerID is the ledger_id of the next ledger account; ledger IDs are
+	// shared by all merchants (BFS R3 D3).
+	NextLedgerID(ctx context.Context) (int64, error)
 }
 
 type sqlxAccountRepo struct {
@@ -166,6 +169,10 @@ func (r *sqlxAccountRepo) GetLedgerByUuid(ctx context.Context, uuid string) (*pr
 	}
 	la := projection.LedgerAccountFromGetLedgerByUuidRow(row)
 	return &la, nil
+}
+
+func (r *sqlxAccountRepo) NextLedgerID(ctx context.Context) (int64, error) {
+	return r.q.GetNextLedgerID(ctx)
 }
 
 func (r *sqlxAccountRepo) GetLedger(ctx context.Context, id int64) (*projection.LedgerAccount, error) {

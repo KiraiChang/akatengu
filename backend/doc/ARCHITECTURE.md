@@ -47,6 +47,7 @@
 | [ADR-025](#adr-025-以單商戶原子交易重建讀模型) | 以單商戶原子交易重建讀模型 | Accepted | 2026-10-21 |
 | [ADR-026](#adr-026-銀行對帳狀態事件化並取代-adr-021) | 銀行對帳狀態事件化並取代 ADR-021 | Accepted（分階段生效：R6 比對與忽略，R7 核准） | 2026-10-21 |
 | [ADR-027](#adr-027-bfs-遷移期間沿用通用寫入-api-並由後端決定版本策略) | BFS 遷移期間沿用通用寫入 API 並由後端決定版本策略 | Accepted | 2026-10-21 |
+| [ADR-028](#adr-028-被引用的整數-id-由建立事件記錄) | 被引用的整數 ID 由建立事件記錄 | Accepted | 2026-10-27 |
 
 ---
 
@@ -1062,6 +1063,35 @@
 - **後果**：
   - 正面：遷移期間前端不需修改；既有的畫面版本檢查保留，業務版本檢查補上（F6）；同一份註冊表同時供 API 派送與重建使用。
   - 負面：「交易內」版本策略失去共用 aggregate 上「取得版本到送出」之間的衝突偵測（規則第 4 點）；前端必須持續送出舊映射的 aggregate 欄位，屬於跨端限制（frontside ADR-013）；註冊表需要隨每個遷移 Phase 維護。
+
+---
+
+## ADR-028 被引用的整數 ID 由建立事件記錄
+
+- **狀態**：Accepted
+- **日期**：2026-10-27
+- **背景**：
+  讀模型多以 SQLite 配置的整數 ID 為主鍵，例如 `ledger_accounts.ledger_id` 是 `INTEGER PRIMARY KEY`。之後的事件與直接寫入的資料又以這個整數引用它（ISSUE-031）：
+  - 事件：`ledger_account.updated` 以 `ledger_id` 指定明細帳戶；R4～R9 的傳票、投資、銀行對帳 payload 也以整數 ID 引用（`doc/plan/BFS_R3_REBUILD.md` 1.2 第 8 點）。
+  - 直接寫入的資料：交易範本 `transaction_template_entries.ledger_id` 不在重建範圍內，重建不會改寫它。
+  - 前端：24 個檔案以 `ledger_id` 識別明細帳戶。
+
+  單商戶重建（ADR-025 A4）時，其他商戶保留的 ID 會讓重新寫入的 ID 改變，上述引用就會對不上。R3 計畫書的 D3 比較了三種做法。
+
+- **決策**：
+  被其他事件或直接寫入的資料引用的整數 ID，由 mediator handler 在 `Run` 的交易內配置，記錄在建立事件的 payload 中；projector 以這個 ID 寫入，重建時寫回相同的 ID。
+  1. engine 允許 handler 以 `EventResult.Payload` 回傳它所處理事件的補充後 payload，在寫入前取代原本的 payload；型別必須相同，不同時回傳 `ErrResultPayloadInvalid`（`runtime/engine/bfs_engine.go` 的 `terminal`）。這也是 ADR-023 原則 1「handler 把 projector 需要的資料寫進事件」的做法。
+  2. 配置方式與 SQLite 為該表配置 ID 的方式相同，範圍是全部商戶：沒有 AUTOINCREMENT 的 `INTEGER PRIMARY KEY` 取全表的 `MAX + 1`。前端送來的值一律覆寫。有 AUTOINCREMENT 的表，在遷移它的 Phase 另行決定配置方式。
+  3. BFS 以另外的查詢寫入明確的 ID；舊 projection 共用的查詢不修改。舊 projection 不會設定 ID，若共用查詢加入 ID，舊 replay 會寫入 0 而撞主鍵。
+  4. 目前適用於 `ledger_account.created` 的 `ledger_id`（R3 段 1）。R4 的交易 ID、R5 的 `closing_id`、R6 的銀行對帳 ID，在各自的 Phase 依本規則處理（`TODO.md`）。
+
+- **替代方案**：
+  - (b) 重建前讀出 UUID → 整數 ID 的對照，重建時沿用：projector 在重建與寫入時的行為不同；R10 匯入時也沒有舊的讀模型可以對照。不採用。
+  - (c) 事件改以 UUID 引用：前端 24 個檔案與交易範本都要修改；整數 ID 仍會在重建後改變，交易範本會指到錯的資料。不採用。
+
+- **後果**：
+  - 正面：重建後整數 ID 不變，事件、直接寫入的資料與前端的引用都維持正確；匯入時 ID 隨事件帶入。
+  - 負面：`ledger_account.created` 的 payload 多一個欄位，通用 API 回應中的事件 payload 跟著改變（前端不使用）。本規則之前寫入的事件沒有 ID，新的重建機制會拒絕（R3 的 D5）。R10 匯入到另一個 DB 時，ID 可能與其他商戶衝突，需要在清除資料前檢查。
 
 ---
 

@@ -12,5 +12,9 @@ type Policy struct {
 
 type EventResult struct {
 	Events []event.Event
-	Policy Policy // error-handling policy; zero value = not retryable, not fatal
+	// Payload, when set, replaces the payload of the event the handler handled
+	// before the event is written, so the event records what the handler
+	// decided (ADR-023 principle 1, BFS R3 D3). It must have the same type.
+	Payload any
+	Policy  Policy // error-handling policy; zero value = not retryable, not fatal
 }

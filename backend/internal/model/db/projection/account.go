@@ -34,6 +34,7 @@ type Account struct {
 
 //dbmap:sqlcdb=LedgerAccount
 //dbmap:sqlcdb=CreateLedgerAccountParams
+//dbmap:sqlcdb=CreateLedgerAccountWithIDParams
 //dbmap:sqlcdb=UpdateLedgerAccountParams
 //dbmap:sqlcdb=GetLedgerPagedRow
 //dbmap:sqlcdb=GetLedgerRow

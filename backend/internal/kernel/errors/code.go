@@ -29,6 +29,10 @@ const ErrChildEnvelopeInvalid EventErrorCode = "RUNTIME_CHILD_ENVELOPE_INVALID"
 // (ADR-027 rule 4).
 const ErrRootEnvelopeInvalid EventErrorCode = "RUNTIME_ROOT_ENVELOPE_INVALID"
 
+// ErrResultPayloadInvalid: a handler returned a payload whose type is not the
+// one of the event it handled (BFS R3 D3).
+const ErrResultPayloadInvalid EventErrorCode = "RUNTIME_RESULT_PAYLOAD_INVALID"
+
 // ========== BUSINESS LAYER ==========
 const (
 	ErrBusinessRuleFailed EventErrorCode = "BUSINESS_RULE_FAILED"
