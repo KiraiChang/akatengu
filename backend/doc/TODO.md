@@ -55,7 +55,10 @@
 - [x] [Fix] 通用寫入 API 仍可經舊路徑寫入已遷移到 BFS 的現金流分類事件 — 計畫書 F7，完成日期：2026-10-22，關聯：ISSUE-028
 - [x] [Fix] 預付與固定資產類別的第二次修改或刪除必定失敗 — 計畫書 F8，完成日期：2026-10-22，關聯：ISSUE-029
 - [x] [Fix] 不同商戶無法開立同一期間 — 計畫書 F9，完成日期：2026-10-22，關聯：ISSUE-030
-- [ ] [Fix] 單商戶重建後整數 `ledger_id` 改變，引用它的事件重播失敗 — 由 R3 的計畫處理並列入驗收（舊 replay 不修正），關聯：ISSUE-031
+- [ ] [Fix] 單商戶重建後整數 `ledger_id` 改變，引用它的事件重播失敗 — 由 R3 的計畫處理並列入驗收（舊 replay 不修正；做法見 `doc/plan/BFS_R3_REBUILD.md` 的 D3），關聯：ISSUE-031
+- [ ] [Fix] 不同商戶無法建立同一代號與幣別的投資 — 計畫書 F10，R9 之前必須完成，關聯：ISSUE-034
+- [ ] [Fix] SQL 種子直接寫入讀模型，種子檔之後新增的科目沒有事件，由事件重建時遺失 — R10 之前處理，關聯：ISSUE-035
+- [ ] [Refactor] 其他被事件 payload 引用的整數 ID，依 R3 計畫書 D3 的規則由建立事件記錄：R4 交易 ID、R5 `closing_id`（開帳事件記錄）、R6 銀行對帳的 `bank_txn_id`、`matched_entry_id`、`created_txn_id`、`template_id`。各 Phase 開始前在計畫書列出（`doc/plan/BFS_R3_REBUILD.md` 1.2 第 8 點）
 - [ ] [Refactor] 重大交易全面改走 BFS engine，並建立只跑 projector 的事件重建機制；新重建機制（R3）的驗收條件需涵蓋 ISSUE-021、ISSUE-022 的要求 — 計畫書 R0～R10，關聯：ADR-023～027
 
 **Replay 穩定性**
@@ -78,7 +81,7 @@
 - [x] [Feature] UoW repos（event.go、version.go、snapshot.go）改從 ctx 取得 merchantID 並傳入 sqlcdb 查詢 — 完成日期：2026-05-26
 - [x] [Feature] query/event.go 的所有 sqlcdb 呼叫加入 MerchantID 參數 — 完成日期：2026-05-26
 - [x] [Security] ISSUE-013：TruncateProjections 加入 merchant_id 隔離，補入遺漏表並移除 sqlite_sequence 重置 — 完成日期：2026-05-26，關聯：ISSUE-013
-- [ ] [Fix] 盤點其他資料表的唯一鍵是否缺少 `merchant_id`（`period_closings` 已發現，見 ISSUE-030）；需在 R3（單商戶重建）之前完成，關聯：ISSUE-030
+- [x] [Fix] 盤點其他資料表的唯一鍵是否缺少 `merchant_id`（`period_closings` 已發現，見 ISSUE-030）；需在 R3（單商戶重建）之前完成，完成日期：2026-10-27（R3 計畫書 1.2 第 5 點：只有 `investments(symbol, currency)` 有問題，登錄為 ISSUE-034、F10），關聯：ISSUE-030、ISSUE-034
 
 **預付費用 & 固定資產（Prepaid & Fixed Asset）**
 

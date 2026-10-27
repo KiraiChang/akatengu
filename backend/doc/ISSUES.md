@@ -752,6 +752,8 @@
 - **解決方向**：
   舊 replay 不修正（Wontfix，同 ISSUE-021、022 的決定）。R3 的計畫必須處理並列入驗收，例如重建時保留原本的整數 ID，或事件改以 `ledger_uuid` 引用（屬於 payload 變更，需另行規劃）。R2 不修改 payload，也不承諾舊 `Replay` 的重建結果（`doc/plan/BFS_R2_MASTER_DATA.md` 的 D12）。
 
+  2026-10-27 R3 計畫書（`doc/plan/BFS_R3_REBUILD.md` 的 D3，待 review）建議由建立事件記錄 `ledger_id`：handler 在交易內配置，projector 以明確的 ID 新增，重建時寫回相同的 ID。不採用改以 `ledger_uuid` 引用的原因：交易範本 `transaction_template_entries.ledger_id` 是不在重建範圍內的直接寫入資料，`ledger_id` 必須在重建後維持不變。
+
 ---
 
 ### [ISSUE-032] 預設的 DB 連線參數沒有生效：外鍵未開啟、沒有 busy timeout、未使用 WAL
@@ -796,6 +798,40 @@
   這 7 個外鍵從未發揮作用，也無法以 `foreign_key_check` 檢查這些表的引用完整性。若只修正 ISSUE-032 就開啟外鍵，新增科目、分錄、科目快照等寫入都會失敗。
 - **解決方向**：
   改為以 `(account_id, merchant_id)` 引用（`parent_id` 對應 `(parent_id, merchant_id)`），或移除外鍵。SQLite 無法修改既有的外鍵，需要重建這 7 張表（重建做法見 F9 的 D1、D3），並先確認各子表的 `merchant_id` 與父表一致。必須在 ISSUE-032 開啟外鍵之前完成；屬於獨立的 bug fix，計畫另行確認。
+
+  2026-10-27 R3 計畫書盤點：R3 重建範圍內的 `accounts`、`ledger_accounts`、`sys_accounts` 受影響。R3 不等本 issue 修正，重建測試對這 3 個引用改以帶 `merchant_id` 條件的 `LEFT JOIN` 檢查孤兒（`doc/plan/BFS_R3_REBUILD.md` 的 D8）。
+
+---
+
+### [ISSUE-034] 不同商戶無法建立同一代號與幣別的投資
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-27
+- **嚴重程度**：Medium
+- **位置**：`internal/database/migrations/20260310001_init_table.sql:238`（`idx_investments_symbol`）、`internal/database/queries/investment.sql:95`（`CreateInvestment`）
+- **描述**：
+  `investments` 的唯一索引是 `(symbol, currency)`，沒有 `merchant_id`；`CreateInvestment` 是一般的 INSERT。因此一個商戶建立某個代號與幣別的投資後，其他商戶建立相同代號與幣別時，會回傳唯一鍵錯誤。與 ISSUE-030 同類。
+
+  R3 計畫書盤點唯一鍵（`TODO.md`）時發現：在容器內以 Python sqlite3 套用全部 migration 後，列出所有主鍵與唯一索引，只有這個業務鍵缺少 `merchant_id`。其餘缺少 `merchant_id` 的唯一鍵都是全域 UUID，或是由全域整數 ID 組成，不會跨商戶衝突（`doc/plan/BFS_R3_REBUILD.md` 1.2 第 5 點）。本 issue 是依 schema 推導，沒有實際執行寫入。
+- **影響範圍**：
+  多商戶的投資建立，例如兩個商戶都持有同一檔股票。也違反 R9 之後的單商戶重建前提（ADR-025 A4）。
+- **解決方向**：
+  小型 bug fix（計畫書 F10），R9 之前必須完成：以 migration 把唯一索引改為 `(merchant_id, symbol, currency)`。這是獨立的索引，不是資料表內宣告的約束，可以直接 `DROP INDEX` 後重建，不必重建資料表。補測試重現「兩個商戶建立同一代號與幣別的投資」，並確認同一商戶重複建立仍被擋下。F10 的計畫另行確認。
+
+---
+
+### [ISSUE-035] SQL 種子直接寫入讀模型，種子檔之後新增的科目沒有事件
+
+- **狀態**：🔴 Open
+- **日期**：2026-10-27
+- **嚴重程度**：Medium
+- **位置**：`internal/bootstrap/db.go:43-44`、`internal/bootstrap/event_seed.go:45`、`internal/database/seeds/accounts.sql`、`internal/database/seeds/sys_accounts.sql`
+- **描述**：
+  每次啟動都會執行 `accounts.sql`、`sys_accounts.sql`，以 UPSERT 直接寫入商戶 1 的 `accounts`、`sys_accounts`；`accounts.sql` 衝突時還會直接更新 `cash_flow_category`。`bootstrapAccounts` 只在 `('ACCOUNT', "1")` 還沒有事件時，才以資料表的內容建立 `account.bulk_imported`。因此首次啟動之後才加入種子檔的科目或系統科目代碼，只存在讀模型、沒有事件。R3 計畫書盤點時依程式碼確認。
+- **影響範圍**：
+  由事件重建商戶 1 時（R3 的新機制、R10 的 replay 與匯入），這些資料會遺失，要到下次啟動才又直接寫回，仍然沒有事件。違反上層計畫的目標 2（讀模型可由事件全量重建）。不影響 R3 的驗收：測試的 fixture 只執行一次種子。
+- **解決方向**：
+  R10 以新機制取代 replay 之前處理。方向：種子檔不再直接寫入由事件衍生的資料表（只保留 `merchants`、`users` 等直接寫入的資料），科目與系統科目只經事件寫入；種子檔之後的變更，也要以新的種子事件表達。計畫另行確認。
 
 ---
 

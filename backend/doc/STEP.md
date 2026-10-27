@@ -37,6 +37,7 @@
 | F7 | ISSUE-028：通用寫入 API 拒絕已遷移到 BFS 的事件類型 | R2 之前 | ✅ done（2026-10-22） |
 | F8 | ISSUE-029：預付與固定資產類別的第二次修改或刪除必定失敗 | R2 段 4 之前 | ✅ done（2026-10-22） |
 | F9 | ISSUE-030：不同商戶無法開立同一期間 | 建議在 R2 段 5 之前，R3 之前必須 | ✅ done（2026-10-22） |
+| F10 | ISSUE-034：不同商戶無法建立同一代號與幣別的投資 | R9 之前 | ⬜ pending |
 
 F7 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ_F7.md`，一段完成）：`go generate ./...`、`go build ./...`、`go vet`（`services`、`handler`）通過，修改與新增的 4 個檔案 `gofmt -l` 無輸出；`TestAppend_MigratedEventType` 的 4 個情境與 `NewMux POST /api/event/append` 的 2 個 spec 通過；`go test -vet=off ./...` 全數通過。反向檢查（計畫書第 5 節）：移除檢查 → service 情境 1、2、4 與 handler 的已遷移情境失敗；拒絕所有事件類型 → 兩個對照情境失敗；檢查移到 pipeline 之後 → service 情境 4 失敗（回傳 pipeline 的驗證錯誤）。
 
@@ -256,7 +257,7 @@ F8 驗證（2026-10-22，Docker `golang:1.26.9`，計畫書 `doc/plan/BFS_PREREQ
   - migration 不沿用 `20260614001` 的「`_new` → 改名」，改採 F9 的同名重建並保存 AUTOINCREMENT 計數（`doc/NOTES.md` 資料庫第 3、4 點）。
   - handler 的通用 API 情境新增 `wantPeriod` 欄位。
 
-R2 全部完成（段 1～5）。下一步為 R3（BFS 重建機制），開始前需另寫計畫書；R3 必須處理 ISSUE-031（整數 `ledger_id`，計畫書第 8 節）。
+R2 全部完成（段 1～5）。下一步為 R3（BFS 重建機制），計畫書：`doc/plan/BFS_R3_REBUILD.md`（2026-10-27 撰寫，待 review）；ISSUE-031 依其 D3 處理。子階段在實作開始時展開。
 
 ## 最終驗證結果
 
